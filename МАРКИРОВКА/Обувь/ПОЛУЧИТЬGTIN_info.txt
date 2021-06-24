@@ -1,0 +1,1 @@
+{"description":"ПОЛУЧИТЬGTIN (ПРЕДПРИЯТИЕ)","note":"получение ранее запрошенных  GTIN","isLocal":false}

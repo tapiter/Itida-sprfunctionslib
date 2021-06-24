@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ АТОЛДТО10_XОТЧЕТ (КОДОБОРУДОВАНИЯ, FROPERATOR)","note":"Печать X отчета","isLocal":true}

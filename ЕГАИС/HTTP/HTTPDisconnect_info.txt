@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ HTTPDISCONNECT ()","note":"Завершение соединения с HTTP сервером","isLocal":true}

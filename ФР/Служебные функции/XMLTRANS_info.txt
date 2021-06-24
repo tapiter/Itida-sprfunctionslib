@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ XMLTRANS (ТЕКСТ)","note":"Заменяет символы в строке на допустимые в XML","isLocal":true}

@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ HTTPDELETE (MURL, ТЕКСТОШИБКИ)","note":"Отправка команды удаления ресурса на HTTP сервер","isLocal":true}

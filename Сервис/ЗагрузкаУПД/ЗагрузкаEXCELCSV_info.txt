@@ -1,0 +1,1 @@
+{"description":"ЗАГРУЗКАEXCELCSV ()","note":"Загрузка накладных ТОРГР-12 из файлов формате XLSX и CSV","isLocal":false}

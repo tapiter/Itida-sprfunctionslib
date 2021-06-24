@@ -1,0 +1,12 @@
+// Отмена чека
+IF ( !ФР.АТОЛДТО10_ОткрытьФР( КОДОБОРУДОВАНИЯ, "Отмена чека" ) ) RETURN false;
+
+fptr.setParam( fptr.LIBFPTR_PARAM_DATA_TYPE, fptr.LIBFPTR_DT_RECEIPT_STATE );
+fptr.queryData( );
+ТипЧекаККМ = fptr.getParamInt( fptr.LIBFPTR_PARAM_RECEIPT_TYPE );
+IF ( ТипЧекаККМ <> fptr.LIBFPTR_RT_CLOSED )
+{
+	fptr.cancelReceipt();
+}
+ 
+RETURN ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки( "Отмена чека" );

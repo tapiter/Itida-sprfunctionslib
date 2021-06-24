@@ -1,0 +1,23 @@
+ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>ИмяТаблицы1= '#'+ALLTRIM(STR(СЛУЧАЙНОЕЧИСЛО(1)));'
+											  SELECT SUM(ISNULL(reg.kolp_in - reg.kolp_out,0)) AS kolp, reg.nn
+														INTO '+ИмяТаблицы1+' FROM reg_c001_balance reg WHERE DATEDIFF(day, reg.date, ''' + Период_min + ''') > 0 AND reg.sklad = ''' + СкладОстатков + ''' AND reg.account_ = ''' + Учет + '''
+														GROUP BY reg.nn; 
+											  
+											  SELECT  		 ''41.01''										  	  AS СчетУчета,
+															 spr.maincode  										  AS Номенклатура,
+															 (SELECT CASE WHEN ex_code = '''' THEN code ELSE ex_code END FROM sprskl WHERE code = '''+СкладОстатков+''') AS Склад,
+															 temp.kolp											  AS Количество, 
+															 spr.ed												  AS ЕдиницаИзмерения, 															 
+															 (SELECT name FROM sprlistkodn WHERE code= spr.kodn)  AS СтавкаНДС,
+															 0		 											  AS СуммаНДС, 
+															 dbo.fn_calcsklad_incena(spr.code, '''+TTOC(Период_min)+''',
+																			'''+СкладОстатков+''',
+																			''' + Учет + ''') * kolp			  AS Сумма
+																			
+												FROM '+ИмяТаблицы1+' temp
+												INNER JOIN sprres spr ON spr.code = temp.nn
+												WHERE temp.kolp > 0;
+											  DROP TABLE '+ИмяТаблицы1+';'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>НоменклатураНаСкладе</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+
+RETURN ТЕКСТ;

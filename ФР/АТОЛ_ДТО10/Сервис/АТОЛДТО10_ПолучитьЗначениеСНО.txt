@@ -1,0 +1,15 @@
+СНО = "";
+IF ( КодСНО == 1 )
+	СНО = "osn";
+ELSE IF ( КодСНО == 2 )
+	СНО = "usnIncome";
+ELSE IF ( КодСНО == 4 )
+	СНО = "usnIncomeOutcome";	
+ELSE IF ( КодСНО == 8 )
+	СНО = "envd";
+ELSE IF ( КодСНО == 16 )
+	СНО = "esn";	
+ELSE IF ( КодСНО == 32 )
+	СНО = "patent";
+	
+RETURN СНО;

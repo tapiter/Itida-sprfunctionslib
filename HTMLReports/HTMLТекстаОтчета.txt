@@ -1,0 +1,6 @@
+IF ( !ПараметрыЗаданы ) RETURN  "";
+
+IF ( report == "0" ) RETURN HTMLОтчеты.ОстаткиТоваров( storage, CTOD( period_min, 7 ) );
+IF ( report == "1" ) RETURN HTMLОтчеты.ПродажиТоваров( storage, CTOD( period_min, 7 ), CTOD( period_max, 7 ) );
+
+RETURN "";

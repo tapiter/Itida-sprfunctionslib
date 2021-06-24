@@ -1,0 +1,136 @@
+// Печать прочих отчетов
+
+// Параметры - 
+// ТипОтчета число целое, тип требуемого отчета
+// 		Значения:	0 - гашение контрольной ленты	
+//					3 - краткий фискальный отчет по диапазону дат
+//					4 - краткий фискальный отчет по диапазону смен
+//					5 - полный фискальный отчет по диапазону дат
+//					6 - полный фискальный отчет по диапазону смен
+//					7 - отчет о продажах по секциям
+// 					8 - отчет о продажах по кассирам
+// 					9 - отчет о продажах по товарам
+// 					10 - отчет о продажах по часам
+// 					11 - отчет по количеству
+// 					22 - ЭКЛЗ итоги активизации
+// 					23 - ЭКЛЗ итоги смены
+// 					24 - ЭКЛЗ контрольная лента смены
+// 					26 - ЭКЛЗ по датам краткий по отделам
+// 					27 - ЭКЛЗ по датам полный по отделам
+// 					28 - ЭКЛЗ по датам краткий по итогам смен
+// 					29 - ЭКЛЗ по датам полный по итогам смен
+// 					30 - ЭКЛЗ по сменам краткий по отделам
+// 					31 - ЭКЛЗ по сменам полный по отделам
+// 					32 - ЭКЛЗ по сменам краткий по итогам
+// 					33 - ЭКЛЗ по сменам полный по итогам
+//					41 - копия последнего чека
+//					42 - отчет о состоянии расчетов
+//					50 - сверка итогов
+//					100 - печать копии чека по номеру ФД
+// Параметр - FROperatorProfile число, профиль из карточки сотрудника
+Результат			= false; 
+IF ( ( ТипОтчета >= 7 AND ТипОтчета <= 11 ) OR ВСПИСКЕ( ТипОтчета, 22, 23, 24, 41, 42, 100 ) )
+{
+	IF ( !ФР.АТОЛДТО10_ОткрытьФР( КОДОБОРУДОВАНИЯ, "ZОтчет" ) ) RETURN false;
+	IF ( ТипОтчета == 41 )
+	{
+		ТекстЗапросаОтчет = "
+		{
+			""type"": ""printLastReceiptCopy""
+		}
+		";
+		fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаОтчет );
+		fptr.processJson( );
+	}
+	ELSE IF ( ТипОтчета == 42 )
+	{
+		//получим информацию о кассире
+		_ИМЯКАССИРА 	= ЗАПРОС( "SELECT name FROM sprempl WHERE code = '" + froperator + "'" );
+		_ИННКАССИРА 	= ЗАПРОС( "SELECT inn FROM sprempl WHERE code = '" + froperator + "'" );
+		ТекстЗапросаОтчет = "
+		{
+			""type"": ""reportOfdExchangeStatus"",
+			""operator"": {
+				""name"": """ + _ИМЯКАССИРА + """,
+				""vatin"": """ + _ИННКАССИРА + """
+			}
+		}
+		";
+		fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаОтчет );
+		fptr.processJson( );
+	}
+	ELSE IF ( ТипОтчета == 7 )
+	{
+		//Отчет по секциям
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_DEPARTMENTS );
+		fptr.report( );
+	}
+	ELSE IF ( ТипОтчета == 8 )
+	{
+		//Отчет по кассирам
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_OPERATORS );
+		fptr.report( );
+	}
+	ELSE IF ( ТипОтчета == 9 )
+	{
+		//Отчет по товарам по суммам
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_COMMODITIES_BY_SUMS );
+		fptr.report( );
+	}
+	ELSE IF ( ТипОтчета == 10 )
+	{
+		//Отчет по часам
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_HOURS );
+		fptr.report( );
+	}			
+	ELSE IF ( ТипОтчета == 11 )
+	{
+		//Отчет количеств
+		fptr.setParam(fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_QUANTITY);
+		fptr.report();
+	}
+	ELSE IF ( ТипОтчета == 22 )
+	{
+		//Печать итогов регистрации / перерегистрации
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_FN_REGISTRATIONS );
+		fptr.report( );
+	}
+	ELSE IF ( ТипОтчета == 23 )
+	{
+		//Счетчики итогов ФН
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_FN_SHIFT_TOTAL_COUNTERS );
+		fptr.report( );
+	}
+	ELSE IF ( ТипОтчета == 24 )
+	{
+		//отчет по товарам по СНО
+		fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_COMMODITIES_BY_TAXATION_TYPES );
+		fptr.report( );
+	}
+	ELSE IF ( ТипОтчета == 100 )
+	{
+		ПечатаемКопию = true;
+		//проверим что номер чека передан, т.е. выбрали конкретный чек из списка или номер у выбранного чека не равен 0
+		IF ( ПУСТО( VAL( НОМЕРЧЕКА ) ) )
+		{
+			СООБЩЕНИЕ("Не выбран кассовый чек для печати копии", "Ошибка печати копии");
+			ПечатаемКопию = false;
+		}
+		IF ( ПечатаемКопию )
+		{
+			//копия чека по номеру ФД
+			fptr.setParam( fptr.LIBFPTR_PARAM_REPORT_TYPE, fptr.LIBFPTR_RT_FN_DOC_BY_NUMBER );
+			fptr.setParam( fptr.LIBFPTR_PARAM_DOCUMENT_NUMBER, НОМЕРЧЕКА );
+			fptr.report( );
+		}
+	}
+	
+	//проверим результат
+	Результат		= ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки( "Прочие отчеты" ); 
+}
+ELSE
+{
+	СООБЩЕНИЕ( "Отчет №" + ТипОтчета + ": Данный отчет не поддерживается профилем оборудования" );
+}
+
+RETURN Результат;

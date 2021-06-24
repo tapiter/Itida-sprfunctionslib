@@ -1,0 +1,16 @@
+tranzCount							= ИДТранзакции + 1;
+	
+// Транзакция открытия чека
+ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + "(id, date, transtype, posnumber, doccode, seller, waremark, chequeNumber, chequetype, 
+										ecrsession, infostr, ecrnumber, ndok, docid, note, inouttype, nn, s_code, nnname, ed, 
+										kodn, client, contract, kolp, barcode, gtd, ksnum, summasale, summabn, summa, cena, 
+										firm, sklad, mol, sklad_d, mol_d, kskod, fr_code, manager, warecode, aspectvalue1 )
+		 VALUES ( 
+					"  + STR( tranzCount ) + ", '" + TTOC( date ) + "', " + tranzType + ", " + STR( posNumber ) + ", '" + doccode + "',
+					"  + STR( VAL( seller ) ) + ", '" + STDF( wareMark, 250 ) + "', " + chequeNumber + ", " + chequeType + ", " + STR( VAL( ecrSession ) ) + ", '" + karta + "',
+					"  + ecrNumber + ", '" + universalNDOK + "', 0, '', '', '" + nn + "', '" + s_code + "', '" + STDF( nnname, 250 ) + "',
+					'" + ed + "', '" + kodn + "', '" + client + "', '', " + STR( kolp, 16, 3 ) + ", '" + STDF( barcode, 70 ) + "', '', 
+					"  + STR( VAL( ecrSession ) ) + ", " + STR( summasale, 16, 3 ) + ", " + STR( summabn, 16 ,3 ) + ", " + STR( summa, 16 ,3 ) + ",
+					"  + STR( cena, 16 ,3 ) + ", '" + firm + "', '" + kkmsklad + "', '', '', '', '" + kskod + "', " + ecrNumber + ", '" + manager + "',
+					'" + warecode_org + "', " + STR( VAL( AspectValue1 ) ) + " )" );
+ИДТранзакции++;

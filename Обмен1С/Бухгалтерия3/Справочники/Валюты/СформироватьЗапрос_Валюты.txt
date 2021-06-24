@@ -1,0 +1,1 @@
+ТЕКСТЗАПРОСА = "SELECT code AS Ref, notavail AS DeletionMark,ex_code AS code,		shortname AS Description, name AS НаименованиеПолное, note AS ПараметрыПрописиНаРусскомFROM sprcur "+ЕСЛИ( ВыгрузитьВсеСправочники, "", "WHERE DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0" );RETURN ТЕКСТЗАПРОСА;

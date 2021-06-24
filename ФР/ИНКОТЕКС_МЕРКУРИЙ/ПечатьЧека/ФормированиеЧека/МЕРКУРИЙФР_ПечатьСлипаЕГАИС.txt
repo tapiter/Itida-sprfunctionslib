@@ -1,0 +1,26 @@
+//------- Опредяляем общие реквизиты чека
+КОДУТМ				= КомандыЧека.utm_code;
+ЕГАИССКЛАД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_SKLAD" + КОДУТМ + "'" );
+ЕГАИСФИРМА			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_FIRM" + КОДУТМ + "'" );
+
+ЧЕКИНН				= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+ЧЕККПП				= ЗАПРОС( "SELECT kpp FROM sprskl WHERE code = '" + ЕГАИССКЛАД + "'" );
+IF ( ПУСТО( ЧЕККПП ) )
+	ЧЕККПП			= ЗАПРОС( "SELECT kpp FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+	ЧЕКНАИМЕНОВАНИЕ	= ЗАПРОС( "SELECT name FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+	ЧЕКАДРЕС		= ЗАПРОС( "SELECT address FROM sprskl WHERE code = '" + ЕГАИССКЛАД + "'" );
+IF ( ПУСТО( ЧЕКАДРЕС ) )
+	ЧЕКАДРЕС		= ЗАПРОС( "SELECT adress FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+
+ЧЕККАССА			= ЗАПРОС( "SELECT serialnumber FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'" );
+	
+Команда = ДАННЫЕ_JSON("command", "PrintEgaisSlip");
+ЧЕКСМЕНА = ДАННЫЕ_JSON("shiftNum", НомерСменыККМ);
+ЧЕКНОМЕР = ДАННЫЕ_JSON("checkNum", НомерЧекаККМ);
+КППДляЧека = ДАННЫЕ_JSON("kpp", ЧЕККПП);
+УРЛДляЧека = ДАННЫЕ_JSON("url", КомандыЧека.egais_url);
+ПодписьДляЧека = ДАННЫЕ_JSON("sign", КомандыЧека.sign);
+ТекстЗапроса = "{ ""sessionKey"": """ + _КЛЮЧ_СЕССИИ + """, " + Команда + ", " + ЧЕКСМЕНА + ", " + ЧЕКНОМЕР + ", " + УРЛДляЧека + ", " + ПодписьДляЧека + " }";
+
+ОТВЕТ = "";
+RETURN ФР.МЕРКУРИЙФР_HTTPPOST(ФР.МЕРКУРИЙФР_АДРЕССЕРВЕРА(), "/api.json", ТекстЗапроса, "", @ОТВЕТ);

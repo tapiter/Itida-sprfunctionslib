@@ -1,0 +1,18 @@
+	
+//Окончание работы с ФР.
+НомерЧекаККМ				= 0;
+НомерСменыККМ 				= 0;
+ОтсоединятьсяОтУстройства	= ЗАПРОС("SELECT f_disconnect FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") == 1;
+
+fptr = _МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ];
+IF ( ТИП( "fptr" ) <> "O" )
+{
+	RETURN true;
+}
+IF ( fptr.isOpened( ) )
+{
+	fptr.Close( );
+}
+	
+fptr 						= false;
+_МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ] = fptr;

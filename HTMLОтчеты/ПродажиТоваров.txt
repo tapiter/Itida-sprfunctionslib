@@ -1,0 +1,268 @@
+// Создаем временную таблицу для сбора списка товаров
+ТаблицаТоваров	= "##" + УникальноеИмя( );
+Учет			= "001";
+_ТОЧКАЗРЕНИЯ	= "0000000001";
+Склад			= ЕСЛИ( VAL( Склад ) == 0, "", Склад );
+
+ИмяТаблицы1		= "##report155_1" + УНИКАЛЬНОЕИМЯ( );   --разрезы
+ИмяТаблицы2		= "##report155_2" + УНИКАЛЬНОЕИМЯ( );   --ТМЦ
+ИмяТаблицы3		= "##report155_3" + УНИКАЛЬНОЕИМЯ( );   --документы
+СписокТоваров	= "##report155_wl" + УНИКАЛЬНОЕИМЯ( );
+
+// Если выбраны папки товаров, то формируем список товаров, попавших в эти папки
+// Определяем код структуры, из которой необходимо брать папки
+КодСтруктуры	= ЗАПРОС( "SELECT dbo.fn_getsuitabletree( '" + _ТОЧКАЗРЕНИЯ + "', 'RPT', 'SPR', 'S02' )" );
+
+ЗАПРОС( "CREATE TABLE " + ТаблицаТоваров + "( code char(10), maincode char( 10 ), name varchar( 250 ), ic int, parent int, 
+											  parentname varchar(250), folder bit, f_subres bit, identity_column int IDENTITY( 1 , 1 ) ) " );
+
+// Добавляем в таблицу товаров содержимое всех папок
+ЗАПРОС( "EXECUTE sp_gettree 'S02', 0, '" + КодСтруктуры + "', 0, '" + ТаблицаТоваров + "', 1" );
+ЗАПРОС( "UPDATE temp
+		 SET maincode = sprnn.maincode, f_subres= sprnn.f_subres
+		 FROM " + ТаблицаТоваров + " temp
+		 INNER JOIN sprnn sprnn ON sprnn.nn = temp.code" );
+		 
+// Удаляем характеристики, которые могли оказаться в папках и попасть в список
+ЗАПРОС( "DELETE FROM temp
+		 FROM " + ТаблицаТоваров + " temp
+		 WHERE f_subres= 1" );
+		 
+// Добавляем все характеристики без указания папки
+ЗАПРОС( "INSERT INTO " + ТаблицаТоваров + " ( code, maincode, name, ic, parent, parentname, folder, f_subres ) 
+		 SELECT sprnn.nn, sprnn.maincode, sprnn.name, sprnn.identity_column, 0, '', 0, sprnn.f_subres
+		 FROM sprnn sprnn
+		 INNER JOIN " + ТаблицаТоваров + " temp ON sprnn.subcode = temp.code
+		 WHERE sprnn.f_subres= 1 " );
+
+СИСТЕМНОЕСООБЩЕНИЕ("Пожалуйста, подождите. Формирование списка товаров");
+Запрос("CREATE TABLE " + ИмяТаблицы3 + " ( nn char( 10 ), ex_code varchar( 50 ), maincode char( 10 ), code char( 3 ), priz char( 1 ), 
+										   name_dok varchar( 40 ), ndok char( 20 ), date datetime, sklad char( 3 ), dbase varchar( 30 ), 
+										   mol char( 7 ), client char( 7 ), cena float, kolp float, amount float, nngroup varchar( 20 ), 
+										   f_hchild bit, f_subres bit, subcode char( 10 ), _cena float, cena_ float, ic int, empl char( 10 ), 
+										   id_dok int IDENTITY( 1, 1 ) ); ");
+
+// Выбираем данные о продажах
+СИСТЕМНОЕСООБЩЕНИЕ( "Пожалуйста, подождите. Формирование реестра документов" );
+ФильтрНаДокументы		= "reg.code in ('002', '006', '008')";
+ФильтрНаДокументы		= "(" + ФильтрНаДокументы + " AND ( reg.code <> '002' OR ( SELECT ttntype FROM spr002 WHERE identity_column = reg.ic ) = 0 ) )";
+
+ДОБАВИТЬКОНТЕКСТ("SELECT skl.code, skl.name, skl.clev, skl.branch, branch.dbase, ISNULL( ccnames.name, 'Себестоимость' ) AS name_clev  
+				  FROM sprskl skl 
+				  INNER JOIN sprbranch branch ON branch.code = skl.branch
+				  LEFT OUTER JOIN sprccnames ccnames ON ccnames.clev = skl.clev " + ЕСЛИ( !ПУСТО( Склад ), "WHERE skl.code = '" + Склад + "'", "" ) , "СписокСкладов", 1 );
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСкладов" ) )
+{
+	mDbase				= СписокСкладов.dbase + "..";
+
+	ЗАПРОС				= "
+		DECLARE @clev char( 3 ), @sklad char( 3 );
+		DECLARE @p_min datetime, @p_max datetime, @account_ char(3);
+		SELECT @clev		= '" + СписокСкладов.clev + "';
+		SELECT @sklad		= '" + СписокСкладов.code + "';
+		SELECT @p_min		= '" + DTOC( ДАТАНАЧАЛА ) + "';
+		SELECT @p_max		= '" + DTOC( ДАТАКОНЦА ) + "';
+		SELECT @account_	= '" + Учет + "';
+
+		--добавлен расчет колонки amount и дополнительные условия, по которым берутся значения из спецификаций
+		--(а именно совпадение цен продажи (за неимением учетных цен в регистре) и знака kolp (чтобы отделять возвраты))
+		INSERT INTO " + Имятаблицы3 + " ( nn, ex_code, maincode, code, priz, name_dok, nDok, date, sklad, dbase, mol, 
+										  client, cena, kolp, amount, nngroup, f_hchild, f_subres, subcode, _cena, cena_, ic, empl ) 
+		SELECT sprnncenter.nn, sprnncenter.ex_code, sprnn.maincode, reg.code, reg.priz, doc.name, reg.ndok, reg.date, 
+			   reg.sklad, '" + СписокСкладов.dbase + "', reg.mol, reg.client, reg.cena, reg.kolp, reg.amount,
+			   sprnncenter.nngroup, sprnncenter.f_hchild, sprnncenter.f_subres, sprnncenter.subcode, 
+			   " + СписокСкладов.dbase + ".dbo.fn_calcsklad_incena( reg.nn, reg.date, @sklad, @account_ ), 
+			   " + СписокСкладов.dbase + ".dbo.fn_calcclev_cena( reg.nn, reg.date, @clev, @account_ ), reg.ic, '' 
+		FROM " + mDbase + "reg001 reg
+		INNER JOIN 
+		(SELECT sprnn.nn, sprnn.maincode, sprnn.nngroup, sprnn.f_hchild, sprnn.f_subres, sprnn.subcode, ISNULL( res_g.ex_code,'') AS ex_code
+		 FROM " + mDbase + "sprnn sprnn
+		 LEFT OUTER JOIN " + mDbase + "sprres_g res_g ON sprnn.nngroup = res_g.code
+		 --используем внешнее соединение таблиц, поэтому в условии должно быть where, а не and 
+		) sprnn ON reg.nn = sprnn.nn
+		INNER JOIN " + mDbase + "docstab doc ON reg.code = doc.code 
+		INNER JOIN " + ТаблицаТоваров + " temp ON sprnn.maincode = temp.maincode
+		INNER JOIN sprnn sprnncenter ON sprnncenter.nn = temp.code 
+		WHERE " + ФильтрНаДокументы + " AND DATEDIFF( day, reg.date, @p_min ) <= 0 AND DATEDIFF( day, reg.date, @p_max ) >= 0 AND
+			  reg.sklad = @sklad AND account_ = @account_ ; ";
+		
+		ЗАПРОС				+= "IF @clev='' UPDATE " + Имятаблицы3 + " SET cena_	= _cena WHERE sklad = @sklad;";
+		ЗАПРОС( ЗАПРОС );
+	 
+	ПРОПУСТИТЬ( 1, "СписокСкладов" );
+}
+
+ЗАПРОС						= "
+								SELECT DISTINCT name, nn, ISNULL( ( SELECT ex_code FROM sprres_g WHERE code= sprnn.nngroup ), '') AS ex_code, 
+												mainCode, code as code_art, f_hchild, f_subres, subcode, min_, max_, ed, weight, ed_weight, 
+												d_litr, edd_litr, CASE WHEN nngroup <> '' THEN nngroup ELSE '9999999999' END AS nngroup, 
+												CONVERT( int, identity_column ) AS identity_column, CONVERT( int, 0 ) AS id_hchild, CONVERT( int , 0 ) AS parent,
+												SPACE( 12 ) AS inn, CONVERT( bit, 0 ) AS lFlag, CONVERT( varchar( 250 ), '' ) AS cPath, 
+												CONVERT( varchar( 4000 ), '' ) AS namePath, CONVERT( varchar( 250 ), '' ) AS name_group, 
+												CONVERT( varchar( 250 ), '' ) AS big_name
+								 INTO " + ИмяТаблицы1 + "
+								 FROM sprnn 
+								 WHERE maincode in ( SELECT maincode FROM " + ИмяТаблицы3 + ");";
+
+// Добавляем характеристики в Таблицу1
+ЗАПРОС						+= "
+								INSERT INTO " + ИмяТаблицы1 + " ( name, ex_code, nn, mainCode, code_art, f_hchild, f_subres, subcode, nngroup )
+								SELECT name, ISNULL( ( SELECT ex_code FROM sprres_g WHERE code = sprnn.nngroup ), '' ), nn, maincode, 
+										code, f_hchild, f_subres, sprnn.subcode, CASE WHEN nngroup <> '' THEN nngroup ELSE '9999999999' END
+								FROM sprnn sprnn
+								INNER JOIN ( SELECT DISTINCT subcode FROM " + Имятаблицы3 + " WHERE f_subres = 1 ) AS temp_3 ON sprnn.nn = temp_3.subcode 
+								WHERE sprnn.f_hchild = 1 AND NOT EXISTS( SELECT * FROM " + ИмяТаблицы1 + " WHERE nn = temp_3.subcode AND f_hchild = 1 );
+
+								SELECT 	sklad, maincode, nn, ex_code, f_hchild, f_subres, subcode, 
+										ISNULL( CASE WHEN SUM( kolp ) <> 0 THEN SUM( cena * kolp ) / SUM( kolp ) ELSE 0 END, 0 ) AS cena, 
+										ISNULL( SUM( CASE WHEN priz = '-' THEN kolp ELSE -kolp END ), 0 ) AS sum_kolp, 
+										ISNULL( SUM( CASE WHEN priz = '-' THEN cena * kolp ELSE -cena * kolp END ), 0 ) AS amount, 
+										ISNULL( CASE WHEN SUM( kolp ) <> 0 THEN SUM( _cena * kolp ) / SUM( kolp ) ELSE 0 END, 0 ) AS _cena, 
+										ISNULL( CASE WHEN SUM( kolp ) <> 0 THEN SUM( cena_ * kolp ) / SUM( kolp ) ELSE 0 END, 0 ) AS cena_, 
+										ISNULL( SUM( ( cena_ - cena ) * kolp ), 0 ) AS disc, CONVERT( float, 0 ) AS nOst, 
+										CONVERT( float, 0 ) AS proc_,CONVERT( varchar( 250 ), '' ) AS name_group, 
+									    CONVERT( varchar( 250 ), '' ) AS big_name, CONVERT( bit, 0 ) AS lFlag, CONVERT( varchar( 4000 ), '' ) AS namepath 
+								INTO " + Имятаблицы2 + "
+								FROM " + ИмяТаблицы3 + "
+								GROUP BY sklad, nngroup, ex_code, maincode, nn, f_hchild, f_subres, subcode; 
+								
+								INSERT INTO " + Имятаблицы2 + " ( sklad, nn, maincode, f_hchild, f_subres, subcode, cena, sum_kolp, amount, 
+																  _cena, cena_, name_group, ex_code, disc, big_name, lFlag, namepath ) 
+								SELECT temp_3.sklad, temp_3.subcode, temp_1.maincode, 1, 0, SPACE( 10 ) AS subcode, 
+									   ISNULL( CASE WHEN SUM( temp_3.kolp ) <> 0 THEN SUM( temp_3.cena * temp_3.kolp ) / sum( temp_3.kolp ) ELSE 0 END, 0 ), 
+									   SUM( CASE WHEN temp_3.priz = '-' THEN temp_3.kolp ELSE -temp_3.kolp END ), 
+									   SUM( CASE WHEN temp_3.priz = '-' THEN temp_3.cena * temp_3.kolp ELSE -temp_3.cena * temp_3.kolp END ), 
+									   ISNULL( CASE WHEN SUM( temp_3.kolp ) <> 0 THEN SUM( temp_3._cena * temp_3.kolp ) / SUM( temp_3.kolp ) ELSE 0 END, 0 ), 
+									   ISNULL( CASE WHEN SUM( temp_3.kolp ) <> 0 THEN SUM( temp_3.cena_ * temp_3.kolp ) / SUM( temp_3.kolp ) ELSE 0 END, 0 ), '', temp_1.ex_code, 
+										SUM( ( temp_3.cena_ - temp_3.cena ) * temp_3.kolp ), '', 0, '' 
+								FROM " + ИмяТаблицы3 + " temp_3
+								INNER JOIN " + ИмяТаблицы1 + " temp_1 ON temp_3.subcode = temp_1.nn 
+								WHERE temp_3.f_subres = 1
+								GROUP BY temp_3.sklad, temp_3.subcode, temp_1.ex_code, temp_1.maincode; 
+								
+								DECLARE @amount float;
+								SELECT @amount= SUM( amount ) FROM " + Имятаблицы3 + ";
+
+								IF @amount > 0
+									UPDATE " + ИмяТаблицы2 + " SET proc_ = amount * 100 / @amount;";
+// Выполняем полученный запрос
+ЗАПРОС( ЗАПРОС );
+УДАЛИТЬКОНТЕКСТ( "СписокСкладов" );
+
+ДОБАВИТЬКОНТЕКСТ("SELECT sprres.name, sprres.ed, sprres.d_litr, sprres.edd_litr, sprres.weight, sprres.ed_weight, sprres.maincode, temp1.parent, temp1.parentname,
+						 SUM( temp2.sum_kolp ) AS sum_kolp, SUM( temp2.cena_ * temp2.sum_kolp ) AS sm_uch, 
+						 SUM( temp2.amount ) AS amount, SUM( temp2.disc ) AS sm_disc, SUM( temp2._cena * temp2.sum_kolp ) AS sm_seb, 
+						 SUM( temp2.amount - ( temp2._cena * temp2.sum_kolp ) ) AS sm_prib, SUM( temp2.proc_ ) AS proc_, temp1.identity_column
+				  FROM " + ИмяТаблицы2 + " temp2
+				  INNER JOIN " + ТаблицаТоваров + " temp1 ON temp2.maincode = temp1.maincode
+				  INNER JOIN sprres sprres ON sprres.maincode = temp1.maincode
+				  GROUP BY sprres.name, sprres.ed, sprres.d_litr, sprres.edd_litr, sprres.weight, sprres.ed_weight, sprres.maincode, temp1.parent, temp1.parentname, temp1.identity_column
+				  ORDER BY temp1.identity_column", "СписокТоваров", 1 );
+
+Номер_по_порядку			= 1;
+ИтогКоличество				= 0.00;
+ИтогУчетнаяСумма			= 0.00;
+ИтогСебестоимостьСумма		= 0.00;
+ИтогНаценкаПроцент			= 0.00;
+ИтогНаценкаСумма			= 0.00;
+СуммаУчета					= 0.00;
+СуммаСебестоимости			= 0.00;
+
+Заголовок					= "<table><thead>
+								   <tr>
+									   <th rowspan= ""2"" class=""first"" style=""width: 250px"">Наименование товара</th>
+									   <th rowspan= ""2"" class=""first"" style=""width: 100px"">Код</th>
+									   <th colspan= ""4"" class=""first"" style=""width: 100px"">Продажи</th>
+									   <th rowspan= ""2"" class=""first"" style=""width: 100px"">Скидки</th>
+									   <th colspan= ""2"" class=""first"" style=""width: 200px"">Себестоимость</th>
+									   <th colspan= ""2"" class=""first"" style=""width: 200px"">Наценка</th>
+								   </tr>
+								   <tr>
+									   <td class=""first"">Количество</th>
+									   <td class=""first"">Цена</th>
+									   <td class=""first"">Сумма по учету</th>
+									   <td class=""first"">Сумма продаж</th>
+									   <td class=""first"">Цена</th>
+									   <td class=""first"">Сумма</th>
+									   <td class=""first"">Сумма прибыли</th>
+									   <td class=""first"">Процент наценки</th>
+								   </tr>
+								</thead>
+								<tbody> ";
+
+IF ( КОЛИЧЕСТВОСТРОК( "СписокТоваров" ) == 0 )
+	RETURN Заголовок + "<tr><td colspan = ""11"" class= ""warefolder"">Нет данных для отчета</td></tr></tbody></table>";
+
+ИДПапки						= 0;
+СтрокиОтчета				= "";
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
+{
+	ВыбратьКонтекст( "СписокТоваров" );
+	Номер_по_порядку++;
+
+	IF ( ИДПапки != СписокТоваров.parent )
+	{
+		ДОБАВИТЬКОНТЕКСТ( "SELECT SUM( temp2.sum_kolp ) AS sum_kolp, SUM( temp2.cena_ * temp2.sum_kolp ) AS sm_uch, 
+								  SUM( temp2.amount ) AS amount, SUM( temp2.disc ) AS sm_disc,  SUM( temp2._cena * temp2.sum_kolp ) AS sm_seb, 
+								  SUM( temp2.amount - ( temp2._cena * temp2.sum_kolp ) ) AS sm_prib, SUM( temp2.proc_ ) AS proc_ 
+						   FROM " + Имятаблицы2 + " temp2
+						   INNER JOIN " + ТаблицаТоваров + " temp1 ON temp2.maincode = temp1.maincode
+						   WHERE temp1.parent = " + СписокТоваров.parent, "Список", 1 );
+
+		ИДПапки						= СписокТоваров.parent;
+		ИмяПапки					= ЗАПРОС( "SELECT dbo.fn_getpath( 'S02', '" + КодСтруктуры + "', " + СписокТоваров.parent + ", '\', 0) " );
+
+    	СтрокиОтчета				+= "<tr><td colspan = ""2"" class= ""warefolder"">" + ЕГАИС.ЗаменитьСимволы( ИмяПапки ) + "</td>
+										<td class= ""folderfloat"">" + STR( Список.sum_kolp, 16, 3 ) + "</td>
+										<td colspan = ""2"" class= ""folderfloat"">" + STR( Список.amount, 16, 2 ) + "</td>
+										<td class= ""folderfloat"">" + STR( Список.sm_uch, 16, 2 ) + "</td>
+										<td class= ""folderfloat"">" + STR( Список.sm_disc, 16, 2 ) + "</td>
+										<td colspan = ""2"" class= ""folderfloat"">" + STR( Список.sm_seb, 16, 2 ) + "</td>
+										<td class= ""folderfloat"">" + STR( Список.sm_prib, 16, 2 ) + "</td>
+										<td class= ""folderfloat"">" + STR( ЕСЛИ( Список.sm_seb <> 0, ( ( Список.sm_uch * 100 / Список.sm_seb ) - 100 ), 0.00 ), 16, 2 ) + "</td>
+									</tr>";
+
+		УДАЛИТЬКОНТЕКСТ( "Список" );
+	}
+	ВЫБРАТЬКОНТЕКСТ( "СписокТоваров" );
+
+	Вес				= ЕСЛИ( !ПУСТО( weight ), ALLTRIM( STR( weight ) ) + " " + ALLTRIM( ed_weight ), "" );
+	Объем			= ЕСЛИ( !ПУСТО( d_litr ), ALLTRIM( STR( d_litr ) ) + " " + ALLTRIM( edd_litr ), "" );
+
+	ТоварОбъемВес	= ЕСЛИ( !ПУСТО( Вес ), Вес, Объем );
+	
+	СтрокиОтчета				+= "<tr><td class= ""warename"">" + ЕГАИС.ЗаменитьСимволы( ALLTRIM( STR( Номер_по_Порядку ) ) + "   " + СписокТоваров.name + " " + ТоварОбъемВес ) + "</td>
+								    <td class= ""warecode"">" + СписокТоваров.maincode + "</td>
+									<td class= ""warefloat"">" + STR( СписокТоваров.sum_kolp, 16, 3 ) + "</td>
+									<td class= ""warefloat"">" + STR( ЕСЛИ( СписокТоваров.sum_kolp <> 0, СписокТоваров.amount / СписокТоваров.sum_kolp, 0 ), 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( СписокТоваров.sm_uch, 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( СписокТоваров.amount, 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( СписокТоваров.sm_disc, 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( ЕСЛИ( СписокТоваров.sum_kolp <> 0, СписокТоваров.sm_seb / СписокТоваров.sum_kolp, 0 ), 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( СписокТоваров.sm_seb, 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( СписокТоваров.amount - СписокТоваров.sm_seb, 16, 2 ) + "</td>
+									<td class= ""warefloat"">" + STR( ЕСЛИ( СписокТоваров.sm_seb <> 0, ( ( СписокТоваров.amount * 100 / СписокТоваров.sm_seb ) - 100 ), 0.00 ), 16, 2 ) + "</td>";
+
+	запрос( "select 2" );
+	ПРОПУСТИТЬ( 1, "СписокТоваров" );
+}
+ДОБАВИТЬКОНТЕКСТ( "SELECT SUM( temp2.sum_kolp ) AS sum_kolp, SUM( temp2.cena_ * temp2.sum_kolp ) AS sm_uch, 
+						  SUM( temp2.amount ) AS amount, SUM( temp2.disc ) AS sm_disc,  SUM( temp2._cena * temp2.sum_kolp ) AS sm_seb, 
+						  SUM( temp2.amount - ( temp2._cena * temp2.sum_kolp ) ) AS sm_prib, SUM( temp2.proc_ ) AS proc_ 
+				   FROM " + Имятаблицы2 + " temp2", "Список", 1 );
+
+СтрокиОтчета				+= "<tr><td colspan = ""2"" class= ""warefolder"">Итого</td>
+								<td class= ""folderfloat"">" + STR( Список.sum_kolp, 16, 3 ) + "</td>
+								<td colspan = ""2"" class= ""folderfloat"">" + STR( Список.amount, 16, 2 ) + "</td>
+								<td class= ""folderfloat"">" + STR( Список.sm_uch, 16, 2 ) + "</td>
+								<td class= ""folderfloat"">" + STR( Список.sm_disc, 16, 2 ) + "</td>
+								<td colspan = ""2"" class= ""folderfloat"">" + STR( Список.sm_seb, 16, 2 ) + "</td>
+								<td class= ""folderfloat"">" + STR( Список.sm_prib, 16, 2 ) + "</td>
+								<td class= ""folderfloat"">" + STR( ЕСЛИ( sm_seb <> 0, ( ( sm_uch * 100 / sm_seb ) - 100 ), 0.00 ), 16, 2 ) + "</td>
+							</tr>";
+
+УДАЛИТЬКОНТЕКСТ( "Список" );
+УДАЛИТЬКОНТЕКСТ( "СписокТоваров" );
+ЗАПРОС( "DROP TABLE " + ТаблицаТоваров );
+
+RETURN Заголовок + СтрокиОтчета + "</tbody></table>";

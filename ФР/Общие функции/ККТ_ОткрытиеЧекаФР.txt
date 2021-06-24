@@ -1,0 +1,64 @@
+
+// Открыть чек
+
+// Создаем временную таблицу, в которую будем записывать все строки чека
+
+_ВСЕГОСКИДКАНАЧЕК = 0.00;
+IF (TYPE("ВСЕГОБОНУСОВ") <> "U")
+	_ВСЕГООПЛАТАБОНУСАМИ = ВЫЧИСЛИТЬ( "ВСЕГОБОНУСОВ", "F" );
+ELSE
+	_ВСЕГООПЛАТАБОНУСАМИ = 0;
+	
+_ПЕЧАТАТЬСКИДКИ							= true;
+
+ИмяТаблицыСтрокЧека						= "##" + УНИКАЛЬНОЕИМЯ( );
+ЗАПРОС( "CREATE TABLE " + ИмяТаблицыСтрокЧека + " ( operation varchar( 20 ), password varchar( 50 ), mode int, checktype varchar( 20 ), kodn varchar( 20 ),
+													name varchar( 1024 ), quantity float, price float, summa float, _price_u float, department int, destination int, 
+													discounttype float, discountvalue float, closetype varchar( 20 ), echeque bit DEFAULT 0,
+													utm_code char( 10 ), egais_url varchar( 250 ), egais_sign varchar( 250 ), identity_column int IDENTITY( 1, 1 ), 
+													rsubject varchar( 20 ), rvariant varchar( 20 ), marktype char(10), markbc varchar(max), clientcode varchar(10))" );
+
+// Если передан непустой параметр ЕГАИС_ОТВЕТ, то добавляем в список команд, перед открытием чека, команду печати слипа ЕГАИС
+IF ( !ПУСТО( ЕГАИС_ОТВЕТ ) AND _РАБОТАСЕГАИС )
+{
+	ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url, CONVERT( char( 250 ), '' ) AS sign SET FMTONLY OFF", "ЕгаисUrl" );
+	ЗАГРУЗИТЬ( "ЕгаисUrl", "XMLSTRING", ЕГАИС_ОТВЕТ, "A" );	
+	
+	ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, egais_url, egais_sign, utm_code )
+			 VALUES ( 'ЕГАИС слип', '" + STDF( ЕгаисUrl.url, 250 )+ "', '" + STDF( ЕгаисUrl.sign, 250 ) + "', '" + КОДУТМ + "' )" );
+	УДАЛИТЬКОНТЕКСТ( "ЕгаисUrl" );
+}
+
+//Тип чека = 0 Продажа (приход) - В ККМ = 1
+//Тип чека = 1 Возврат (возврат прихода) - В ККМ = 2
+//Тип чека = 6 Прочее/Вскрытие тары (приход) (или нефискальный)
+//Тип чека = 4 Расход по ФН (Расход) - В ККМ = 4
+//Тип чека = 5 Возврат расхода по ФН (Возврат расхода) - В ККМ = 5
+
+IF ( МОДЕЛЬОБОРУДОВАНИЯ == "АТОЛДТО10" )
+	ТипЧекаККМ	= ФР.АТОЛДТО10_ПолучитьКодВидаЧекаВККМ( ТипЧека, ЧЕККОРРЕКЦИИ ); 
+ELSE IF ( МОДЕЛЬОБОРУДОВАНИЯ == "МЕРКУРИЙ" ) 	
+	ТипЧекаККМ	= ФР.МЕРКУРИЙФР_ПолучитьКодВидаЧекаВККМ( ТипЧека, ЧЕККОРРЕКЦИИ ); 
+
+IF (TYPE("КОНТРАГЕНТ") == "U")
+	КОНТРАГЕНТ = "";
+
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, name, quantity, price, destination, echeque, clientcode )
+		 VALUES ( 'Открыть чек', '" + STDF( FROperatorProfile )+ "', 1, '" + ТипЧекаККМ + "', '', 0, 0, 0, " + ЕСЛИ( ЭЛЕКТРОННЫЙЧЕК, "1", "0" ) + ", '" + КОНТРАГЕНТ + "' )" );
+
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, 
+													name, quantity, price, destination)
+		 VALUES ( 'Печать строки', '', 0, 0, '================================================', 0, 0, 0 )" );
+
+IF ( !ПУСТО( _ТИПДОКУМЕНТАОСНОВАНИЯ ) )
+{
+       
+	ДОБАВИТЬКОНТЕКСТ( "SELECT ndok, date FROM spr000 WHERE code= '" + _ТИПДОКУМЕНТАОСНОВАНИЯ + "' AND ic= " + _ИДДОКУМЕНТАОСНОВАНИЯ, "ДокументоИнфо" );
+	ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, 
+														name, quantity, price, destination)
+			 VALUES ( 'Печать строки', '', 1, 0, 'Товарный чек № " + ДокументоИнфо.ndok + " от " + DTOC( ДокументоИнфо.date ) + "', 0, 0, 0 )" );
+	ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, 
+													name, quantity, price, destination)
+		 VALUES ( 'Печать строки', '', 0, 0, '================================================', 0, 0, 0 )" );		 
+	УДАЛИТЬКОНТЕКСТ( "ДокументоИнфо" );
+}

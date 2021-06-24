@@ -1,0 +1,1 @@
+RETURN 	"<oref:address>						" + ЕГАИС.НеПустойТэг( "oref:Country", ЕСЛИ( ПУСТО( Страна ), "643", Страна ) ) + ЕГАИС.НепустойТэг( "oref:RegionCode", Регион ) + ЕГАИС.НепустойТэг( "oref:description", Адрес ) +"					</oref:address>		";

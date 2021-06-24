@@ -1,0 +1,17 @@
+ТИПБОНУСА			= ЗАПРОС( "SELECT bonusalias FROM sprbonus WHERE code IN ( SELECT bonus FROM sprmcard WHERE cardn = '" + НОМЕРКАРТЫ + "' )" );
+ОПЛАЧЕНОБОНУСОМ 	= СТРОКА( ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫ + "' AND priz= '-' AND chequeic= " + ИДОбъекта ), 10, 2 );
+НАЧИСЛЕНОБОНУСОВ	= СТРОКА( ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫ + "' AND priz= '+' AND chequeic= " + ИДОбъекта ), 10, 2 );
+ОСТАТОКБОНУСОВ		= СТРОКА( ЗАПРОС( "SELECT dbo.fn_calccard_bonus( '" + НОМЕРКАРТЫ + "', '" + ТИПБОНУСА + "', DEFAULT );" ), 10, 2 );
+
+IF ( !ФР.МЕРКУРИЙФР_ПечатьСтроки("---------------------------------------------") )
+	RETURN false;
+IF ( !ФР.МЕРКУРИЙФР_ПечатьСтроки("Списано бонусов:   " + ОПЛАЧЕНОБОНУСОМ) )
+	RETURN false;
+IF ( !ФР.МЕРКУРИЙФР_ПечатьСтроки("Начислено бонусов: " + НАЧИСЛЕНОБОНУСОВ) )
+	RETURN false;
+IF ( !ФР.МЕРКУРИЙФР_ПечатьСтроки("Остаток бонусов:   " + ОСТАТОКБОНУСОВ) )
+	RETURN false;
+IF ( !ФР.МЕРКУРИЙФР_ПечатьСтроки("---------------------------------------------") )
+	RETURN false;
+	
+RETURN true;

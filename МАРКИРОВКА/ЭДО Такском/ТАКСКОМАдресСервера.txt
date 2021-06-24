@@ -1,0 +1,1 @@
+RETURN ЕСЛИ( ТЕСТОВЫЙКОНТУР, "https://api-invoice.taxcom.ru", "https://api.taxcom.ru" );

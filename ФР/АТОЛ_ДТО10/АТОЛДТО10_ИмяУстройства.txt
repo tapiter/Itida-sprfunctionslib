@@ -1,0 +1,101 @@
+ВерсияБиблиотеки = "v.6.0";	
+// Имя устройства ФР
+COMPARAMORDER( false );
+deviceName = "ККМ АТОЛ";
+
+try
+{
+	fptr	= СОЗДАТЬОБЪЕКТ( "AddIn.Fptr10", 1 );
+}
+catch( )
+{
+	fptr = false;
+}
+IF ( ТИП( "fptr" ) <> "O" )
+{
+	RETURN "ДРАЙВЕР ККТ АТОЛ v.10 НЕ УСТАНОВЛЕН";
+}
+НастройкиККТ = ЗАПРОС("SELECT value FROM param_ex WHERE param = 'ATOLKKTSETTINGS" + КОДОБОРУДОВАНИЯ + "'");
+
+IF ( !ПУСТО( НастройкиККТ ) )
+{
+	//передаем настройки в драйвер 
+	fptr.setSettings(НастройкиККТ);
+}
+
+//соединяемся с ккт
+IF ( !fptr.isOpened( ) )
+{
+	fptr.Open( );
+}
+	
+IF ( fptr.errorCode( ) == 0 )
+{
+	ТекстЗапросаИнфоККТ = "
+	{
+		""type"": ""getDeviceInfo""
+	}
+	";
+	
+	fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаИнфоККТ );
+	fptr.processJson( );
+	
+	ОтветИнфоККТ 	= fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );			
+	ЗАГРУЗИТЬJSON( "ДанныеИнфоККТ", ПОЛЕ_JSON( ОтветИнфоККТ, "deviceInfo", "" ) );
+	modelName 		= ДанныеИнфоККТ.modelName;
+	serial 			= ДанныеИнфоККТ.serial;
+	firmwareVersion = ДанныеИнфоККТ.firmwareVersion;
+	configurationVersion = ДанныеИнфоККТ.configurationVersion;
+	
+	/*
+	IF ( !ПУСТО( configurationVersion ) )
+	{
+		//перезапишем параметр с версией платформы в БД
+		ЗАПРОС("DELETE FROM param_ex WHERE param = 'ATOLKKTPLATFORM5" + КОДОБОРУДОВАНИЯ + "'"); //удаляем параметр, чтобы не дублировался при записи
+		ЗАПРОС("INSERT INTO param_ex (param, value) VALUES ('ATOLKKTPLATFORM5" + КОДОБОРУДОВАНИЯ + "', '" + 
+				ЕСЛИ( ЛЕВСИМВ( configurationVersion, 1 ) == "5", 1, 0 ) + "')");
+	}
+	*/
+	
+	
+	ТекстЗапросаСтатусККТ = "
+	{
+		""type"": ""getDeviceStatus""
+	}
+	";
+	
+	fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаСтатусККТ );
+	fptr.processJson( );
+	
+	ОтветСтатусККТ = fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );			
+	ЗАГРУЗИТЬJSON( "ДанныеСтатусККТ", ПОЛЕ_JSON( ОтветСтатусККТ, "deviceStatus", "" ) );
+	fiscal 			= ДанныеСтатусККТ.fiscal;
+	shift 			= ДанныеСтатусККТ.shift;
+	
+	IF ( shift == "opened" )
+		СтрокаСтатусСмены = "Смена открыта";
+	ELSE IF ( shift == "closed" )
+		СтрокаСтатусСмены = "Смена закрыта";
+	ELSE IF ( shift == "expired" )
+		СтрокаСтатусСмены = "Смена > 24ч";
+	ELSE
+		СтрокаСтатусСмены = "";
+	deviceName = "(" + ВерсияБиблиотеки + ") " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true", "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
+	
+	УДАЛИТЬКОНТЕКСТ("ДанныеСтатусККТ");
+	УДАЛИТЬКОНТЕКСТ("ДанныеИнфоККТ");
+}
+
+//закрываем соединение с ККТ
+IF ( fptr.isOpened( ) )
+{
+	fptr.close( );
+}
+ELSE
+{
+	deviceName = "Ошибка (" + fptr.errorCode( ) + "): " + fptr.errorDescription( );
+}
+
+fptr	= false;
+
+RETURN deviceName;

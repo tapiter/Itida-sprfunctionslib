@@ -1,4 +1,4 @@
-//берем значения Логин и Пароль из карточки ТО
+//берем значения Логин и Пароль из карточки ТО1
 ЛогинWebKassa = ALLTRIM( ЗАПРОС("SELECT login FROM sprequipment WHERE code= '" + КОДОБОРУДОВАНИЯ + "'" ) );
 ПарольWebKassa = ALLTRIM( ЗАПРОС("SELECT password FROM sprequipment WHERE code= '" + КОДОБОРУДОВАНИЯ + "'" ) );
 //если данные не заполнены, то ничего не делаем

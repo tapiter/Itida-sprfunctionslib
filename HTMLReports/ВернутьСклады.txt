@@ -1,6 +1,6 @@
 СтрокаСклады = " { ";
 СтрокаСклады += """warehouses"": [";
-	
+//начало	
 
 ДОБАВИТЬКОНТЕКСТ("SELECT code, ex_code, name, mol, clev, address, kpp, rid FROM sprskl WHERE notavail <> 1", "Склады");
 WHILE ( !КОНЕЦКОНТЕКСТА("Склады") )

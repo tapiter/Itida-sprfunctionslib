@@ -41,8 +41,10 @@ IF ( !ПУСТО( ОтветСостояниеККТ ) )
 }
 
 //открываем смену
-_ИМЯКАССИРА 		= ПЕРЕКОДИРОВАТЬ( ЗАПРОС("SELECT name FROM sprempl WHERE code = '" + froperator + "'" ), "ANSI", "UTF-8");
-_ИННКАССИРА 		= ЗАПРОС("SELECT inn FROM sprempl WHERE code = '" + froperator + "'" );
+_ИМЯКАССИРА		= "";
+_ИННКАССИРА		= "";
+IF ( !ФР.МЕРКУРИЙФР_ПолучитьДанныеКассира(froperator, @_ИМЯКАССИРА, @_ИННКАССИРА) )
+	_ИМЯКАССИРА = "Кассир";
 
 //sessionKey = ДАННЫЕ_JSON("sessionKey", ALLTRIM(_КЛЮЧ_СЕССИИ) );
 Команда = ДАННЫЕ_JSON("command", "OpenShift");

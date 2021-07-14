@@ -1,0 +1,8 @@
+
+_ИМЯКАССИРА 		= ПЕРЕКОДИРОВАТЬ( ЗАПРОС("SELECT name FROM sprempl WHERE code = '" + КОДОПЕРАТОРА + "'" ), "ANSI", "UTF-8");
+_ИННКАССИРА 		= ЗАПРОС("SELECT inn FROM sprempl WHERE code = '" + КОДОПЕРАТОРА + "'" );
+
+IF ( ПУСТО( _ИМЯКАССИРА ) )
+	RETURN false;
+
+RETURN true;

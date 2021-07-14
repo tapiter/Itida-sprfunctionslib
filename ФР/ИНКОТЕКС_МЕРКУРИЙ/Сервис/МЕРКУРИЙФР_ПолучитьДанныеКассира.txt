@@ -1,5 +1,12 @@
+ЭТОРМК = false;			
+IF (TYPE("_МРП") <> "U")
+	ЭТОРМК = _МРП == "2";
 
-_ИМЯКАССИРА 		= ПЕРЕКОДИРОВАТЬ( ЗАПРОС("SELECT name FROM sprempl WHERE code = '" + КОДОПЕРАТОРА + "'" ), "ANSI", "UTF-8");
+IF (ЭТОРМК)
+	_ИМЯКАССИРА		= ПЕРЕКОДИРОВАТЬ( ЗАПРОС("SELECT name FROM sprempl WHERE code = '" + КОДОПЕРАТОРА + "'" ), "UTF-8", "ANSI");
+ELSE
+	_ИМЯКАССИРА		= ПЕРЕКОДИРОВАТЬ( ЗАПРОС("SELECT name FROM sprempl WHERE code = '" + КОДОПЕРАТОРА + "'" ), "ANSI", "UTF-8");
+
 _ИННКАССИРА 		= ЗАПРОС("SELECT inn FROM sprempl WHERE code = '" + КОДОПЕРАТОРА + "'" );
 
 IF ( ПУСТО( _ИМЯКАССИРА ) )

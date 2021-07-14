@@ -1,3 +1,5 @@
+IF ( ПУСТО( ТЕКСТ ) )
+	RETURN true;
 
 Команда = ДАННЫЕ_JSON("command", "PrintText");
 ТекстДляПечати = ДАННЫЕ_JSON("text", ПЕРЕКОДИРОВАТЬ( ФР.XMLTRANS( ТЕКСТ ), "ANSI", "UTF-8") );

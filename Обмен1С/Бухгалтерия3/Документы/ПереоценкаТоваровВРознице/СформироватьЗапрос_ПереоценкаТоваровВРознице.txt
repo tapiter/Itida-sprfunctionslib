@@ -15,7 +15,7 @@
 ЕСЛИ( ВыгрузитьВсеСправочники, "WHERE 1 = 2", "WHERE " + ЕСЛИ( !ПУСТО( Фирма ), "f.code IN (" + Фирма_Список + ") AND", "") + "
 		(( DATEDIFF( day, s.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.edit_dat, '" + Период_max + "' ) >= 0 ) OR 
 		 ( DATEDIFF( day, s.date,     '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.date,     '" + Период_max + "' ) >= 0 ))" ) + "
-GROUP BY s.identity_column, s.date, skl.code, s000.code, s000.maindb, s000.mainic, s000.f_deleted, s.ndok, s.date, a.transacted, f.ex_code, skl.ex_code,s.note
+GROUP BY s.identity_column, s.date, skl.code, s000.code, s000.maindb, s000.mainic, s000.f_deleted, s.ndok, s.date, a.transacted, f.ex_code, f.code, skl.ex_code, skl.code, s.note
 HAVING SUM( dbo.fn_calcsklad( spec005.nn, s.date, skl.code, '" + Учет + "', '') ) <> 0 ";
 		 
 		 

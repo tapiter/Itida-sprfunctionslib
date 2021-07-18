@@ -1,1 +1,29 @@
+IF (ВыгружатьТоварыСвернутоПоНДС)
+{
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT 	''" + _1С_ТОВАР_КОД + "''	 		  	AS Номенклатура, 
+														1										AS КоличествоМест, 
+														''796'' 								AS ЕдиницаИзмерения, 
+														1 										AS Коэффициент, 
+														1 										AS Количество, 
+														SUM( summa )							AS Цена, 
+														SUM( summa ) 							AS Сумма,
+														(SELECT name FROM sprlistkodn WHERE code= spec055.kodn) AS СтавкаНДС,
+														0		 								AS СуммаНДС, 
+														''''									AS НомерГТД,
+														SUM( dbo.fn_calcsklad_cena(spec055.nn, '''+ВозвратТоваровПоставщику.date+''',
+																			'''+ВозвратТоваровПоставщику.sklad+''',
+																			''' + Учет + ''') * kolp ) / SUM( kolp ) AS ЦенаВРознице,
+														SUM( dbo.fn_calcsklad_cena(spec055.nn, '''+ВозвратТоваровПоставщику.date+''',
+																			'''+ВозвратТоваровПоставщику.sklad+''',
+																			''' + Учет + ''') * kolp ) / SUM( kolp ) AS СуммаВРознице,
+														SUM( dbo.fn_calcsklad_incena(spec055.nn, '''+ВозвратТоваровПоставщику.date+''',
+																			'''+ВозвратТоваровПоставщику.sklad+''',
+																			''' + Учет + ''') * kolp ) / SUM( kolp ) AS Себестоимость
+												FROM spec055 WHERE ic= ' + ВозвратТоваровПоставщику.identity_column + ' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+	
+	RETURN ТЕКСТ_СВЕРНУТО;
+}
+
+
 ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>ИмяТаблицы1= '#'+ALLTRIM(STR(СЛУЧАЙНОЕЧИСЛО(1)));'											  SELECT *, dbo.fn_calcsklad_cena(spec055.nn, '''+TTOC(ВозвратТоваровПоставщику.date)+''',																			'''+ВозвратТоваровПоставщику.sklad+''',																			''' + Учет + ''')  AS price_retail														INTO '+ИмяТаблицы1+' FROM spec055 WHERE ic= ' + ВозвратТоваровПоставщику.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"+';											  SELECT (SELECT maincode FROM sprres WHERE code= spec.nn )	 		  AS Номенклатура, 															 packs 												  AS КоличествоМест, 															 ed 												  AS ЕдиницаИзмерения, 															 koef_c 											  AS Коэффициент, 															 kolp 												  AS Количество, 															 cena 												  AS Цена, 															 summa 												  AS Сумма,															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,															 0		 											  AS СуммаНДС, 															 declar 										 	  AS НомерГТД,															 price_retail										  AS ЦенаВРознице,															 price_retail * kolp								  AS СуммаВРознице,															 dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(ВозвратТоваровПоставщику.date)+''',																			'''+ВозвратТоваровПоставщику.sklad+''',																			''' + Учет + ''') * kolp			  AS Себестоимость												FROM '+ИмяТаблицы1+' spec;											  DROP TABLE '+ИмяТаблицы1+';'</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

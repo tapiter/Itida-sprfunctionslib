@@ -1,1 +1,21 @@
-ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn )	 		  AS Номенклатура, 															 kolp 												  AS Количество, 															 cena 												  AS Цена, 															 summa 												  AS Сумма,															 koef_c 											  AS Коэффициент, 															 ed 												  AS ЕдиницаИзмерения, 															 packs 												  AS КоличествоМест, 															 (SELECT ex_code FROM sprcountry WHERE code =																	(SELECT manuf FROM sprnn WHERE nn= spec.nn))  AS СтранаПроисхождения,															 kolp*dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(СписаниеТоваров.date)+''',																			'''+СписаниеТоваров.sklad+''',	''' + Учет + ''')   AS Себестоимость												FROM spec003 spec WHERE ic= ' + СписаниеТоваров.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;
+IF (ВыгружатьТоварыСвернутоПоНДС)
+{
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
+													 1						AS Количество, 
+													 SUM( summa )			AS Цена, 
+													 SUM( summa )			AS Сумма,
+													 1						AS Коэффициент, 
+													 ''796''				AS ЕдиницаИзмерения, 
+													 1						AS КоличествоМест, 
+													 ''''					AS СтранаПроисхождения,
+													 (SELECT name FROM sprlistkodn WHERE code= spec003.kodn) AS СтавкаНДСВРознице,
+													 SUM( dbo.fn_calcsklad_incena(spec.nn, '''+СписаниеТоваров.date+''',
+																			'''+СписаниеТоваров.sklad+''',	''' + Учет + ''') * kolp ) AS Себестоимость
+												FROM spec003 spec WHERE ic= ' + СписаниеТоваров.identity_column + ' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+	
+	RETURN ТЕКСТ_СВЕРНУТО;
+}
+
+ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn )	 		  AS Номенклатура, 															 kolp 												  AS Количество, 															 cena 												  AS Цена, 															 summa 												  AS Сумма,															 koef_c 											  AS Коэффициент, 															 ed 												  AS ЕдиницаИзмерения, 															 packs 												  AS КоличествоМест, 															 (SELECT ex_code FROM sprcountry WHERE code =																	(SELECT manuf FROM sprnn WHERE nn= spec.nn))  AS СтранаПроисхождения,															 kolp*dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(СписаниеТоваров.date)+''',
+															 (SELECT name FROM sprlistkodn WHERE code= spec003.kodn) AS СтавкаНДСВРознице,																			'''+СписаниеТоваров.sklad+''',	''' + Учет + ''')   AS Себестоимость												FROM spec003 spec WHERE ic= ' + СписаниеТоваров.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

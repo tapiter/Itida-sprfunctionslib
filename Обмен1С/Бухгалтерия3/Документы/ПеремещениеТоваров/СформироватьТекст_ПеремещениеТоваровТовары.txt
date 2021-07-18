@@ -1,1 +1,22 @@
-ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) 		  AS Номенклатура, 															 packs 												  AS КоличествоМест, 															 ed 												  AS ЕдиницаИзмерения, 															 koef_e 											  AS Коэффициент, 															 kolp 												  AS Количество, 															 cena 												  AS Цена, 															 cena 												  AS ЦенаВРознице, 															 summa 												  AS СуммаВРознице,															 kolp * incena										  AS Себестоимость															 												FROM spec019 spec WHERE ic= ' + ПеремещениеТоваров.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ПеремещениеТоваров</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;
+IF (ВыгружатьТоварыСвернутоПоНДС)
+{
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
+													 1				AS КоличествоМест, 
+													 ''796''		AS ЕдиницаИзмерения, 
+													 1				AS Коэффициент, 
+													 1				AS Количество, 
+													 SUM( summa )	AS Цена, 
+													 SUM( summa )	AS ЦенаВРознице, 
+													 SUM( summa )	AS СуммаВРознице,
+													 SUM( incena * kolp ) AS Себестоимость,
+													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДСВРознице
+												FROM spec019 spec WHERE ic= ' + ПеремещениеТоваров.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +" GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ПеремещениеТоваров</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+				
+	RETURN ТЕКСТ_СВЕРНУТО;
+}
+
+
+
+ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) 		  AS Номенклатура, 															 packs 												  AS КоличествоМест, 															 ed 												  AS ЕдиницаИзмерения, 															 koef_e 											  AS Коэффициент, 															 kolp 												  AS Количество, 															 cena 												  AS Цена, 															 cena 												  AS ЦенаВРознице, 															 summa 												  AS СуммаВРознице,															 kolp * incena										  AS Себестоимость,
+															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДСВРознице												FROM spec019 spec WHERE ic= ' + ПеремещениеТоваров.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ПеремещениеТоваров</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

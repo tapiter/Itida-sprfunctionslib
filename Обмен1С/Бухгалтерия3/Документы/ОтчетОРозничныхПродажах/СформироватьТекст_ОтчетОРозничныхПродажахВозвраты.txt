@@ -7,7 +7,7 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 													 ''''	  												AS СтранаПроисхождения,
 													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) 	AS СтавкаНДС,
 													 0		 											  	AS СуммаНДС
-												FROM spec008 spec WHERE kolp&lt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND nn&lt;&gt;'' GROUP BY kodn'</ЗАПРОС>
+												FROM spec008 spec WHERE kolp&lt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Возвраты</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 	
 	RETURN ТЕКСТ_СВЕРНУТО;

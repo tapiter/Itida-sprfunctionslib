@@ -5,7 +5,7 @@ IF (ВыгружатьУслугиСвернутоПоНДС)
 													 SUM(summasale)											  AS Цена,
 													 SUM(summasale)											  AS Сумма,
 													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС
-												FROM spec008 spec WHERE kolp&gt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND s_code&lt;&gt;'' GROUP BY kodn'</ЗАПРОС>
+												FROM spec008 spec WHERE kolp&gt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND s_code&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>АгентскиеУслуги</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Услуги</ИМЯКОНТЕКСТА>";	
 				
 	RETURN ТЕКСТ_СВЕРНУТО;

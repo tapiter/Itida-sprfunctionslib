@@ -1,0 +1,20 @@
+ПолеКонтрагента	= ЕСЛИ( СинхронизироватьПоИНН, "inn", "ex_code" );
+КодКонтрагента	= "(SELECT CASE WHEN " + ПолеКонтрагента + " = '' THEN code ELSE " + ПолеКонтрагента + " END FROM sprclient WHERE code = s.client)";
+КодФирмы = "(SELECT CASE WHEN f.ex_code = '' THEN f.code ELSE f.ex_code END)";
+КодСклада = "(SELECT CASE WHEN ex_code = '' THEN code ELSE ex_code END FROM sprskl WHERE code = s.sklad)";
+КодСкладаПереоценки = "(SELECT CASE WHEN ex_code = '' THEN code ELSE ex_code END FROM sprskl WHERE code = skl.code)";
+
+IF ( ТИП( "ВыгружатьТоварыСвернутоПоНДС" ) == "U")
+	ВыгружатьТоварыСвернутоПоНДС = false;
+	
+IF ( ТИП( "ВыгружатьУслугиСвернутоПоНДС" ) == "U")
+	ВыгружатьУслугиСвернутоПоНДС = false;
+	
+IF ( ТИП( "ВыгружатьПереоценкиТоваров" ) == "U")
+	ВыгружатьПереоценкиТоваров = false;
+	
+IF ( ТИП( "ВыгружатьСчетаФактуры" ) == "U")
+	ВыгружатьСчетаФактуры = false;	
+	
+	
+RETURN "";

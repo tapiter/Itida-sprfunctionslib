@@ -13,7 +13,7 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 															 SUM( kolp * dbo.fn_calcsklad_cena( spec.nn, ''' + TTOC( ПоступлениеТоваровУслуг.date ) + ''', ''' + ПоступлениеТоваровУслуг.sklad + ''', ''001'' ) ) AS ЦенаВРознице,
 															 SUM( kolp * dbo.fn_calcsklad_cena( spec.nn, ''' + TTOC( ПоступлениеТоваровУслуг.date ) + ''', ''' + ПоступлениеТоваровУслуг.sklad + ''', ''001'' ) ) AS СуммаВРознице,
 															 '''' AS НомерГТД
-												FROM spec001 spec WHERE ic= ' + ПоступлениеТоваровУслуг.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +" GROUP BY kodn'</ЗАПРОС>
+												FROM spec001 spec WHERE ic= ' + ПоступлениеТоваровУслуг.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 	RETURN ТЕКСТ_СВЕРНУТО;
 }
@@ -28,7 +28,7 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
 															 sumnds AS СуммаНДС, 
 															 declar AS НомерГТД
-												FROM spec001 spec WHERE ic= ' + ПоступлениеТоваровУслуг.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>
+												FROM spec001 spec WHERE ic= ' + ПоступлениеТоваровУслуг.identity_column + ' AND nn&lt;&gt;'''' '</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 
 RETURN ТЕКСТ;

@@ -1,1 +1,21 @@
+IF (ВыгружатьТоварыСвернутоПоНДС)
+{
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	  AS Номенклатура, 
+															 1													  AS КоличествоМест, 
+															 ''796''											  AS ЕдиницаИзмерения, 
+															 1		 											  AS Коэффициент, 
+															 SUM(kolp)											  AS Количество, 
+															 SUM(summa)/SUM(kolp)								  AS Цена, 
+															 SUM(summa)											  AS Сумма,
+															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
+															 0		 											  AS СуммаНДС, 
+															 ''''	 											  AS НомерГТД,
+															 ''''												  AS СтранаПроисхождения,
+															 0		 											  AS Себестоимость															 
+												FROM spec050 spec WHERE ic= ' + РеализацияТоваровУслуг.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+				
+	RETURN ТЕКСТ_СВЕРНУТО;		
+}
+
 ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) 		  AS Номенклатура, 															 kolp 												  AS КоличествоМест, 															 ed 												  AS ЕдиницаИзмерения, 															 koef_e 											  AS Коэффициент, 															 kolp 												  AS Количество, 															 cena 												  AS Цена, 															 summa 												  AS Сумма,															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,															 0		 											  AS СуммаНДС, 															 ''''	 											  AS НомерГТД,															 (SELECT ex_code FROM sprcountry where code =																	(SELECT manuf FROM sprnn WHERE nn= spec.nn))  AS СтранаПроисхождения,															 0		 											  AS Себестоимость															 												FROM spec050 spec WHERE ic= ' + РеализацияТоваровУслуг.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

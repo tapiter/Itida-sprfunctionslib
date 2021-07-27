@@ -5,12 +5,12 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 															 1 AS КоличествоМест, 
 															 ''796'' AS ЕдиницаИзмерения, 
 															 1 AS Коэффициент, 
-															 1 AS Количество, 
-															 SUM( summa ) AS Цена, 
+															 SUM( kolp ) AS Количество, 
+															 SUM( summa ) / SUM( kolp ) AS Цена, 
 															 SUM( summa ) AS Сумма,
 															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
 															 SUM( sumnds ) AS СуммаНДС,
-															 SUM( kolp * dbo.fn_calcsklad_cena( spec.nn, ''' + TTOC( ПоступлениеТоваровУслуг.date ) + ''', ''' + ПоступлениеТоваровУслуг.sklad + ''', ''001'' ) ) AS ЦенаВРознице,
+															 SUM( kolp * dbo.fn_calcsklad_cena( spec.nn, ''' + TTOC( ПоступлениеТоваровУслуг.date ) + ''', ''' + ПоступлениеТоваровУслуг.sklad + ''', ''001'' ) ) / SUM( kolp ) AS ЦенаВРознице,
 															 SUM( kolp * dbo.fn_calcsklad_cena( spec.nn, ''' + TTOC( ПоступлениеТоваровУслуг.date ) + ''', ''' + ПоступлениеТоваровУслуг.sklad + ''', ''001'' ) ) AS СуммаВРознице,
 															 '''' AS НомерГТД
 												FROM spec001 spec WHERE ic= ' + ПоступлениеТоваровУслуг.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>

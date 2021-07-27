@@ -11,7 +11,7 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 													SUM( kolp * dbo.fn_calcsklad_incena(spec.nn, '''+СписаниеТоваров.date+''',
 																'''+СписаниеТоваров.sklad+''',	''' + Учет + ''') ) / SUM( kolp ) AS Себестоимость,
 													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДСВРознице
-												FROM spec021 spec WHERE ic= ' + СписаниеТоваров.identity_column + " + '"' + " AND priz = 0 AND nn&lt;&gt;''" + '"' +" GROUP BY kodn'</ЗАПРОС>
+												FROM spec021 spec WHERE ic= ' + СписаниеТоваров.identity_column + ' AND priz = 0 AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 	RETURN ТЕКСТ_СВЕРНУТО;
 }

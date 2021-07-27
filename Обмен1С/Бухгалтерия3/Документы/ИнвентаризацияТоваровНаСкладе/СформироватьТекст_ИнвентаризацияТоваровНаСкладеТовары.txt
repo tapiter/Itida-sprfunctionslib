@@ -2,10 +2,10 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 {
 	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
 													 1	 						AS КоличествоУчет, 
-													 1 							AS Количество, 
+													 SUM( kolp )				AS Количество, 
 													 SUM( summa )				AS СуммаУчет,
 													 SUM( summa )				AS Сумма,
-													 SUM( summa )	   			AS Цена,
+													 SUM( summa ) / SUM( kolp )	AS Цена,
 													 CASE WHEN SUM( kolp ) &lt;&gt; 0 THEN SUM( dbo.fn_calcsklad_cena(spec007.nn, 
 														'''+ИнвентаризацияТоваровНаСкладе.date+''',
 														'''+ИнвентаризацияТоваровНаСкладе.sklad+''',

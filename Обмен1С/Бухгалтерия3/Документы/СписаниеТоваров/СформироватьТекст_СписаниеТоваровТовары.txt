@@ -8,10 +8,10 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 													 ''796''				AS ЕдиницаИзмерения, 
 													 1						AS КоличествоМест, 
 													 ''''					AS СтранаПроисхождения,
-													 (SELECT name FROM sprlistkodn WHERE code= spec003.kodn) AS СтавкаНДСВРознице,
+													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДСВРознице,
 													 SUM( dbo.fn_calcsklad_incena(spec.nn, '''+СписаниеТоваров.date+''',
 																			'''+СписаниеТоваров.sklad+''',	''' + Учет + ''') * kolp ) / SUM( kolp ) AS Себестоимость
-												FROM spec003 spec WHERE ic= ' + СписаниеТоваров.identity_column + ' GROUP BY kodn'</ЗАПРОС>
+												FROM spec003 spec WHERE ic= ' + СписаниеТоваров.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 	
 	RETURN ТЕКСТ_СВЕРНУТО;

@@ -1,15 +1,15 @@
 IF (ВыгружатьТоварыСвернутоПоНДС)
 {
 	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
-													 1							AS Количество, 
-													 SUM( summasale )			AS Цена,
+													 SUM( kolp )				AS Количество, 
+													 SUM( summasale ) / SUM( kolp )		AS Цена,
 													 SUM( summasale )			AS Сумма,
 													 ''''						AS СтранаПроисхождения,
 													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
 													 CASE WHEN kodn = ''01'' THEN SUM( summasale ) * 10 / 110 ELSE CASE WHEN kodn = ''04'' THEN SUM( summasale ) * 20 / 120 ELSE 0 END END AS СуммаНДС, 
 													 SUM( kolp * dbo.fn_calcsklad_incena(spec.nn, '''+ОтчетОРозничныхПродажах.date+''', 
 																			'''+ОтчетОРозничныхПродажах.sklad+''', 
-																			''' + Учет + ''') ) AS Себестоимость
+																			''' + Учет + ''') ) / SUM( kolp ) AS Себестоимость
 												FROM spec008 spec WHERE ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND kolp&gt;0 AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 	

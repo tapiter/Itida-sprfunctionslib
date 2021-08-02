@@ -251,6 +251,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 	СтрокаТоваров +=  ДАННЫЕ_JSON("purchasePrice", costPrice) + ",";
 	СтрокаТоваров +=  ДАННЫЕ_JSON("sellingPrice", price) + ",";
 	СтрокаТоваров +=  ДАННЫЕ_JSON("volume",mVolume) + ",";	
+	СтрокаТоваров +=  ДАННЫЕ_JSON("weighted",mWeighted) + ",";
 		
 	IF (!ПУСТО(barCodes[0]))
 		СтрокаТоваров += """barcodes"":[""" + STRTRAN(barCodes[0],",",""",""") + """]" + ",";

@@ -1,5 +1,7 @@
 IF (ВыгружатьТоварыСвернутоПоНДС)
 {
+	//вариант 1
+	/*
 	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
 													 SUM( kolp )		AS Количество, 
 													 SUM( summa ) / SUM( kolp )	AS Цена, 
@@ -13,6 +15,22 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДСВРознице
 												FROM spec021 spec WHERE ic= ' + СписаниеТоваров.identity_column + ' AND priz = 0 AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+	*/
+	//вариант 2
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
+													 SUM( kolp * dbo.fn_calcsklad_incena(spec.nn, '''+СписаниеТоваров.date+''',
+																'''+СписаниеТоваров.sklad+''',	''' + Учет + ''') )		AS Количество, 
+													 SUM( summa ) / SUM( kolp * dbo.fn_calcsklad_incena(spec.nn, '''+СписаниеТоваров.date+''',
+																'''+СписаниеТоваров.sklad+''',	''' + Учет + ''') )	AS Цена, 
+													 SUM( summa )		AS Сумма,
+													 1					AS Коэффициент, 
+													 ''796''			AS ЕдиницаИзмерения, 
+													 1					AS КоличествоМест, 
+													 ''''				AS СтранаПроисхождения
+													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДСВРознице
+												FROM spec021 spec WHERE ic= ' + СписаниеТоваров.identity_column + ' AND priz = 0 AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+				
 	RETURN ТЕКСТ_СВЕРНУТО;
 }
 

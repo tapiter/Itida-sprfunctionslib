@@ -1,12 +1,27 @@
 IF (ВыгружатьУслугиСвернутоПоНДС)
 {
+	//вариант 1
+	/*
 	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "'' AS Номенклатура, 
-													 1 												  AS Количество, 
-													 SUM(summasale)											  AS Цена,
+													 SUM( kolp )											  AS Количество, 
+													 SUM(summasale) / SUM( kolp )							  AS Цена,
 													 SUM(summasale)											  AS Сумма,
 													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС
 												FROM spec008 spec WHERE kolp&gt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND s_code&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>АгентскиеУслуги</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Услуги</ИМЯКОНТЕКСТА>";	
+	*/
+	//вариант 2
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "'' AS Номенклатура, 
+													 SUM(summasale) - 
+																ROUND( SUM( summasale * ( SELECT CASE WHEN kodn.proc_ = 18 THEN 20 ELSE kodn.proc_ END AS proc_n from sprkodn kodn WHERE kodn.code = spec.kodn ) / 
+																	( 100 + ( SELECT CASE WHEN kodn.proc_ = 18 THEN 20 ELSE kodn.proc_ END AS proc_n from sprkodn kodn WHERE kodn.code = spec.kodn ) ) ), 2 )		AS Количество, 
+													 SUM(summasale) / (SUM(summa) - 
+																ROUND( SUM( summasale * ( SELECT CASE WHEN kodn.proc_ = 18 THEN 20 ELSE kodn.proc_ END AS proc_n from sprkodn kodn WHERE kodn.code = spec.kodn ) / 
+																	( 100 + ( SELECT CASE WHEN kodn.proc_ = 18 THEN 20 ELSE kodn.proc_ END AS proc_n from sprkodn kodn WHERE kodn.code = spec.kodn ) ) ), 2 )		  AS Цена,
+													 SUM(summasale)											  AS Сумма,
+													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС
+												FROM spec008 spec WHERE kolp&gt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND s_code&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>АгентскиеУслуги</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Услуги</ИМЯКОНТЕКСТА>";
 				
 	RETURN ТЕКСТ_СВЕРНУТО;
 }

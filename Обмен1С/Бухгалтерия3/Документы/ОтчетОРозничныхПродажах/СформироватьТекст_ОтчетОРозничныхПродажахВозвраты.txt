@@ -22,7 +22,8 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 													 SUM( ABS( summasale ) )								AS Сумма,
 													 ''''	  												AS СтранаПроисхождения,
 													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) 	AS СтавкаНДС,
-													 0		 											  	AS СуммаНДС
+													 0		 											  	AS СуммаНДС,
+													 ' + ОтчетОРозничныхПродажах.date + '				  AS ДатаРеализации
 												FROM spec008 spec WHERE kolp&lt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Возвраты</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 	
@@ -30,4 +31,5 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 }	
 
 
-ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= CASE WHEN spec.nn = '''' THEN spec.s_code ELSE spec.nn END ) 	AS Номенклатура, 													 ABS( kolp )										  AS Количество, 													 ABS( cenasale )									  AS Цена,													 ABS( summasale )									  AS Сумма,													 (SELECT ex_code FROM sprcountry WHERE code =														(SELECT manuf FROM sprnn WHERE nn= spec.nn))	  AS СтранаПроисхождения,													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,													 0		 											  AS СуммаНДС												FROM spec008 spec WHERE kolp&lt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Возвраты</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;
+ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= CASE WHEN spec.nn = '''' THEN spec.s_code ELSE spec.nn END ) 	AS Номенклатура, 													 ABS( kolp )										  AS Количество, 													 ABS( cenasale )									  AS Цена,													 ABS( summasale )									  AS Сумма,													 (SELECT ex_code FROM sprcountry WHERE code =														(SELECT manuf FROM sprnn WHERE nn= spec.nn))	  AS СтранаПроисхождения,													 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,													 0		 											  AS СуммаНДС,
+													 ' + ОтчетОРозничныхПродажах.date + '				  AS ДатаРеализации												FROM spec008 spec WHERE kolp&lt;0 AND ic= ' + ОтчетОРозничныхПродажах.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Возвраты</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетОРозничныхПродажах</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

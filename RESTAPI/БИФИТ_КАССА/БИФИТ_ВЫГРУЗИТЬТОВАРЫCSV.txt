@@ -116,12 +116,13 @@ IF (ПРИЗНАКОЧИСТКИККМ)
 _ЕСТЬМАРКИРОВКА	= VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprres') AND (COLUMN_NAME = N'f_mark')) THEN 1 ELSE 0 END"));
 _ЕСТЬТИПМАРКИРОВКИ	= VAL( ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprres') AND (COLUMN_NAME = N'markgroup')) THEN 1 ELSE 0 END") );
 
-СтрокаЗаголовка = "ID;NAME;GROUP;PRICE;VENDOR_CODE;PURCHASE_PRICE;WEIGHTED;NDS;PAYMENT_SUBJECT;BARCODE;CURRENCY_CODE;COUTRY_CODE;UNIT_CODE;ALCOHOL";
+СтрокаЗаголовка = "ID;NAME;GROUP;PRICE;VENDOR_CODE;PURCHASE_PRICE;WEIGHTED;NDS;PAYMENT_SUBJECT;BARCODE;CURRENCY_CODE;COUTRY_CODE;UNIT_CODE;ALCOHOL;MARK_TYPE";
 
 //записываем первую строку с заголовками в файл
 ФайлОбмена	= ФАЙЛОТКРЫТЬ( ИмяФайлаОбмена, 1, 1 );
 ФАЙЛУСТАНОВИТЬУКАЗАТЕЛЬ( ФайлОбмена, 0, 0, 2 );
 ФАЙЛЗАПИСАТЬСТРОКУ( ФайлОбмена, ПЕРЕКОДИРОВАТЬ(СтрокаЗаголовка, "ANSI", "UTF-8"));
+//ФАЙЛЗАПИСАТЬСТРОКУ( ФайлОбмена, СтрокаЗаголовка);
 ФАЙЛЗАКРЫТЬ( ФайлОбмена );
 
 ДОБАВИТЬКОНТЕКСТ("SELECT temp.code AS id, temp.barcode, temp.name, temp.cname, temp.cena, temp.kolp, temp.kodn, temp.article, spr.fractqty AS weighted,
@@ -162,9 +163,23 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 	
 	mCode = ALLTRIM( СписокТоваров.id );  //код
 	barCodes[0] = ALLTRIM( СписокТоваров.barcode ); //массив штрихкодов
-	mName			= RESTAPI.XMLTRANS( СписокТоваров.name + ЕСЛИ( IN_PARAM_NAME_WEIGHT == 0, "", " " + ALLTRIM( СписокТоваров.volweight ) ) );
+	
+	НаименованиеТовара = СписокТоваров.name;
+	НаименованиеКраткое = СписокТоваров.cname;
+	
+	WHILE ( ЛЕВСИМВ(НаименованиеТовара, 1) == """" )
+	{
+		НаименованиеТовара = ПРАВСИМВ( НаименованиеТовара, LEN( НаименованиеТовара) - 1 );
+	}
+		
+	WHILE ( ЛЕВСИМВ(НаименованиеКраткое, 1) == """" )
+	{
+		НаименованиеКраткое = ПРАВСИМВ( НаименованиеКраткое, LEN( НаименованиеКраткое) - 1 );	
+	}
+	
+	mName			= RESTAPI.XMLTRANS( НаименованиеТовара + ЕСЛИ( IN_PARAM_NAME_WEIGHT == 0, "", " " + ALLTRIM( СписокТоваров.volweight ) ) );
 	// Краткое наименование используется для чека
-	mCname			= RESTAPI.XMLTRANS( СписокТоваров.cname + ЕСЛИ( IN_PARAM_NAME_WEIGHT == 0, "", " " + ALLTRIM( СписокТоваров.volweight ) ) );
+	mCname			= RESTAPI.XMLTRANS( НаименованиеКраткое + ЕСЛИ( IN_PARAM_NAME_WEIGHT == 0, "", " " + ALLTRIM( СписокТоваров.volweight ) ) );
 	// Пивную продукцию теперь не выгружаем как алкоголь
 	ПивнаяПродукция	= VAL( СписокТоваров.nnvid ) >= 500 OR ВСПИСКЕ( VAL( СписокТоваров.nnvid ), 261, 262, 263 );
 	mAlco			= VAL( СписокТоваров.nnvid ) > 0 AND !ПивнаяПродукция;
@@ -174,33 +189,37 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 	alcoCodes[0] 	= СписокТоваров.alcocodes; //массив алкокодов
 	mEdn			= СписокТоваров.ed_code;
 	mWeighted		= ЕСЛИ(СписокТоваров.weighted, 1, 0);
-	price 			= VAL( STR( СписокТоваров.cena, 8, 2 )); //цена продажи
+	price 			= STRTRANC(STR( СписокТоваров.cena, 8, 2 ),".",","); //цена продажи
 	costPrice		= 0; //закупочная цена
 		
 	КоличествоТоваровНовые++;
 		
 	tax = ЕСЛИ( f_nalogs, СООТВЕТСТВИЕНАЛОГОВ[VAL( СписокТоваров.kodn )], ""); //налоги
 	articleNumber = RESTAPI.XMLTRANS( СписокТоваров.article ); //артикул
-	markType = ЕСЛИ(ПивнаяПродукция,"ALCOHOL", ЕСЛИ(mAlco,"ALCOHOL", "UNKNOWN")); //тип товара
+	markType = ЕСЛИ(ПивнаяПродукция,"1", ЕСЛИ(mAlco,"1", "0")); //тип товара
 	IF ( !ПУСТО(СписокТоваров.f_mark) AND СписокТоваров.f_mark <> 0 )
 	{
 		ТипМаркировки = СписокТоваров.markgroup;
 		IF ( VAL( ТипМаркировки ) == 5 ) //табачная продукция
 		{
-			markType = "TOBACCO";			
+			markType = "2";			
 		}
 		ELSE IF ( VAL( ТипМаркировки ) == 1520 ) //обувь
 		{
-			markType = "SHOES";			
+			markType = "3";			
 		}
-		//ELSE IF ( VAL( ТипМаркировки ) == 2 ) //меховые изделия (на дату 22.07.2019 нет в формате обмена)
-		//{
-		//	_type = "?";
-		//}
-		//ELSE IF ( VAL( ТипМаркировки ) == 3 ) //лекарства (на дату 22.07.2019 нет в формате обмена)
-		//{
-		//	_type = "?";			
-		//}
+		ELSE IF ( VAL( ТипМаркировки ) == 9995 ) //парфюм
+		{
+			markType = "5";
+		}
+		ELSE IF ( ТипМаркировки == "0002" ) //СИЗ
+		{
+			markType = "4";			
+		}
+		ELSE
+		{
+			markType = "6";			
+		}
 	}
 	adultsOnly	= ПивнаяПродукция OR mAlco;
 	fullpath	= СписокТоваров.fullpath;
@@ -208,11 +227,12 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 	rsubject	= СписокТоваров.rsubject;
 	mBarcodes	= STRTRANC(barCodes[0],",", "|"); 
 	
-	СтрокаТовара = "internal_" + uuid + ";" + mName + ";" + mfullpath + ";" + price + ";" + articleNumber + ";" + costPrice + ";" + mWeighted + ";" + tax + ";" + rsubject + ";" + mBarcodes + ";643;;" + mEdn + ";" + ЕСЛИ(ПивнаяПродукция OR mAlco, "1", "0");
+	СтрокаТовара = uuid + ";" + mName + ";" + mfullpath + ";" + price + ";" + articleNumber + ";" + costPrice + ";" + mWeighted + ";" + tax + ";" + rsubject + ";" + mBarcodes + ";643;;" + mEdn + ";" + ЕСЛИ(ПивнаяПродукция OR mAlco, "1", "0") + ";" + markType;
 		
 	ФайлОбмена	= ФАЙЛОТКРЫТЬ( ИмяФайлаОбмена, 1, 1 );
 	ФАЙЛУСТАНОВИТЬУКАЗАТЕЛЬ( ФайлОбмена, 0, 0, 2 );
 	ФАЙЛЗАПИСАТЬСТРОКУ( ФайлОбмена, ПЕРЕКОДИРОВАТЬ(СтрокаТовара, "ANSI", "UTF-8"));
+	//ФАЙЛЗАПИСАТЬСТРОКУ( ФайлОбмена, СтрокаТовара);
 	ФАЙЛЗАКРЫТЬ( ФайлОбмена );
 		
 	ПРОПУСТИТЬ(1, "СписокТоваров");

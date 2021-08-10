@@ -1,1 +1,1 @@
-{"description":"ЛОКАЛЬНАЯ ВЕРНУТЬТОВАРЫ (СКЛАД, КАТЕГОРИЯЦЕНЫ)","note":"","isLocal":true}
+{"description":"ЛОКАЛЬНАЯ ВЕРНУТЬТОВАРЫ ()","note":"","isLocal":true}

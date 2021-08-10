@@ -1,4 +1,4 @@
-IF (!ВыгружатьСчетаФактуры)
+IF ( !Обмен1С.ВыгружатьТипДокумента("022") )
 	RETURN "";
 
 ТЕКСТЗАПРОСА = "SELECT s000.code + s000.maindb + CONVERT( char(10), s000.mainic ) AS Ref, s000.f_deleted AS DeletionMark,

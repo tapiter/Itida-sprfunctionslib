@@ -152,11 +152,13 @@ IF ( ЦенаТоварнойПозиции == 0 )
 
 _ВСЕГОСКИДКАНАЧЕК = _ВСЕГОСКИДКАНАЧЕК + СуммаСкидкиПозиции;
 
+IF ( TYPE("ВЕРСИЯФФД") == "U" )	
+	ВЕРСИЯФФД = "1.05";
 
 ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, 
-													name, quantity, price, _price_u, summa, destination, department, discounttype, discountvalue, kodn, rsubject, rvariant, marktype, markbc )
+													name, quantity, price, _price_u, summa, destination, department, discounttype, discountvalue, kodn, rsubject, rvariant, marktype, markbc, ffd_version )
 		 VALUES ( '" + Операция + "', '" + FROperatorProfile + "', 1, 0, '" + ЕСЛИ( !ПУСТО(ШАБЛОННАИМЕНОВАНИЯ), STDF(ШАБЛОННАИМЕНОВАНИЯ),  STDF( Наименование ) ) + "', " + STR( КоличествоТовара, 16, 3 ) + ", " + 
 		 STR( ЦенаТоварнойПозиции, 16, 2 ) + ", " + STR( _Цена_Учет, 16, 2 ) + ", " + STR( СуммаТовара, 16, 2 ) + ", 0, " + ЕСЛИ( ПУСТО( СекцияККМ ), 1, СекцияККМ ) + ", 0, " + 
-		 STR( СуммаСкидкиПозиции, 16, 3 ) + ", '" + КодНалога + "', '" + ПредметРасчета + "', '" + СпособРасчета + "', '" + ТипМаркировки + "', '" + STDF(ШтрихКодМаркировки) + "' )" );
+		 STR( СуммаСкидкиПозиции, 16, 3 ) + ", '" + КодНалога + "', '" + ПредметРасчета + "', '" + СпособРасчета + "', '" + ТипМаркировки + "', '" + STDF(ШтрихКодМаркировки) + "', '" + ВЕРСИЯФФД + "' )" );
 
 RETURN true;

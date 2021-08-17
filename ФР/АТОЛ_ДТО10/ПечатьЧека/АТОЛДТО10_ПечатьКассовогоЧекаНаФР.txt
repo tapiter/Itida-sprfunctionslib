@@ -9,6 +9,17 @@
 //								
 IF ( !ФР.АТОЛДТО10_ОткрытьФР( ЕСЛИ( ПУСТО( КОДУСТРОЙСТВАПЕЧАТИ ), КОДОБОРУДОВАНИЯ, КОДУСТРОЙСТВАПЕЧАТИ ), "Печать кассового чека" ) ) RETURN false;
 
+IF (ALLTRIM(ВерсияФФД) == "1.2")
+{
+	ТекстОчисткиРезультатовПроверкиКМ = "{ ""type"": ""clearMarkingCodeValidationResult"" }";
+	
+	fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстОчисткиРезультатовПроверкиКМ );
+	fptr.processJson();
+	
+	IF ( fptr.errorCode() <> 0 )
+	RETURN ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки( "Очистка проверенных КМ в ФН" );	
+}
+
 fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстКассовогоЧека );
 fptr.processJson();
 

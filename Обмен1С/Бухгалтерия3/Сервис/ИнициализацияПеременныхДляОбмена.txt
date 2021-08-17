@@ -1,3 +1,5 @@
+PUBLIC ПолеКонтрагента, КодКонтрагента, КодФирмы, КодСклада, КодСкладаПереоценки;
+
 ПолеКонтрагента	= ЕСЛИ( СинхронизироватьПоИНН, "inn", "ex_code" );
 КодКонтрагента	= "(SELECT CASE WHEN " + ПолеКонтрагента + " = '' THEN code ELSE " + ПолеКонтрагента + " END FROM sprclient WHERE code = s.client)";
 КодФирмы = "(SELECT CASE WHEN f.ex_code = '' THEN f.code ELSE f.ex_code END)";

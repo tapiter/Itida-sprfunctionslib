@@ -1,52 +1,1 @@
-
-/* типы документов
-	DP_PDOTPR - подтверждение даты отправки
-	DP_IZVPOL - квитанция
-	DP_UVUTOCH - отказ
-	ON_SCHFDOPPOK - подтверждение
-*/
-
-ДатаДокумента	= DTOC( ДАТА( ) );
-ТипДокумента	= ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_PDOTPR" ) > 0, 	"DP_PDOTPR",
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_IZVPOL" ) > 0, 	"DP_IZVPOL",
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_UVUTOCH" ) > 0, 	"DP_UVUTOCH",
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_SCHFDOPPOK" ) > 0,	"ON_SCHFDOPPOK", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_REZRUZAK" ) > 0,	"DP_REZRUZAK", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_NSCHFDOPPR" ) > 0,	"ON_NSCHFDOPPR", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_ORDER" ) > 0,		"ON_ORDER", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_SCHET" ) > 0,		"ON_SCHET", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_REZRUISP" ) > 0,	"DP_REZRUISP",  
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_PDPOL" ) > 0,		"DP_PDPOL", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_TOVTORGPOK" ) > 0,	"DP_TOVTORGPOK", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_TOVTORGPR" ) > 0,	"DP_TOVTORGPR", 
-				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_PRANNUL" ) > 0, 	"DP_PRANNUL", "" ) ) ) ) ) ) ) ) ) ) ) ) );
-
-__sql( )
-{
-	IF NOT EXISTS( SELECT * FROM edi_notifications WHERE guid = '[[ ИДДокумента ]]' AND 
-														 parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 
-														 editionguid= '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 
-														 ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]' )
-		INSERT INTO edi_notifications ( guid, parentguid, editionguid, ent, type, date, firstname, middlename, surname, position, xml, direction, filename, f_main )
-		VALUES ( '[[ ИДДокумента ]]', '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]', '[[ STDF( ИДРЕДАКЦИИ ) ]]', '[[ STDF( ПРЕДПРИЯТИЕ ) ]]',
-				 '[[ ТипДокумента ]]','[[ ДатаДокумента ]]','[[ Имя ]]','[[ Отчество ]]','[[ Фамилия ]]','[[ Должность ]]','[[ STDF( Ответ ) ]]',[[ЕСЛИ( Входящий, 0, 1 )]],
-				 '[[STDF( ИМЯФАЙЛА )]]', [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, "1", "0" )]] );
-	ELSE
-		UPDATE edi_notifications
-		SET
-			type		= '[[ ТипДокумента ]]',
-			date		= '[[ ДатаДокумента ]]',
-			firstname	= '[[ Имя ]]',
-			middlename	= '[[ Отчество ]]',
-			surname		= '[[ Фамилия ]]',
-			position	= '[[ Должность ]]',
-			xml			= '[[ STDF( Ответ ) ]]',
-			direction	=  [[ЕСЛИ( Входящий, 0, 1 )]],
-			filename	= '[[ STDF( ИМЯФАЙЛА ) ]]',
-			f_main		=  [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, 1, 0 )]]
-		WHERE guid = '[[ ИДДокумента ]]' AND 
-			  parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 
-			  editionguid = '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 
-			  ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]';
-}
-RETURN true;
+/* типы документов	DP_PDOTPR - подтверждение даты отправки	DP_IZVPOL - квитанция	DP_UVUTOCH - отказ	ON_SCHFDOPPOK - подтверждение*/ДатаДокумента	= DTOC( ДАТА( ) );ТипДокумента	= ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_PDOTPR" ) > 0, 	"DP_PDOTPR",				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_IZVPOL" ) > 0, 	"DP_IZVPOL",				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_UVUTOCH" ) > 0, 	"DP_UVUTOCH",				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_SCHFDOPPOK" ) > 0,	"ON_SCHFDOPPOK", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_REZRUZAK" ) > 0,	"DP_REZRUZAK", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_NSCHFDOPPR" ) > 0,	"ON_NSCHFDOPPR", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_ORDER" ) > 0,		"ON_ORDER", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""ON_SCHET" ) > 0,		"ON_SCHET", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_REZRUISP" ) > 0,	"DP_REZRUISP",  				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_PDPOL" ) > 0,		"DP_PDPOL", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_TOVTORGPOK" ) > 0,	"DP_TOVTORGPOK", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_TOVTORGPR" ) > 0,	"DP_TOVTORGPR", 				  ЕСЛИ( ATC( Ответ, "ИдФайл=""DP_PRANNUL" ) > 0, 	"DP_PRANNUL", "" ) ) ) ) ) ) ) ) ) ) ) ) );__sql( ){	IF NOT EXISTS( SELECT * FROM edi_notifications WHERE guid = '[[ ИДДокумента ]]' AND 														 parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 														 editionguid= '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 														 ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]' )		INSERT INTO edi_notifications ( guid, parentguid, editionguid, ent, type, date, firstname, middlename, surname, position, xml, direction, filename, f_main )		VALUES ( '[[ ИДДокумента ]]', '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]', '[[ STDF( ИДРЕДАКЦИИ ) ]]', '[[ STDF( ПРЕДПРИЯТИЕ ) ]]',				 '[[ ТипДокумента ]]','[[ ДатаДокумента ]]','[[ Имя ]]','[[ Отчество ]]','[[ Фамилия ]]','[[ Должность ]]','[[ STDF( Ответ ) ]]',[[ЕСЛИ( Входящий, 0, 1 )]],				 '[[STDF( ИМЯФАЙЛА )]]', [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, "1", "0" )]] );	ELSE		UPDATE edi_notifications		SET			type		= '[[ ТипДокумента ]]',			date		= '[[ ДатаДокумента ]]',			firstname	= '[[ Имя ]]',			middlename	= '[[ Отчество ]]',			surname		= '[[ Фамилия ]]',			position	= '[[ Должность ]]',			xml			= '[[ STDF( Ответ ) ]]',			direction	=  [[ЕСЛИ( Входящий, 0, 1 )]],			filename	= '[[ STDF( ИМЯФАЙЛА ) ]]',			f_main		=  [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, 1, 0 )]]		WHERE guid = '[[ ИДДокумента ]]' AND 			  parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 			  editionguid = '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 			  ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]';}RETURN true;

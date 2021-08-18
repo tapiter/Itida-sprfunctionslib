@@ -1,46 +1,1 @@
-IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT filename, signname, reglament, transactioncode, content, addid, identity_column, number FROM " + ИмяТаблицы, "СписокДокументов" ) ) RETURN "";
-IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 ) RETURN "";
-
-ЕстьКарта			= НАЙТИ( "СписокДокументов", "filename", "card.xml" );
-Текст				= "<?xml version=""1.0"" encoding=""windows-1251"" ?>
-<ContainerDescription RequestDateTime=""" + TTOC( ДАТАВРЕМЯ( ), 7, "-" ) + """ xmlns=""http://api-invoice.taxcom.ru/meta"">
-<DocFlow Id=""" + GUIDДокумента + """>
-   <Documents>";
-   
-ПЕРЕЙТИВНАЧАЛО( "СписокДокументов" );
-ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
-{
-	IF ( СписокДокументов.filename == "card.xml" )
-	{
-		ПРОПУСТИТЬ( 1, "СписокДокументов" );
-		CONTINUE;
-	}
-	// Необходимо подписать content и добавить его обратно в таблицу
-	ФайлПодписи			= СписокДокументов.signname; 
-	Путь				= transactioncode + ЕСЛИ( ПУСТО( СписокДокументов.number ), "", "_" + СписокДокументов.number );
-	if ( ПУСТО( ФайлПодписи ) )
-	{
-		ФайлПодписи		= ЗАПРОС( "SELECT CONVERT( varchar( 50 ), NEWID( ) ) + '.p7s'" ); 
-		ШифрованныйХэш	= ШИФРОВАНИЕ( СЕРТИФИКАТ, СписокДокументов.content, 1, true, false, _ЭДО_ХРАНИЛИЩЕСЕРТИФИКАТОВ );
-		IF ( ПУСТО( ФайлПодписи ) || ПУСТО( ШифрованныйХэш ) ) RETURN "";
-		
-		IF ( !ЗАПРОС( "UPDATE " + имяТаблицы + " 
-					   SET signname= '" + ФайлПодписи + "', signcontent= " + ШифрованныйХэш + " 
-					   WHERE identity_column= " + СписокДокументов.identity_column ) ) RETURN "";
-	}
-	IF ( ПУСТО( СписокДокументов.addid ) ) 
-		Текст		+= "<Document ReglamentCode=""" + СписокДокументов.reglament + """ TransactionCode=""" + СписокДокументов.transactioncode + """>";
-	ELSE
-		Текст		+= "<Document AdditionalDocId=""" + СписокДокументов.addid + """>";
-	Текст			+= "		   <Files>
-			   <MainImage Path=""" + Путь + "/" + СписокДокументов.filename + """ />
-			   <MainImageSignature Path=""" + Путь + "/" + ФайлПодписи + """ /> " +
-	ЕСЛИ( ЕстьКарта, "<ExternalCard Path=""" + Путь + "/card.xml"" />", "" ) + "
-		   </Files>
-	   </Document>
-";
-	ПРОПУСТИТЬ( 1, "СписокДокументов" );
-}
-Текст				+="</Documents></DocFlow></ContainerDescription>";
-УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );
-RETURN Текст;
+IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT filename, signname, reglament, transactioncode, content, addid, identity_column, number FROM " + ИмяТаблицы, "СписокДокументов" ) ) RETURN "";IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 ) RETURN "";ЕстьКарта			= НАЙТИ( "СписокДокументов", "filename", "card.xml" );Текст				= "<?xml version=""1.0"" encoding=""windows-1251"" ?><ContainerDescription RequestDateTime=""" + TTOC( ДАТАВРЕМЯ( ), 7, "-" ) + """ xmlns=""http://api-invoice.taxcom.ru/meta""><DocFlow Id=""" + GUIDДокумента + """>   <Documents>";   ПЕРЕЙТИВНАЧАЛО( "СписокДокументов" );ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) ){	IF ( СписокДокументов.filename == "card.xml" )	{		ПРОПУСТИТЬ( 1, "СписокДокументов" );		CONTINUE;	}	// Необходимо подписать content и добавить его обратно в таблицу	ФайлПодписи			= СписокДокументов.signname; 	Путь				= transactioncode + ЕСЛИ( ПУСТО( СписокДокументов.number ), "", "_" + СписокДокументов.number );	if ( ПУСТО( ФайлПодписи ) )	{		ФайлПодписи		= ЗАПРОС( "SELECT CONVERT( varchar( 50 ), NEWID( ) ) + '.p7s'" ); 		ШифрованныйХэш	= ШИФРОВАНИЕ( СЕРТИФИКАТ, СписокДокументов.content, 1, true, false, _ЭДО_ХРАНИЛИЩЕСЕРТИФИКАТОВ );		IF ( ПУСТО( ФайлПодписи ) || ПУСТО( ШифрованныйХэш ) ) RETURN "";				IF ( !ЗАПРОС( "UPDATE " + имяТаблицы + " 					   SET signname= '" + ФайлПодписи + "', signcontent= " + ШифрованныйХэш + " 					   WHERE identity_column= " + СписокДокументов.identity_column ) ) RETURN "";	}	IF ( ПУСТО( СписокДокументов.addid ) ) 		Текст		+= "<Document ReglamentCode=""" + СписокДокументов.reglament + """ TransactionCode=""" + СписокДокументов.transactioncode + """>";	ELSE		Текст		+= "<Document AdditionalDocId=""" + СписокДокументов.addid + """>";	Текст			+= "		   <Files>			   <MainImage Path=""" + Путь + "/" + СписокДокументов.filename + """ />			   <MainImageSignature Path=""" + Путь + "/" + ФайлПодписи + """ /> " +	ЕСЛИ( ЕстьКарта, "<ExternalCard Path=""" + Путь + "/card.xml"" />", "" ) + "		   </Files>	   </Document>";	ПРОПУСТИТЬ( 1, "СписокДокументов" );}Текст				+="</Documents></DocFlow></ContainerDescription>";УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );RETURN Текст;

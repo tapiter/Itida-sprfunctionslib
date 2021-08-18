@@ -1,48 +1,1 @@
-
-/* типы документов
-	PostDateConfirmationReceiveNotice - подтверждение даты отправки
-	ReceiveNotice - подтверждение получения
-	CustomerInformation - подтверждение
-	SendConfirmationReceiveNotice - подтверждение получения 
-	ReceiveNoticePostDateConfirmationReceiveNotice - подтверждение даты получения
-	CustomerInformation - Информация покупателя
-	CustomerInformationPostDateConfirmationReceiveNotice - подтверждение даты отправки информации покупателя
-	CorrectionNoticeReceiveNotice - получение исправления
-	CorrectionNotice - отправка исправления
-	Invoice - основной документ
-*/
-
-ПОДПИСАНТИМЯ			= ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDIFIRSTNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" );
-ПОДПИСАНТФАМИЛИЯ		= ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDISURNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" );
-ПОДПИСАНТОТЧЕСТВО		= ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDIMIDDLENAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" );
-ПОДПИСАНТДОЛЖНОСТЬ		= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDIPOSITION" + ПРЕДПРИЯТИЕ + "'" );
-ДатаДокумента			= DTOC( ДАТА( ) );
-
-__sql( )
-{
-	IF NOT EXISTS( SELECT * FROM edi_notifications WHERE guid = '[[ ИДДокумента ]]' AND 
-														 parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 
-														 ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]' )
-		INSERT INTO edi_notifications ( guid, parentguid, ent, type, date, firstname, middlename, surname, position, xml, direction, filename, f_main, reglament )
-		VALUES ( '[[ ИДДокумента ]]', '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]', '[[ STDF( ПРЕДПРИЯТИЕ ) ]]',
-				 '[[ ТипДокумента ]]','[[ ДатаДокумента ]]','[[ ПОДПИСАНТИмя ]]','[[ ПОДПИСАНТОтчество ]]','[[ ПОДПИСАНТФамилия ]]','[[ ПОДПИСАНТДолжность ]]','[[ STDF( Ответ ) ]]', [[ЕСЛИ( Входящий, 0, 1 )]],
-				 '[[STDF( ИМЯФАЙЛА )]]', [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, "1", "0" )]], '[[ РЕГЛАМЕНТ ]]' );
-	ELSE
-		UPDATE edi_notifications
-		SET
-			type		= '[[ ТипДокумента ]]',
-			date		= '[[ ДатаДокумента ]]',
-			firstname	= '[[ ПОДПИСАНТИмя ]]',
-			middlename	= '[[ ПОДПИСАНТОтчество ]]',
-			surname		= '[[ ПОДПИСАНТФамилия ]]',
-			position	= '[[ ПОДПИСАНТДолжность ]]',
-			xml			= '[[ STDF( Ответ ) ]]',
-			direction	=  [[ЕСЛИ( Входящий, 0, 1 )]],
-			filename	= '[[ STDF( ИМЯФАЙЛА ) ]]',
-			f_main		=  [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, 1, 0 )]],
-			reglament	= '[[ РЕГЛАМЕНТ ]]'
-		WHERE guid = '[[ ИДДокумента ]]' AND 
-			  parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 
-			  ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]';
-}
-RETURN true;
+/* типы документов	PostDateConfirmationReceiveNotice - подтверждение даты отправки	ReceiveNotice - подтверждение получения	CustomerInformation - подтверждение	SendConfirmationReceiveNotice - подтверждение получения 	ReceiveNoticePostDateConfirmationReceiveNotice - подтверждение даты получения	CustomerInformation - Информация покупателя	CustomerInformationPostDateConfirmationReceiveNotice - подтверждение даты отправки информации покупателя	CorrectionNoticeReceiveNotice - получение исправления	CorrectionNotice - отправка исправления	Invoice - основной документ*/ПОДПИСАНТИМЯ			= ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDIFIRSTNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" );ПОДПИСАНТФАМИЛИЯ		= ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDISURNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" );ПОДПИСАНТОТЧЕСТВО		= ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDIMIDDLENAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" );ПОДПИСАНТДОЛЖНОСТЬ		= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_EDIPOSITION" + ПРЕДПРИЯТИЕ + "'" );ДатаДокумента			= DTOC( ДАТА( ) );__sql( ){	IF NOT EXISTS( SELECT * FROM edi_notifications WHERE guid = '[[ ИДДокумента ]]' AND 														 parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 														 ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]' )		INSERT INTO edi_notifications ( guid, parentguid, ent, type, date, firstname, middlename, surname, position, xml, direction, filename, f_main, reglament )		VALUES ( '[[ ИДДокумента ]]', '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]', '[[ STDF( ПРЕДПРИЯТИЕ ) ]]',				 '[[ ТипДокумента ]]','[[ ДатаДокумента ]]','[[ ПОДПИСАНТИмя ]]','[[ ПОДПИСАНТОтчество ]]','[[ ПОДПИСАНТФамилия ]]','[[ ПОДПИСАНТДолжность ]]','[[ STDF( Ответ ) ]]', [[ЕСЛИ( Входящий, 0, 1 )]],				 '[[STDF( ИМЯФАЙЛА )]]', [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, "1", "0" )]], '[[ РЕГЛАМЕНТ ]]' );	ELSE		UPDATE edi_notifications		SET			type		= '[[ ТипДокумента ]]',			date		= '[[ ДатаДокумента ]]',			firstname	= '[[ ПОДПИСАНТИмя ]]',			middlename	= '[[ ПОДПИСАНТОтчество ]]',			surname		= '[[ ПОДПИСАНТФамилия ]]',			position	= '[[ ПОДПИСАНТДолжность ]]',			xml			= '[[ STDF( Ответ ) ]]',			direction	=  [[ЕСЛИ( Входящий, 0, 1 )]],			filename	= '[[ STDF( ИМЯФАЙЛА ) ]]',			f_main		=  [[ЕСЛИ( ГЛАВНЫЙФАЙЛ, 1, 0 )]],			reglament	= '[[ РЕГЛАМЕНТ ]]'		WHERE guid = '[[ ИДДокумента ]]' AND 			  parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 			  ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]';}RETURN true;

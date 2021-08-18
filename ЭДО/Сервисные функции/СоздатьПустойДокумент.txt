@@ -1,90 +1,1 @@
-
-
-// Проверяем наличие документа в базе
-// Если такой уже есть, то ничего не делаем. Все ОК
-ПроверкаНаличия		= "Ok"; 
-IF ( !ПУСТО( GUIDДокумента ) )
-{
-	ПроверкаНаличия	= ЗАПРОС( "SELECT 'ДОКУМЕНТУЖЕЕСТЬ' FROM ediincome
-							   WHERE guid = '" + STDF( GUIDДокумента ) + "' AND ent = '" + STDF( Предприятие ) + "' AND editionguid = '" + STDF( GUIDРедакции ) + "'" );
-	IF ( !ПУСТО( ПроверкаНаличия ) ) RETURN ПроверкаНаличия;
-
-	ПроверкаНаличия	= ЗАПРОС( "SELECT 'ЕСТЬНОВАЯРЕДАКЦИЯ' FROM ediincome
-							   WHERE guid = '" + STDF( GUIDДокумента ) + "' AND ent = '" + STDF( Предприятие ) + "'" );
-	IF ( ПУСТО( ПроверкаНаличия ) ) 
-		ПроверкаНаличия		= "Ok"; 
-}
-КодКлиента			= ЗАПРОС( "SELECT code FROM sprclient WHERE inn <> '' AND inn = '" + STDF( ИННКЛИЕНТА ) + "' AND kpp = '" + STDF( КППКЛИЕНТА ) + "'
-							   UNION SELECT code FROM sprclient WHERE inn <> '' AND inn = '" + STDF( ИННКЛИЕНТА ) + "' AND kpp = ''
-							   UNION SELECT code FROM sprclient WHERE name = '" + STDF( НАЗВАНИЕКЛИЕНТА ) + "' AND inn = ''" );
-
-IF ( ПУСТО( КодКлиента ) && !ПУСТО( НАЗВАНИЕКЛИЕНТА ) &&  !ПЕРЕМЕННАЯ( "_ЭДОНЕСОЗДАВАТЬКОНТРАГЕНТОВ", false ) )
-	КодКлиента		= ЭДО.СоздатьКонтрагента( ПРЕДПРИЯТИЕ, НАЗВАНИЕКЛИЕНТА, ИННКЛИЕНТА, КППКЛИЕНТА, "", "", АДРЕСКЛИЕНТА, "" );
-
-IF ( ПУСТО( КодКлиента ) )
-{
-	КлиентНаименование	= НАЗВАНИЕКЛИЕНТА;
-	КлиентИНН			= ИННКЛИЕНТА;
-	КлиентКПП			= КППКЛИЕНТА;
-	КлиентАдрес			= АДРЕСКЛИЕНТА;
-	КлиентСчет			= "";
-	КлиентБанк			= "";
-}
-ELSE
-{
-	КлиентНаименование	= ЗАПРОС( "SELECT name, inn, kpp, rs, code, adress, bank FROM sprclient WHERE code = '" + STDF( КодКлиента ) + "'", "name" );
-	КлиентИНН			= ЗАПРОС( "", "inn" );
-	КлиентКПП			= ЗАПРОС( "", "kpp" );
-	КлиентАдрес			= ЗАПРОС( "", "adress" );
-	КлиентСчет			= ЗАПРОС( "", "rs" );
-	КодКлиента			= ЗАПРОС( "", "code" );
-	КлиентБанк			= ЗАПРОС( "SELECT name FROM sprbank WHERE code = '" + ЗАПРОС( "", "bank" ) + "'" );
-}
-Фирма				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_FIRM" + ПРЕДПРИЯТИЕ + "'" );
-	
-_ERRORDESCRIPTION	= "";
-try
-{
-	__SQL( "ediincome" )
-	{
-		DECLARE @guiddoc varchar( 50 ), @editionnum int, @ndok varchar( 50 );
-		SELECT @guiddoc	= '[[ STDF( GUIDДокумента ) ]]';
-		SELECT @ndok	= '[[ STDF( НОМЕРДОКУМЕНТА ) ]]';
-		IF @guiddoc	= ''
-			SELECT @guiddoc	= NEWID( ), @editionnum= 0;
-		ELSE
-		BEGIN
-			SELECT @editionnum 	= MAX( editionnum ) FROM ediincome WHERE guid = @guiddoc AND ent= '[[ STDF( Предприятие ) ]]';
-			SELECT @editionnum 	= ISNULL( @editionnum + 1, 0 );
-			IF @editionnum <> 0
-				SELECT @ndok	= @ndok + '/РЕД-' + CONVERT( varchar( 10 ), @editionnum );
-		END
-		
-		-- ТАБЛИЦА ВХОДЯЩИХ ДОКУМЕНТОВ ИЗ СИСТЕМЫ ЭДО
-		-- ПРЕДПРИЯТИЕ, GUIDДОКУМЕНТА, GUIDРЕДАКЦИИ, ЭДОИДКЛИЕНТА, НАЗВАНИЕДОКУМЕНТА, НОМЕРДОКУМЕНТА, ДАТАДОКУМЕНТА, ВЫВЕСТИСООБЩЕНИЕ
-		INSERT INTO ediincome ( guid, editionguid, editionnum, ent, note, desc_, ndok, date, vendorname, vendorinn, vendorkpp, vendoraddress, 
-								vendorbank, vendorrs, client, summa, firm )
-		VALUES ( @guiddoc, '[[ STDF( GUIDРедакции ) ]]', @editionnum, '[[ STDF( Предприятие ) ]]', '[[STDF( НАЗВАНИЕДОКУМЕНТА )]]', '[[STDF( НАЗВАНИЕДОКУМЕНТА )]]', @ndok,
-				 '[[ DTOC( ДАТАДОКУМЕНТА ) ]]', '[[ STDF( КлиентНаименование, 250) ]]', '[[ STDF( КлиентИНН, 50 ) ]]', '[[ STDF( КлиентКПП, 50 ) ]]', 
-				 '[[ STDF( КлиентАдрес, 250 ) ]]', '[[ STDF( КлиентБанк, 20 ) ]]', '[[ STDF( КлиентСчет, 50 ) ]]', '[[ STDF( КодКлиента ) ]]', 
-				 [[ STR( 0, 16, 2 ) ]], '[[ STDF( Фирма ) ]]' );
-	}
-	SQLERROR throw( 1 );
-	
-	// Для формы модуля ЭДО проверяем период 
-	IF ( ДАТАДОКУМЕНТА < FORMDATE_MIN )
-		FORMDATE_MIN		= ДАТАДОКУМЕНТА;
-	ELSE IF ( ДАТАДОКУМЕНТА > FORMDATE_MIN )
-		FORMDATE_MAX		= ДАТАДОКУМЕНТА;
-}
-catch ( error )
-{
-	СообщениеОбОшибке	= _ERRORDESCRIPTION;
-	СООБЩЕНИЕ( СообщениеОбОшибке );
-	RETURN "";
-}
-
-IF ( !ПУСТО( ВывестиСообщение ) )
-	СООБЩЕНИЕ( "Документ № " + НОМЕРДОКУМЕНТА + " от " + DTOC( ДАТАДОКУМЕНТА ) + " успешно загружен." );
-
-RETURN ПроверкаНаличия;
+// Проверяем наличие документа в базе// Если такой уже есть, то ничего не делаем. Все ОКПроверкаНаличия		= "Ok"; IF ( !ПУСТО( GUIDДокумента ) ){	ПроверкаНаличия	= ЗАПРОС( "SELECT 'ДОКУМЕНТУЖЕЕСТЬ' FROM ediincome							   WHERE guid = '" + STDF( GUIDДокумента ) + "' AND ent = '" + STDF( Предприятие ) + "' AND editionguid = '" + STDF( GUIDРедакции ) + "'" );	IF ( !ПУСТО( ПроверкаНаличия ) ) RETURN ПроверкаНаличия;	ПроверкаНаличия	= ЗАПРОС( "SELECT 'ЕСТЬНОВАЯРЕДАКЦИЯ' FROM ediincome							   WHERE guid = '" + STDF( GUIDДокумента ) + "' AND ent = '" + STDF( Предприятие ) + "'" );	IF ( ПУСТО( ПроверкаНаличия ) ) 		ПроверкаНаличия		= "Ok"; }КодКлиента			= ЗАПРОС( "SELECT code FROM sprclient WHERE inn <> '' AND inn = '" + STDF( ИННКЛИЕНТА ) + "' AND kpp = '" + STDF( КППКЛИЕНТА ) + "'							   UNION SELECT code FROM sprclient WHERE inn <> '' AND inn = '" + STDF( ИННКЛИЕНТА ) + "' AND kpp = ''							   UNION SELECT code FROM sprclient WHERE name = '" + STDF( НАЗВАНИЕКЛИЕНТА ) + "' AND inn = ''" );IF ( ПУСТО( КодКлиента ) && !ПУСТО( НАЗВАНИЕКЛИЕНТА ) &&  !ПЕРЕМЕННАЯ( "_ЭДОНЕСОЗДАВАТЬКОНТРАГЕНТОВ", false ) )	КодКлиента		= ЭДО.СоздатьКонтрагента( ПРЕДПРИЯТИЕ, НАЗВАНИЕКЛИЕНТА, ИННКЛИЕНТА, КППКЛИЕНТА, "", "", АДРЕСКЛИЕНТА, "" );IF ( ПУСТО( КодКлиента ) ){	КлиентНаименование	= НАЗВАНИЕКЛИЕНТА;	КлиентИНН			= ИННКЛИЕНТА;	КлиентКПП			= КППКЛИЕНТА;	КлиентАдрес			= АДРЕСКЛИЕНТА;	КлиентСчет			= "";	КлиентБанк			= "";}ELSE{	КлиентНаименование	= ЗАПРОС( "SELECT name, inn, kpp, rs, code, adress, bank FROM sprclient WHERE code = '" + STDF( КодКлиента ) + "'", "name" );	КлиентИНН			= ЗАПРОС( "", "inn" );	КлиентКПП			= ЗАПРОС( "", "kpp" );	КлиентАдрес			= ЗАПРОС( "", "adress" );	КлиентСчет			= ЗАПРОС( "", "rs" );	КодКлиента			= ЗАПРОС( "", "code" );	КлиентБанк			= ЗАПРОС( "SELECT name FROM sprbank WHERE code = '" + ЗАПРОС( "", "bank" ) + "'" );}Фирма				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_FIRM" + ПРЕДПРИЯТИЕ + "'" );	_ERRORDESCRIPTION	= "";try{	__SQL( "ediincome" )	{		DECLARE @guiddoc varchar( 50 ), @editionnum int, @ndok varchar( 50 );		SELECT @guiddoc	= '[[ STDF( GUIDДокумента ) ]]';		SELECT @ndok	= '[[ STDF( НОМЕРДОКУМЕНТА ) ]]';		IF @guiddoc	= ''			SELECT @guiddoc	= NEWID( ), @editionnum= 0;		ELSE		BEGIN			SELECT @editionnum 	= MAX( editionnum ) FROM ediincome WHERE guid = @guiddoc AND ent= '[[ STDF( Предприятие ) ]]';			SELECT @editionnum 	= ISNULL( @editionnum + 1, 0 );			IF @editionnum <> 0				SELECT @ndok	= @ndok + '/РЕД-' + CONVERT( varchar( 10 ), @editionnum );		END				-- ТАБЛИЦА ВХОДЯЩИХ ДОКУМЕНТОВ ИЗ СИСТЕМЫ ЭДО		-- ПРЕДПРИЯТИЕ, GUIDДОКУМЕНТА, GUIDРЕДАКЦИИ, ЭДОИДКЛИЕНТА, НАЗВАНИЕДОКУМЕНТА, НОМЕРДОКУМЕНТА, ДАТАДОКУМЕНТА, ВЫВЕСТИСООБЩЕНИЕ		INSERT INTO ediincome ( guid, editionguid, editionnum, ent, note, desc_, ndok, date, vendorname, vendorinn, vendorkpp, vendoraddress, 								vendorbank, vendorrs, client, summa, firm )		VALUES ( @guiddoc, '[[ STDF( GUIDРедакции ) ]]', @editionnum, '[[ STDF( Предприятие ) ]]', '[[STDF( НАЗВАНИЕДОКУМЕНТА )]]', '[[STDF( НАЗВАНИЕДОКУМЕНТА )]]', @ndok,				 '[[ DTOC( ДАТАДОКУМЕНТА ) ]]', '[[ STDF( КлиентНаименование, 250) ]]', '[[ STDF( КлиентИНН, 50 ) ]]', '[[ STDF( КлиентКПП, 50 ) ]]', 				 '[[ STDF( КлиентАдрес, 250 ) ]]', '[[ STDF( КлиентБанк, 20 ) ]]', '[[ STDF( КлиентСчет, 50 ) ]]', '[[ STDF( КодКлиента ) ]]', 				 [[ STR( 0, 16, 2 ) ]], '[[ STDF( Фирма ) ]]' );	}	SQLERROR throw( 1 );		// Для формы модуля ЭДО проверяем период 	IF ( ДАТАДОКУМЕНТА < FORMDATE_MIN )		FORMDATE_MIN		= ДАТАДОКУМЕНТА;	ELSE IF ( ДАТАДОКУМЕНТА > FORMDATE_MIN )		FORMDATE_MAX		= ДАТАДОКУМЕНТА;}catch ( error ){	СообщениеОбОшибке	= _ERRORDESCRIPTION;	СООБЩЕНИЕ( СообщениеОбОшибке );	RETURN "";}IF ( !ПУСТО( ВывестиСообщение ) )	СООБЩЕНИЕ( "Документ № " + НОМЕРДОКУМЕНТА + " от " + DTOC( ДАТАДОКУМЕНТА ) + " успешно загружен." );RETURN ПроверкаНаличия;

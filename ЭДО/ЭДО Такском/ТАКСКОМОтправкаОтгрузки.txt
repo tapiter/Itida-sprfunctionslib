@@ -1,137 +1,1 @@
-
-СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
-ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
-Фирма					= ЗАПРОС( "SELECT code FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'EDI_FIRM" + ПРЕДПРИЯТИЕ + "')" );
-
-// Фирма в документе должна совпадать с фирмой в настройках
-КодДокумента			= ЗАПРОС( "SELECT code, ic, rid, cediid, client FROM edioutcome WHERE guid = '" + GUIDДокумента + "'", "code" );
-ИДДокумента				= ЗАПРОС( "", "ic" );
-РИДДокумента			= ЗАПРОС( "", "rid" );
-ЭДОИДКлиента			= ЗАПРОС( "", "cediid" );
-КодКлиента				= ЗАПРОС( "", "client" );
-IF ( ПУСТО( ЭДОИДКлиента ) )
-	ЭДОИДКлиента		= ЗАПРОС( "SELECT CASE WHEN ediid = '' THEN ediid2 ELSE ediid END FROM sprclient WHERE code = '" + КодКлиента + "'" );
-
-IF ( Фирма != ЗАПРОС( "SELECT firm FROM spr000 WHERE code = '" + КодДокумента + "' AND ic = " + ИДДокумента ) )
-{
-	НазваниеДокумента	= ЗАПРОС( "SELECT RTRIM( docstab.shortname ) + ' № ' + RTRIM( ndok ) + ' от ' + CONVERT( varchar( 20 ), date, 104 ) 
-								   FROM spr000 spr
-								   INNER JOIN docstab docstab ON docstab.code = spr.code
-								   WHERE spr.code = '" + КодДокументе + "' AND spr.ic = " + ИДДокумента );
-	СООБЩЕНИЕ( "Фирма в отправляемом документе документе " + НазваниеДокумента + CHR( 13 ) + 
-			   "не совпадает с фирмой в настройках модуля ЭДО." + CHR( 13 ) + 
-			   "Документ не был отправлен в систему ЭДО." );
-	RETURN false;
-}
-
-// Формируем XML файл для отправки в ЭДО
-ИмяФайла				= "";
-ДокументXML				= "";
-Регламент				= "Invoice";
-Транзакция				= "Invoice";
-ОбратнаяПодпись			= "true";
-ТипДокумента			= "";
-IF ( КодДокумента == "002" OR КодДокумента == "022" ) 
-{
-	ИмяФайла			= ЭДО.СоздатьXMLИзДокумента( ПРЕДПРИЯТИЕ, GUIDДокумента );
-	ОбратнаяПодпись		= "";
-	ТипДокумента		= "ExpInvoiceAndPrimaryAccountingDocumentVendor";
-}
-ELSE IF ( КодДокумента == "050" ) 
-{
-	ИмяФайла			= ЭДО.СоздатьXMLИзДокументаАКТ( ПРЕДПРИЯТИЕ, GUIDДокумента );
-	Регламент			= "Formalized";
-	Транзакция			= "VendorTitle";
-	ТипДокумента		= "FormalizedWorkResultVendor";
-}
-ELSE IF ( КодДокумента == "010" ) 
-{
-	ИмяФайла			= ЭДО.СоздатьXMLИзДокументаСЧЕТ( ПРЕДПРИЯТИЕ, GUIDДокумента );
-	Регламент			= "Nonformalized";
-	Транзакция			= "MainDocument";
-	ТипДокумента		= "Account";
-}
-ELSE IF ( КодДокумента == "033" ) 
-{
-	ИмяФайла			= ЭДО.СоздатьXMLИзДокументаЗАКАЗ( ПРЕДПРИЯТИЕ, GUIDДокумента );
-//	Регламент			= "Orders";
-//	Транзакция			= "Orders";
-	Регламент			= "Nonformalized";
-	Транзакция			= "MainDocument";
-	ТипДокумента		= "Other";
-	ОбратнаяПодпись		= "";
-}
-
-IF ( ПУСТО( ИмяФайла ) || !ЭДО.ПрочитатьУПД( GUIDДокумента ) ) RETURN false;
-
-// Читаем сформированное содержимое и удаляем файл
-ДокументXML				= ФАЙЛПРОЧИТАТЬ( ИмяФайла, "S", -1 );
-ФАЙЛУДАЛИТЬ( ИмяФайла );
-ИмяФайла				= ПОДСТРОКА( ИмяФайла, RAT( ИмяФайла, "\" ) + 1 );
-
-ТАКСКОМТОКЕН			= ЭДО.ТАКСКОМАвторизация( ПРЕДПРИЯТИЕ );
-IF ( ПУСТО( ТАКСКОМТОКЕН ) ) RETURN false;
-
-АдресСервера 			= ЭДО.ТАКСКОМАдресСервера( ТЕСТОВЫЙКОНТУР );;
-Заголовки[ 0 ]			= "Content-Type: application/x-www-form-urlencoded";
-Заголовки[ 1 ]			= "Integrator-Id: " + ЭДО.ТАКСКОМИнтегратор( );
-Заголовки[ 2 ]			= "Assistant-Key: " + ТАКСКОМТОКЕН;
-Соединение 				= -1;
-Результат				= true;
-СообщениеОбОшибке		= "";
-try
-{
-	ИМЯТАБЛИЦЫ			= ЭДО.ТАКСКОМТаблицаКонтейнера( );
-	IF ( ПУСТО( ИМЯТАБЛИЦЫ ) ) THROW( _ERRORDESCRIPTION );
-	
-	IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, reglament, transactioncode, signname, signcontent ) VALUES 
-				   ( '" + ИмяФайла + "', " + МАССИВИЗСТРОКИ( ДокументXML ) + ", '" + Регламент + "', '" + Транзакция + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );
-	
-	Карта				= ЭДО.ТАКСКОМCard( ПРЕДПРИЯТИЕ, ТипДокумента, Документ.firm, Документ.client, ЭДОИДКлиента, Документ.ndok, Документ.date, Документ.summa );
-	IF ( ПУСТО( Карта ) ) THROW( "Ошибка создания card.xml" + CHR( 13 ) + _ERRORDESCRIPTION );
-	IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, reglament, transactioncode, signname, signcontent ) VALUES 
-				   ( 'card.xml', " + МАССИВИЗСТРОКИ( Карта ) + ", '" + Регламент + "', '" + Транзакция + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );
-	
-	// Теперь добавляем все вложения как доп. файлы
-	ДОБАВИТЬКОНТЕКСТ( "SELECT filename, filecontent FROM edi_attach WHERE owner = '" + РИДДокумента + "'", "Attachments" );
-	ПОКА( !КОНЕЦКОНТЕКСТА( "Attachments" ) )
-	{
-		НомерВложения		= СТРОКА( НОМЕРСТРОКИ( "Attachments" ) );
-		IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, addid, signname, signcontent, number ) VALUES 
-					   ( '" + Attachments.filename + "', " + Attachments.filecontent + ", NEWID( ), '', 0x0, '" + НомерВложения + "' ) " ) ) THROW( _ERRORDESCRIPTION );
-		
-		Карта				= ЭДО.ТАКСКОМCard( ПРЕДПРИЯТИЕ, ТипДокумента, Документ.firm, Документ.client, ЭДОИДКлиента, Документ.ndok, Документ.date, Документ.summa );
-		IF ( ПУСТО( Карта ) ) THROW( "Ошибка создания card.xml" + CHR( 13 ) + _ERRORDESCRIPTION );
-		IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, signname, signcontent, number ) VALUES 
-					   ( 'card.xml', " + МАССИВИЗСТРОКИ( Карта ) + ", '', 0x0, '" + НомерВложения + "' ) " ) ) THROW( _ERRORDESCRIPTION );
-		ПРОПУСТИТЬ( 1, "Attachments" );
-	}
-	УДАЛИТЬКОНТЕКСТ( "Attachments" );
-	
-	Контейнер			= ЭДО.ТАКСКОМКонтейнер( ИМЯТАБЛИЦЫ, СЕРТИФИКАТ, GUIDДокумента );
-	
-	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
-	Соединение 			= HTTPCONNECT( АдресСервера, "", true, ЭДО.ФАЙЛЖУРНАЛА( ) );
-
-	Ответ				= HTTPPOST( Соединение, "v1.3/API/SendMessage/Outbox.zip", Контейнер, "Заголовки" );
-	IF ( !ЭДО.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
-	
-	// Запишем отправленные файлы
-	ЭДО.ТАКСКОМЗАПИСАТЬСВЯЗАННЫЙДОКУМЕНТ( ПРЕДПРИЯТИЕ, GUIDДокумента, GUIDДокумента, ДокументXML, Регламент, false, ИмяФайла, true, Регламент );
-}
-catch ( ТекстСообщения )
-{
-	СообщениеОбОшибке	= ТекстСообщения;
-	Результат			= false;
-}
-IF ( Соединение >= 0 ) HTTPCLOSE( Соединение );
-СИСТЕМНОЕСООБЩЕНИЕ( );
-IF ( !Результат )
-	СООБЩЕНИЕ( ЕСЛИ( ПУСТО( СообщениеОбОшибке ), _ERRORDESCRIPTION, ТекстСообщения ) );
-
-// Проверяем и обрабатываем служебные этапы, если такие появились
-ЭДО.ТАКСКОМОбработкаСлужебныхЭтапов( Предприятие );
-ЭДО.ТАКСКОМПроверкаСтатусаОтгрузок( ПРЕДПРИЯТИЕ );
-ЭДО.ТАКСКОМПроверкаСтатусаПриходов( ПРЕДПРИЯТИЕ );
-
-RETURN Результат;
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'EDI_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;Фирма					= ЗАПРОС( "SELECT code FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'EDI_FIRM" + ПРЕДПРИЯТИЕ + "')" );// Фирма в документе должна совпадать с фирмой в настройкахКодДокумента			= ЗАПРОС( "SELECT code, ic, rid, cediid, client FROM edioutcome WHERE guid = '" + GUIDДокумента + "'", "code" );ИДДокумента				= ЗАПРОС( "", "ic" );РИДДокумента			= ЗАПРОС( "", "rid" );ЭДОИДКлиента			= ЗАПРОС( "", "cediid" );КодКлиента				= ЗАПРОС( "", "client" );IF ( ПУСТО( ЭДОИДКлиента ) )	ЭДОИДКлиента		= ЗАПРОС( "SELECT CASE WHEN ediid = '' THEN ediid2 ELSE ediid END FROM sprclient WHERE code = '" + КодКлиента + "'" );IF ( Фирма != ЗАПРОС( "SELECT firm FROM spr000 WHERE code = '" + КодДокумента + "' AND ic = " + ИДДокумента ) ){	НазваниеДокумента	= ЗАПРОС( "SELECT RTRIM( docstab.shortname ) + ' № ' + RTRIM( ndok ) + ' от ' + CONVERT( varchar( 20 ), date, 104 ) 								   FROM spr000 spr								   INNER JOIN docstab docstab ON docstab.code = spr.code								   WHERE spr.code = '" + КодДокументе + "' AND spr.ic = " + ИДДокумента );	СООБЩЕНИЕ( "Фирма в отправляемом документе документе " + НазваниеДокумента + CHR( 13 ) + 			   "не совпадает с фирмой в настройках модуля ЭДО." + CHR( 13 ) + 			   "Документ не был отправлен в систему ЭДО." );	RETURN false;}// Формируем XML файл для отправки в ЭДОИмяФайла				= "";ДокументXML				= "";Регламент				= "Invoice";Транзакция				= "Invoice";ОбратнаяПодпись			= "true";ТипДокумента			= "";IF ( КодДокумента == "002" OR КодДокумента == "022" ) {	ИмяФайла			= ЭДО.СоздатьXMLИзДокумента( ПРЕДПРИЯТИЕ, GUIDДокумента );	ОбратнаяПодпись		= "";	ТипДокумента		= "ExpInvoiceAndPrimaryAccountingDocumentVendor";}ELSE IF ( КодДокумента == "050" ) {	ИмяФайла			= ЭДО.СоздатьXMLИзДокументаАКТ( ПРЕДПРИЯТИЕ, GUIDДокумента );	Регламент			= "Formalized";	Транзакция			= "VendorTitle";	ТипДокумента		= "FormalizedWorkResultVendor";}ELSE IF ( КодДокумента == "010" ) {	ИмяФайла			= ЭДО.СоздатьXMLИзДокументаСЧЕТ( ПРЕДПРИЯТИЕ, GUIDДокумента );	Регламент			= "Nonformalized";	Транзакция			= "MainDocument";	ТипДокумента		= "Account";}ELSE IF ( КодДокумента == "033" ) {	ИмяФайла			= ЭДО.СоздатьXMLИзДокументаЗАКАЗ( ПРЕДПРИЯТИЕ, GUIDДокумента );//	Регламент			= "Orders";//	Транзакция			= "Orders";	Регламент			= "Nonformalized";	Транзакция			= "MainDocument";	ТипДокумента		= "Other";	ОбратнаяПодпись		= "";}IF ( ПУСТО( ИмяФайла ) || !ЭДО.ПрочитатьУПД( GUIDДокумента ) ) RETURN false;// Читаем сформированное содержимое и удаляем файлДокументXML				= ФАЙЛПРОЧИТАТЬ( ИмяФайла, "S", -1 );ФАЙЛУДАЛИТЬ( ИмяФайла );ИмяФайла				= ПОДСТРОКА( ИмяФайла, RAT( ИмяФайла, "\" ) + 1 );ТАКСКОМТОКЕН			= ЭДО.ТАКСКОМАвторизация( ПРЕДПРИЯТИЕ );IF ( ПУСТО( ТАКСКОМТОКЕН ) ) RETURN false;АдресСервера 			= ЭДО.ТАКСКОМАдресСервера( ТЕСТОВЫЙКОНТУР );;Заголовки[ 0 ]			= "Content-Type: application/x-www-form-urlencoded";Заголовки[ 1 ]			= "Integrator-Id: " + ЭДО.ТАКСКОМИнтегратор( );Заголовки[ 2 ]			= "Assistant-Key: " + ТАКСКОМТОКЕН;Соединение 				= -1;Результат				= true;СообщениеОбОшибке		= "";try{	ИМЯТАБЛИЦЫ			= ЭДО.ТАКСКОМТаблицаКонтейнера( );	IF ( ПУСТО( ИМЯТАБЛИЦЫ ) ) THROW( _ERRORDESCRIPTION );		IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, reglament, transactioncode, signname, signcontent ) VALUES 				   ( '" + ИмяФайла + "', " + МАССИВИЗСТРОКИ( ДокументXML ) + ", '" + Регламент + "', '" + Транзакция + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );		Карта				= ЭДО.ТАКСКОМCard( ПРЕДПРИЯТИЕ, ТипДокумента, Документ.firm, Документ.client, ЭДОИДКлиента, Документ.ndok, Документ.date, Документ.summa );	IF ( ПУСТО( Карта ) ) THROW( "Ошибка создания card.xml" + CHR( 13 ) + _ERRORDESCRIPTION );	IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, reglament, transactioncode, signname, signcontent ) VALUES 				   ( 'card.xml', " + МАССИВИЗСТРОКИ( Карта ) + ", '" + Регламент + "', '" + Транзакция + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );		// Теперь добавляем все вложения как доп. файлы	ДОБАВИТЬКОНТЕКСТ( "SELECT filename, filecontent FROM edi_attach WHERE owner = '" + РИДДокумента + "'", "Attachments" );	ПОКА( !КОНЕЦКОНТЕКСТА( "Attachments" ) )	{		НомерВложения		= СТРОКА( НОМЕРСТРОКИ( "Attachments" ) );		IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, addid, signname, signcontent, number ) VALUES 					   ( '" + Attachments.filename + "', " + Attachments.filecontent + ", NEWID( ), '', 0x0, '" + НомерВложения + "' ) " ) ) THROW( _ERRORDESCRIPTION );				Карта				= ЭДО.ТАКСКОМCard( ПРЕДПРИЯТИЕ, ТипДокумента, Документ.firm, Документ.client, ЭДОИДКлиента, Документ.ndok, Документ.date, Документ.summa );		IF ( ПУСТО( Карта ) ) THROW( "Ошибка создания card.xml" + CHR( 13 ) + _ERRORDESCRIPTION );		IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, signname, signcontent, number ) VALUES 					   ( 'card.xml', " + МАССИВИЗСТРОКИ( Карта ) + ", '', 0x0, '" + НомерВложения + "' ) " ) ) THROW( _ERRORDESCRIPTION );		ПРОПУСТИТЬ( 1, "Attachments" );	}	УДАЛИТЬКОНТЕКСТ( "Attachments" );		Контейнер			= ЭДО.ТАКСКОМКонтейнер( ИМЯТАБЛИЦЫ, СЕРТИФИКАТ, GUIDДокумента );		ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 			= HTTPCONNECT( АдресСервера, "", true, ЭДО.ФАЙЛЖУРНАЛА( ) );	Ответ				= HTTPPOST( Соединение, "v1.3/API/SendMessage/Outbox.zip", Контейнер, "Заголовки" );	IF ( !ЭДО.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );		// Запишем отправленные файлы	ЭДО.ТАКСКОМЗАПИСАТЬСВЯЗАННЫЙДОКУМЕНТ( ПРЕДПРИЯТИЕ, GUIDДокумента, GUIDДокумента, ДокументXML, Регламент, false, ИмяФайла, true, Регламент );}catch ( ТекстСообщения ){	СообщениеОбОшибке	= ТекстСообщения;	Результат			= false;}IF ( Соединение >= 0 ) HTTPCLOSE( Соединение );СИСТЕМНОЕСООБЩЕНИЕ( );IF ( !Результат )	СООБЩЕНИЕ( ЕСЛИ( ПУСТО( СообщениеОбОшибке ), _ERRORDESCRIPTION, ТекстСообщения ) );// Проверяем и обрабатываем служебные этапы, если такие появилисьЭДО.ТАКСКОМОбработкаСлужебныхЭтапов( Предприятие );ЭДО.ТАКСКОМПроверкаСтатусаОтгрузок( ПРЕДПРИЯТИЕ );ЭДО.ТАКСКОМПроверкаСтатусаПриходов( ПРЕДПРИЯТИЕ );RETURN Результат;

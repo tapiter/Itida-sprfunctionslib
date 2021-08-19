@@ -1,0 +1,19 @@
+IF (ВыгружатьТоварыСвернутоПоНДС)
+{
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT 	''" + _1С_ТОВАР_КОД + "''	 		  	AS Номенклатура, 
+													 SUM(kolp) * ' + КомплектацияНоменклатуры.Количество + '		AS Количество, 
+													 SUM(summa) 													AS Сумма,
+													 SUM(summa) / SUM(kolp)											AS ДоляСтоимости,
+													 ''''															AS СтранаПроисхождения,
+													 CASE WHEN ((SELECT f_make FROM spr009 WHERE spr009.identity_column = '+КомплектацияНоменклатуры.identity_column+') IS NOT null) 
+															THEN SUM( dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(КомплектацияНоменклатуры.date)+''',
+																	'''+КомплектацияНоменклатуры.sklad+''', ''' + Учет + ''') ) 
+															ELSE SUM( spec.incena_koef ) END				AS Себестоимость															 
+												FROM spec009 spec WHERE spec_ic= ' + КомплектацияНоменклатуры.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Комплектующие</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>КомплектацияНоменклатуры</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+	
+	RETURN ТЕКСТ_СВЕРНУТО;
+}
+
+
+ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) 	AS Номенклатура, 													 kolp * ' + КомплектацияНоменклатуры.Количество + '		AS Количество, 													 summa 													AS Сумма,													 cena													AS ДоляСтоимости,													 (SELECT ex_code FROM sprcountry WHERE code =														(SELECT manuf FROM sprnn WHERE nn= spec.nn))AS СтранаПроисхождения,													 CASE WHEN ((SELECT f_make FROM spr009 WHERE spr009.identity_column = '+КомплектацияНоменклатуры.identity_column+') IS NOT null) 															THEN dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(КомплектацияНоменклатуры.date)+''',																	'''+КомплектацияНоменклатуры.sklad+''', ''' + Учет + ''') 															ELSE spec.incena_koef END				AS Себестоимость															 												FROM spec009 spec WHERE spec_ic= ' + КомплектацияНоменклатуры.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +"</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Комплектующие</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>КомплектацияНоменклатуры</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

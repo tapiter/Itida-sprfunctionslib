@@ -1,6 +1,9 @@
 IF ( !Обмен1С.ВыгружатьТипДокумента("009") )
 	RETURN "";
 	
+IF ( VAL( ВариантВыгрузкиВыпускаПродукции ) == 0 )
+	RETURN "";
+	
 ТЕКСТЗАПРОСА = "SELECT s000.code + s000.maindb + CONVERT( char(10), s000.mainic ) AS Ref, s000.f_deleted AS DeletionMark,
 			s.date AS Date, a.transacted AS Posted, 
 			LTRIM( RTRIM( s.ndok ) )								 AS Number,		

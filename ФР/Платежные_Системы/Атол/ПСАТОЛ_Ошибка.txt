@@ -1,0 +1,9 @@
+IF ( Результат < 0 )
+{
+	IF ( Результат > -10000 AND Результат <> -5 )
+		СООБЩЕНИЕ ( DriverPayCard.ResultDescription + " | " + DriverPayCard.ResultPrompt );
+	
+	RETURN true;
+}
+ELSE
+	RETURN false;

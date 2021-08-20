@@ -1,0 +1,124 @@
+ТекстЧека = "";
+ЗаголовокЧека = "";
+ПозицииЧека = "";
+БанковскиеПозицииЧека = "";
+IF ( Ошибка ( DriverPayCard.PrepareOnLineAuthorization( ) ) )
+	RETURN false;
+IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.ReferenceNumber ) )
+{
+	// Запрашиваем значение реквизита Ссылочный номер
+	ОТПРАВИТЬСООБЩЕНИЕ( _ГЛАВНОЕОКНОПРИЛОЖЕНИЯ, _СООБЩЕНИЕВЫПОЛНИТЬКОМАНДУ, "ЗАПРОСПАРАМЕТРОВ", "'ССЫЛОЧНЫЙНОМЕР'" );
+	IF ( !_РЕЗУЛЬТАТВВОДАПАРАМЕТРОВ ) RETURN false;
+	DriverPayCard.ReferenceNumber	= ССЫЛОЧНЫЙНОМЕР;
+	// Повторно авторизуемся
+	IF ( Ошибка( DriverPayCard.PrepareOnLineAuthorization( ) ) ) RETURN false;
+	
+	IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.ReferenceNumber ) )
+	{
+		СООБЩЕНИЕ ( "Неверно указан номер ссылки для возврата." + CHR( 13 ) + "Прерываем авторизацию" );
+		RETURN false;
+	}
+}
+IF ( DriverPayCard.NeedReaderEntryDataTracks <> 0 )
+{
+	СООБЩЕНИЕ ( "Необходимо прочитать номер карты ридером магнитных карт." + CHR( 13 ) + "Прерываем авторизацию" );
+	RETURN false;
+}
+IF ( DriverPayCard.NeedKeyboardEntryDataTracks <> 0 )
+{
+	СООБЩЕНИЕ ( "Необходимо ввести номер карты." + CHR( 13 ) + "Прерываем авторизацию" );
+	RETURN false;
+}
+IF ( ТИП( "_МРППЕЧАТАТЬКЛИШЕНАСЛИПЕ" ) == "U" )
+{
+	_МРППЕЧАТАТЬКЛИШЕНАСЛИПЕ	= true;
+}
+DriverPayCard.ECRSessionNumber	= НомерСмены;
+DriverPayCard.ECRReceiptNumber	= НомерЧека;
+DriverPayCard.CharLineLength 	= _КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ;
+Результат 						= DriverPayCard.OnLineAuthorization();
+IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Результат > -11000 ) )
+{
+	ЗАПРОС( "INSERT INTO paycardtrans ( equipment, AuthCode, TransType, OperationType, Sum, CardNumber, SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, ResponseCode)
+			 VALUES ( '" + КОДОБОРУДОВАНИЯ + "', '" + DriverPayCard.AuthCode + "', " + DriverPayCard.TransType + ", " + DriverPayCard.OperationType + ", " + DriverPayCard.Sum + ", '" + DriverPayCard.CardNumber + "', " +
+			 DriverPayCard.SlipNumber + ", '" + DriverPayCard.TransDate + "', '" + DriverPayCard.TransTime + "', " + DriverPayCard.MsgNumber + ", '" +
+			 ЕСЛИ(ИДТЕРМИНАЛАИЗПРОФИЛЯ == true, TerminalNumber, DriverPayCard.TerminalID) + "', '" + DriverPayCard.ReferenceNumber + "', '" + DriverPayCard.ResponseCode + "' )" );
+
+	НОМЕРУСТРОЙСТВАДЛЯПС		= ЗАПРОС( "SELECT TOP 1 code FROM sprequipment WHERE f_paysystem = 1" );
+	ИНДЕКСУСТРОЙСВАПЕЧАТИ		= ЕСЛИ(!ПУСТО(НОМЕРУСТРОЙСТВАДЛЯПС), НОМЕРУСТРОЙСТВАДЛЯПС, КОДОБОРУДОВАНИЯ);
+	НОМЕРКОПИИСЛИПА				= 0;
+	//обработка ситуаций с Автоотменой и "Не оплачено"
+	СтрокаНеявныхОшибокПС		= "АВТООТМЕНА,НЕ ОПЛАЧИВАТЬ";
+	ЕстьНеявныеОшибкиПС			= false;
+	
+	WHILE ( НОМЕРКОПИИСЛИПА < _КОЛИЧЕСТВОКОПИЙСЛИПА )
+	{
+		Ind 					= 0;
+		WHILE ( Ind < DriverPayCard.TextCount )
+		{
+			DriverPayCard.TextIndex = Ind;
+			IF (!ПУСТО( ALLTRIM( DriverPayCard.Text ) ) )
+			{
+				IF ( ATC( СтрокаНеявныхОшибокПС, UPPER( ALLTRIM( DriverPayCard.Text ) ) ) > 0 AND UPPER( ALLTRIM( DriverPayCard.Text ) )  <> "ОТМЕНА" )
+				{
+					ЕстьНеявныеОшибкиПС	= true;
+				}
+			}
+			ДобавитьСтрокуЧека( ПозицииЧека, DriverPayCard.Text, false, "text", "left", "words", _ШРИФТТЕКСТАДЛЯНЕФИСКАЛЬНОЙПЕЧАТИ);	
+			Ind = Ind + 1;
+		}
+				
+		//Если установлен режим печати банковского слипа вместе с кассовым чеком и это первый слип и нет неявных ошибок ПС, 
+		//то запомним позиции банковского слипа для их последующего добавления к позициям кассового чека
+		//При наличии неявных ошибок слип нужно все таки вывести пользователю для обработки результата
+		IF (_БАКОВСКИЙСЛИПВМЕСТЕСЧЕКОМ == true AND НОМЕРКОПИИСЛИПА == 0 AND !ЕстьНеявныеОшибкиПС )
+		{
+			//запомним первый слип 
+			БанковскиеПозицииЧека = ПозицииЧека;
+			//текущий слип очистим, чтобы не напечатался
+			ПозицииЧека = "";
+		}
+		ELSE
+		{
+			ЗаголовокЧека = "
+			{
+				""type"": ""nonFiscal"",";
+				
+			ТекстЧека = ЗаголовокЧека + "
+			""items"": [
+			" + ПозицииЧека + "
+			]
+			}";
+			РезультатПечати = АТОЛ_ПечатьКассовогоЧекаНаФР( ТекстЧека, false, ИНДЕКСУСТРОЙСВАПЕЧАТИ );
+			IF (РезультатПечати == false)
+			{
+				RETURN false;
+			}
+			ELSE
+			{
+				//если успешно напечатали нефискальный чек, то обнуляем текст чека и нефискальные строки
+				ТекстЧека = "";
+				ЗаголовокЧека = "";
+				ПозицииЧека = "";
+			}
+			//если встретили "Автоотмена" или "Не оплачивать", то выдаем пользователю информацию и предлагаем прервать или продолжить чек
+			IF ( ЕстьНеявныеОшибкиПС )
+			{
+				СообщениеПользователю = "Пожалуйста, обратите внимание на банковский слип. " + CHR(13) + 
+				"Вероятно данная операция не прошла через платежную систему." + CHR(13) +
+				"Продолжить формирование кассового чека?";
+				КодОтвета = MESSAGEBOX(СообщениеПользователю,"ВНИМАНИЕ!!!",4);
+				IF (КодОтвета==7) //если нажали "Нет"
+				{
+					RETURN false; //возвращаем ошибку операции через ПС
+				}
+			}
+		}
+		
+		НОМЕРКОПИИСЛИПА++;
+	}
+}
+IF ( Ошибка ( Результат ) )
+	RETURN false;
+
+RETURN true;

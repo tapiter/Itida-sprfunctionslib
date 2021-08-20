@@ -1,0 +1,72 @@
+// Закрытие банковского дня при наличии безналичных платежей
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM paycardtrans WHERE equipment = '" + КОДОБОРУДОВАНИЯ + "' ORDER BY identity_column", "БанковскиеОперации" );
+IF ( КОЛИЧЕСТВОСТРОК( "БанковскиеОперации" ) > 0 )
+{
+	ТекстЧека = "";
+	ЗаголовокЧека = "";
+	ПозицииЧека = "";
+	
+	try
+	{
+		DriverPayCard = CreateObject( "AddIn.PayCARD", 1 );
+	}
+	catch()
+	{
+		DriverPayCard = false;
+	}
+	IF ( TYPE("DriverPayCard") <> "O")
+	{
+		Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки драйвера.","Ошибка загрузки драйвера ПС");
+		RETURN false;
+	}
+	_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
+	IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
+		НомерЛУПлатежнойСистемы = VAL( ЗАПРОС("SELECT psnumber FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") );
+		
+	DriverPayCard.CurrentDeviceNumber = НомерЛУПлатежнойСистемы;
+	DriverPayCard.ReportType = 0;
+	IF ( !ДобавитьДанныеВОтчет() )
+	{
+		DriverPayCard.ResetState();
+		СООБЩЕНИЕ ( "Ошибка при закрытии банковского дня" );
+	}
+	ELSE
+	{
+		ЗАПРОС( "DELETE FROM paycardtrans WHERE equipment = '" + КОДОБОРУДОВАНИЯ + "'" );
+		Ind = 0;
+		НОМЕРУСТРОЙСТВАДЛЯПС		= ЗАПРОС( "SELECT code FROM sprequipment WHERE f_paysystem = 1" );
+		ИНДЕКСУСТРОЙСВАПЕЧАТИ		= ЕСЛИ(!ПУСТО(НОМЕРУСТРОЙСТВАДЛЯПС), НОМЕРУСТРОЙСТВАДЛЯПС, КОДОБОРУДОВАНИЯ);
+		
+		WHILE ( Ind < DriverPayCard.TextCount )
+		{
+			DriverPayCard.TextIndex = Ind;
+			ДобавитьСтрокуЧека( ПозицииЧека, DriverPayCard.Text, false, "text", "left", "words", _ШРИФТТЕКСТАДЛЯНЕФИСКАЛЬНОЙПЕЧАТИ);	
+			Ind = Ind + 1;
+		}
+		
+		ЗаголовокЧека = "
+		{
+			""type"": ""nonFiscal"",";
+		
+		ТекстЧека = ЗаголовокЧека + "
+		""items"": [
+		" + ПозицииЧека + "
+		]
+		}";
+		РезультатПечати = АТОЛ_ПечатьКассовогоЧекаНаФР( ТекстЧека, false, ИНДЕКСУСТРОЙСВАПЕЧАТИ );
+		IF (РезультатПечати == false)
+		{
+			СООБЩЕНИЕ( "Ошибка печати сверки итогов на ФР", "Ошибка сверки итогов" );
+		}
+		ELSE
+		{
+			//если успешно напечатали нефискальный чек, то обнуляем текст чека и нефискальные строки
+			ТекстЧека = "";
+			ЗаголовокЧека = "";
+			ПозицииЧека = "";
+		}
+		
+	}
+	DriverPayCard = false;
+}
+УДАЛИТЬКОНТЕКСТ( "БанковскиеОперации" );

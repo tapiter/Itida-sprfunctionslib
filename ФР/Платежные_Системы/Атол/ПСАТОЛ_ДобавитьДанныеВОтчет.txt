@@ -1,0 +1,31 @@
+DriverPayCard.CharLineLength 	= _КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ;
+DriverPayCard.TerminalNumber 	= TerminalNumber;
+IF ( Ошибка( DriverPayCard.BeginReport() ) )
+{
+	RETURN false;
+}
+WHILE ( !КОНЕЦКОНТЕКСТА( "БанковскиеОперации" ) )
+{
+	DriverPayCard.RepAuthCode = БанковскиеОперации.AuthCode;
+	DriverPayCard.RepOperationType = БанковскиеОперации.OperationType;
+	DriverPayCard.RepTransType = БанковскиеОперации.TransType;
+	DriverPayCard.RepSum = БанковскиеОперации.Sum;
+	DriverPayCard.RepCardNumber = БанковскиеОперации.CardNumber;
+	DriverPayCard.RepSlipNumber = БанковскиеОперации.SlipNumber;
+	DriverPayCard.RepTransDate = БанковскиеОперации.TransDate;
+	DriverPayCard.RepTransTime = БанковскиеОперации.TransTime;
+	DriverPayCard.RepMsgNumber = БанковскиеОперации.MsgNumber;
+	DriverPayCard.RepTerminalID = БанковскиеОперации.TerminalID;
+	DriverPayCard.RepReferenceNumber = БанковскиеОперации.ReferenceNumber;
+	DriverPayCard.RepResponseCode = БанковскиеОперации.ResponseCode;
+	IF ( Ошибка( DriverPayCard.AddToReport() ) )
+	{
+		RETURN false;
+	}
+	ПРОПУСТИТЬ( 1, "БанковскиеОперации" );
+}
+IF ( Ошибка( DriverPayCard.EndReport() ) )
+{
+	RETURN false;
+}
+RETURN true;

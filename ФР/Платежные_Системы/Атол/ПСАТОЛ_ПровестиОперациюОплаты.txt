@@ -1,0 +1,55 @@
+IF ( TYPE ("SPLITPSYSTEM") == "U" )
+	SPLITPSYSTEM = false;
+	
+IF (SPLITPSYSTEM == true)
+{
+	_ККТСУММАБЕЗНАЛ = СУММАБЕЗНАЛ;
+}
+ELSE
+{
+	_ККТСУММАБЕЗНАЛ = ВСЕГОБЕЗНАЛ;
+}
+	
+IF ( _ККТСУММАБЕЗНАЛ > 0 )
+{	
+	try
+	{
+		DriverPayCard = CreateObject( "AddIn.PayCARD", 1 );
+	}
+	catch()
+	{
+		DriverPayCard = false;
+	}
+	IF ( TYPE("DriverPayCard") <> "O")
+	{
+		Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки драйвера.","Ошибка загрузки драйвера ПС");
+		RETURN false;
+	}
+	_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
+	IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
+		НомерЛУПлатежнойСистемы = VAL( ЗАПРОС("SELECT psnumber FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") );
+						
+	DriverPayCard.CurrentDeviceNumber = НомерЛУПлатежнойСистемы;
+	DriverPayCard.DataTracks 		= "";
+	DriverPayCard.ReferenceNumber 	= "";
+	DriverPayCard.CardNumber 		= "";
+	DriverPayCard.CharLineLength 	= КоличествоСимволов;
+	DriverPayCard.Sum 				= ROUND( _ККТСУММАБЕЗНАЛ, 2);
+	DriverPayCard.TerminalNumber 	= TerminalNumber;
+	IF ( ТипЧека == 0 OR ТипЧека == 6 )
+		DriverPayCard.OperationType = 0;
+	ELSE IF ( ТипЧека == 1 )
+		DriverPayCard.OperationType = 1;
+	IF ( !ВыполнитьАвторизацию( ) )
+	{
+		СООБЩЕНИЕ( "Ошибка при авторизации банковской карты" );
+		DriverPayCard 				= false;
+		_ОШИБКАВЫПОЛНЕНИЯ 			= true;
+		RETURN false;
+	}
+	ReferenceNumber 				= DriverPayCard.ReferenceNumber;
+	DriverPayCard 					= false;
+	_ККТСУММАБЕЗНАЛ					= 0;
+	IF ( SPLITPSYSTEM <> true )
+		ВСЕГОБЕЗНАЛ 				= 0;
+}

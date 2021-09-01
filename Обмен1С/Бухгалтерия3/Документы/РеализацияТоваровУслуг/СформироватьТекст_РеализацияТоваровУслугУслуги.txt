@@ -15,9 +15,9 @@ IF (ВыгружатьУслугиСвернутоПоНДС)
 															 SUM( dbo.fn_calcsklad_incena(spec.nn, '''+РеализацияТоваровУслуг.date+''',
 																			'''+РеализацияТоваровУслуг.sklad+''',
 																			''' + Учет + ''') * kolp )								  AS Количество, 
-															 SUM(summa) / SUM( dbo.fn_calcsklad_incena(spec.nn, '''+РеализацияТоваровУслуг.date+''',
+															 SUM(summa) / ISNULL( SUM( dbo.fn_calcsklad_incena(spec.nn, '''+РеализацияТоваровУслуг.date+''',
 																			'''+РеализацияТоваровУслуг.sklad+''',
-																			''' + Учет + ''') * kolp )		  		AS Цена, 
+																			''' + Учет + ''') * kolp ), 1 )	  		AS Цена, 
 															 SUM(summa)										  		AS Сумма,
 															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
 															 0		 											  AS СуммаНДС

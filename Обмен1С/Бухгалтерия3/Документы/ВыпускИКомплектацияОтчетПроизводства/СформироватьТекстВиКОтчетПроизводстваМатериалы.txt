@@ -1,25 +1,1 @@
-IF (ВыгружатьТоварыСвернутоПоНДС)
-{
-	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT 	''" + _1С_ТОВАР_КОД + "''	 		  	AS Номенклатура, 
-													 SUM(kolp) * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic)		AS Количество, 
-													 SUM(incena) * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic)	AS Себестоимость,
-													 ''''															AS СтранаПроисхождения,
-													 ''41.01''														AS Счет,
-													 ''Списание материалов''											AS СтатьяЗатрат															 
-												FROM spec009 spec WHERE spec.ic= ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND spec.f_make = 0 AND nn&lt;&gt;'''' GROUP BY kodn, spec_ic'</ЗАПРОС>
-				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Материалы</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетПроизводстваЗаСмену</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
-	
-	RETURN ТЕКСТ_СВЕРНУТО;
-}
-
-
-ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) 	AS Номенклатура, 
-													 kolp * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic)	AS Количество,
-													 incena * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic) AS Себестоимость,
-													 (SELECT ex_code FROM sprcountry WHERE code = (SELECT manuf FROM sprnn WHERE nn= spec.nn)) 											AS СтранаПроисхождения,
-													 ''41.01''										AS Счет,
-													 ''Списание материалов''							AS СтатьяЗатрат
-												FROM spec009 spec WHERE spec.ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND spec.f_make = 0 AND nn&lt;&gt;'''' '</ЗАПРОС>
-				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Материалы</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетПроизводстваЗаСмену</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
-
-RETURN ТЕКСТ;
+IF (ВыгружатьТоварыСвернутоПоНДС){	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT 	''" + _1С_ТОВАР_КОД + "''	 		  	AS Номенклатура, 													 SUM(kolp) * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic)		AS Количество, 													 SUM(incena) * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic)	AS Себестоимость,													 ''''															AS СтранаПроисхождения,													 ''41.01''														AS Счет,													 ''Списание материалов''											AS СтатьяЗатрат															 												FROM spec009 spec WHERE spec.ic= ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND spec.f_make = 0 AND nn&lt;&gt;'''' GROUP BY kodn, spec_ic'</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Материалы</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетПроизводстваЗаСмену</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";		RETURN ТЕКСТ_СВЕРНУТО;}ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) 	AS Номенклатура, 													 kolp * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic)	AS Количество,													 incena * (SELECT kolp FROM spec009 WHERE ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND identity_column = spec.spec_ic) AS Себестоимость,													 (SELECT ex_code FROM sprcountry WHERE code = (SELECT manuf FROM sprnn WHERE nn= spec.nn)) 											AS СтранаПроисхождения,													 ''41.01''										AS Счет,													 ''Списание материалов''							AS СтатьяЗатрат												FROM spec009 spec WHERE spec.ic = ' + ОтчетПроизводстваЗаСмену.identity_column + ' AND spec.f_make = 0 AND nn&lt;&gt;'''' '</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Материалы</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ВЛАДЕЛЕЦ>ОтчетПроизводстваЗаСмену</ВЛАДЕЛЕЦ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

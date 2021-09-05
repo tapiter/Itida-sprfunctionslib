@@ -1,0 +1,17 @@
+ТекстЗапросаПрерыванияПроверкиКМ = "{""type"": ""cancelMarkingCodeValidation""}";
+		
+fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаПрерыванияПроверкиКМ );
+fptr.processJson( );
+
+IF ( !ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки("Прерывание проверки КМ", false))
+{
+	ФР.АТОЛДТО10_ОтключитьККТ();
+	УДАЛИТЬКОНТЕКСТ("НовыеКомандыЧека");
+	УДАЛИТЬКОНТЕКСТ("ПозицииЧека");
+	RETURN false;
+}
+
+РезультатПрерывания	= fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );
+
+
+RETURN РезультатПрерывания;

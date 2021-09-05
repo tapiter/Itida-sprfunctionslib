@@ -31,13 +31,17 @@ IF ( ТИП( "_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162" ) =
 IF ( ALLTRIM(КомандыЧека.ffd_version) == "1.2" )
 {
 	markingCode = ПЕРЕКОДИРОВАТЬ( ALLTRIM( ШКМарки ), "", "BASE64" );
+	
+	JSONДанныеПроверкиТовара = """itemInfoCheckResult"": " + РезультатПроверкиКМ;
+	JSONПланируемыйСтатусКМ = ЕСЛИ( КомандыЧека.operation == "Регистрация", "itemPieceSold", "itemPieceReturn" );
 		
 	ТекстМаркировка = ",
 		""imcParams"":{
 			""imcType"": ""auto"",
 			""imc"": """ + markingCode + """,
-			""itemEstimatedStatus"": ""itemPieceSold"",
-            ""imcModeProcessing"": 0
+			""itemEstimatedStatus"": """ + JSONПланируемыйСтатусКМ + """,
+            ""imcModeProcessing"": 0,
+			" + JSONДанныеПроверкиТовара + "
 			}
 			";
 }

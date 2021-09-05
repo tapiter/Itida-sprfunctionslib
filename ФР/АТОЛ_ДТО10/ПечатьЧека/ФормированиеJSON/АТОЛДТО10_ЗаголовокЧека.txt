@@ -18,7 +18,7 @@ ELSE
 	IF (ALLTRIM(ВерсияФФД) == "1.2")
 	{
 		СтрокаПроверкиКМ_заголовок = "
-		""validateMarkingCodes"": true,";
+		""validateMarkingCodes"": false,";
 	}		
 	
 	ЗаголовокЧека = "{

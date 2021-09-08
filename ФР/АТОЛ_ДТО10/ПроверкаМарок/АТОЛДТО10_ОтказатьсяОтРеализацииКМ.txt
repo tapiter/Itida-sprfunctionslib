@@ -11,7 +11,4 @@ IF ( !ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибк
 	RETURN false;
 }
 
-РезультатОтказа	= fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );
-
-
-RETURN РезультатОтказа;
+RETURN fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );

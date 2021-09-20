@@ -25,8 +25,8 @@ IF ( _ККТСУММАБЕЗНАЛ > 0 )
 		Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки драйвера.","Ошибка загрузки драйвера ПС");
 		RETURN false;
 	}
-	_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
-	IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
+	//_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
+	//IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
 		НомерЛУПлатежнойСистемы = VAL( ЗАПРОС("SELECT psnumber FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") );
 						
 	DriverPayCard.CurrentDeviceNumber = НомерЛУПлатежнойСистемы;
@@ -53,3 +53,5 @@ IF ( _ККТСУММАБЕЗНАЛ > 0 )
 	IF ( SPLITPSYSTEM <> true )
 		ВСЕГОБЕЗНАЛ 				= 0;
 }
+
+RETURN true;

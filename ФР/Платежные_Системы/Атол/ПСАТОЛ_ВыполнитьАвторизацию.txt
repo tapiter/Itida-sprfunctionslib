@@ -2,7 +2,7 @@
 ЗаголовокЧека = "";
 ПозицииЧека = "";
 БанковскиеПозицииЧека = "";
-IF ( Ошибка ( DriverPayCard.PrepareOnLineAuthorization( ) ) )
+IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.PrepareOnLineAuthorization( ) ) )
 	RETURN false;
 IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.ReferenceNumber ) )
 {
@@ -11,7 +11,7 @@ IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.Refere
 	IF ( !_РЕЗУЛЬТАТВВОДАПАРАМЕТРОВ ) RETURN false;
 	DriverPayCard.ReferenceNumber	= ССЫЛОЧНЫЙНОМЕР;
 	// Повторно авторизуемся
-	IF ( Ошибка( DriverPayCard.PrepareOnLineAuthorization( ) ) ) RETURN false;
+	IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.PrepareOnLineAuthorization( ) ) ) RETURN false;
 	
 	IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.ReferenceNumber ) )
 	{
@@ -118,7 +118,7 @@ IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Резу�
 		НОМЕРКОПИИСЛИПА++;
 	}
 }
-IF ( Ошибка ( Результат ) )
+IF ( ФР.ПСАТОЛ_Ошибка( Результат ) )
 	RETURN false;
 
 RETURN true;

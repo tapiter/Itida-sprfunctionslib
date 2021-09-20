@@ -1,6 +1,6 @@
 DriverPayCard.CharLineLength 	= _КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ;
 DriverPayCard.TerminalNumber 	= TerminalNumber;
-IF ( Ошибка( DriverPayCard.BeginReport() ) )
+IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.BeginReport() ) )
 {
 	RETURN false;
 }
@@ -18,13 +18,13 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "БанковскиеОперации" ) 
 	DriverPayCard.RepTerminalID = БанковскиеОперации.TerminalID;
 	DriverPayCard.RepReferenceNumber = БанковскиеОперации.ReferenceNumber;
 	DriverPayCard.RepResponseCode = БанковскиеОперации.ResponseCode;
-	IF ( Ошибка( DriverPayCard.AddToReport() ) )
+	IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.AddToReport() ) )
 	{
 		RETURN false;
 	}
 	ПРОПУСТИТЬ( 1, "БанковскиеОперации" );
 }
-IF ( Ошибка( DriverPayCard.EndReport() ) )
+IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.EndReport() ) )
 {
 	RETURN false;
 }

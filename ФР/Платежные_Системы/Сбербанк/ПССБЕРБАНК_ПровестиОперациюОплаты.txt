@@ -1,0 +1,73 @@
+// Авторизация платежной системы
+IF ( TYPE ("SPLITPSYSTEM") == "U" )
+	SPLITPSYSTEM = false;
+	
+IF (SPLITPSYSTEM == true)
+{
+	_ККТСУММАБЕЗНАЛ = СУММАБЕЗНАЛ;
+}
+ELSE
+{
+	_ККТСУММАБЕЗНАЛ = ВСЕГОБЕЗНАЛ;
+}
+
+IF ( _ККТСУММАБЕЗНАЛ > 0 )
+{	
+	try
+	{
+		DriverPayCard = CreateObject( "SBRFSRV.Server", 1 );
+	}
+	catch()
+	{
+		DriverPayCard = false;
+	}
+	IF ( TYPE("DriverPayCard") <> "O")
+	{
+		Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки компонент Сбербанка.","Ошибка загрузки драйвера ПС");
+		RETURN false;
+	}
+	DriverPayCard.Clear();
+	СуммаОплатыПС					= ROUND( _ККТСУММАБЕЗНАЛ, 2)*100;
+	DriverPayCard.SParam ("Amount", СуммаОплатыПС);
+	
+	_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
+	IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
+	{
+		НомерЛУПлатежнойСистемы = VAL( ЗАПРОС("SELECT psnumber FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") );
+		DriverPayCard.SParam ("Department", НомерЛУПлатежнойСистемы);
+	}
+	
+	IF ( !ФР.ПССБЕРБАНК_ВыполнитьАвторизацию( ТипЧека ) )
+	{
+		СООБЩЕНИЕ( "Ошибка при авторизации банковской карты" );
+		IF ( _ИСПОЛЬЗОВАТЬНЕПОДТВЕРЖДЕННЫЕТРАНЗАКЦИИ == true )
+		{
+			//аварийная отмена транзакции
+			СуммаОплатыПС					= ROUND( _ККТСУММАБЕЗНАЛ, 2)*100;
+			DriverPayCard.SParam ("Amount", СуммаОплатыПС);
+			DriverPayCard.NFun(6004);
+			DriverPayCard.Clear();
+			DriverPayCard 				= false;
+			_ОШИБКАВЫПОЛНЕНИЯ 			= true;
+			RETURN false;
+		}
+		ELSE
+		{
+			//отмена транзакции
+			СуммаОплатыПС					= ROUND( _ККТСУММАБЕЗНАЛ, 2)*100;
+			DriverPayCard.SParam ("Amount", СуммаОплатыПС);
+			DriverPayCard.NFun(4003);
+			DriverPayCard.Clear();
+			DriverPayCard 				= false;
+			_ОШИБКАВЫПОЛНЕНИЯ 			= true;
+			RETURN false;
+		}
+	}
+	
+	//ReferenceNumber 				= DriverPayCard.GParamString("RRN");
+	//DriverPayCard.Clear();
+	//DriverPayCard 					= false;
+	//ВСЕГОБЕЗНАЛ						= 0;
+}
+
+RETURN true;

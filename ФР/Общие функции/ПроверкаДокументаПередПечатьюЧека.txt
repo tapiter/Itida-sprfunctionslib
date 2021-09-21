@@ -1,4 +1,4 @@
-PUBLIC ТипЧека, КОНТРАГЕНТ;
+PUBLIC ТипЧека, ВыбранныйТипЧека, КОНТРАГЕНТ;
 
 // Если документ уже выводился на ФР, то ничего не делаем
 ЧекПробитНаККМ = ЗАПРОС( "SELECT f_kkm FROM spr000 WHERE code= '" + КодДокумента + "' AND ic = " + ИДДокумента );
@@ -63,7 +63,7 @@ ELSE
 													name varchar( 1024 ), quantity float, price float, summa float, _price_u float, department int, destination int, 
 													discounttype float, discountvalue float, closetype varchar( 20 ), echeque bit DEFAULT 0,
 													utm_code char( 10 ), egais_url varchar( 250 ), egais_sign varchar( 250 ), identity_column int IDENTITY( 1, 1 ), 
-													rsubject varchar( 20 ), rvariant varchar( 20 ), marktype char(10), markbc varchar(max), clientcode varchar(10), ffd_version varchar(10))" );
+													rsubject varchar( 20 ), rvariant varchar( 20 ), marktype char(10), markbc varchar(max), clientcode varchar(10), ffd_version varchar(10), kmcheckresult varchar(1000))" );
 
 //создаем таблицу товаров, которую будем заполнять данными из спецификации документа основания и, при необходимости, производить распределение оплаты по строкам данной таблицы товаров.
 ИмяТаблицыТоваров						= "##" + УникальноеИмя( );
@@ -104,7 +104,7 @@ IF ( _ККТ_ПАРАМЕТРЫПРИПРОБИТИИЧЕКА )
 		ПЕЧАТАТЬКОПИЮ	= false;
 	}
 }	
-
+	
 _ИМЯКАССИРА 	= ЗАПРОС("SELECT name FROM sprempl WHERE code = " + froperator);
 _КАССИР			= froperator;
 

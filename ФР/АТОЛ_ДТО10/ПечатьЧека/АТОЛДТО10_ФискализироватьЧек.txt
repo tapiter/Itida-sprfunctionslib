@@ -29,20 +29,21 @@ IF ( ФискальныйЧек )
 	warnings 		= "";
 	IF ( ЧИТАТЬЗАПИСЬ( "РезультатЗадания" ) )
 	{
+		//закомментировал, т.к. пока не задействовано
+		/*
 		IF ( !ПУСТО( fiscalParams ) )
-		{
-			ЗАГРУЗИТЬJSON( "ФискальныеПараметры", fiscalParams );
-			ИтогЧека 		= ФискальныеПараметры.total;
-			НомерФД 		= ФискальныеПараметры.fiscalDocumentNumber;
-			ПодписьФД 		= ФискальныеПараметры.fiscalDocumentSign;
-			ДатаВремяФД 	= ФискальныеПараметры.fiscalDocumentDateTime;
-			НомерЧекаВСмене = ФискальныеПараметры.fiscalReceiptNumber;
-			НомерСмены 		= ФискальныеПараметры.shiftNumber;
-			НомерФН 		= ФискальныеПараметры.fnNumber;
-			РегНомер		= ФискальныеПараметры.registrationNumber;
-			АдресФНС 		= ФискальныеПараметры.fnsUrl;
-			УДАЛИТЬКОНТЕКСТ("ФискальныеПараметры");
+		{		
+			ИтогЧека 		= ПОЛЕ_JSON(fiscalParams, "total", "");
+			НомерФД 		= ПОЛЕ_JSON(fiscalParams, "fiscalDocumentNumber", "");
+			ПодписьФД 		= ПОЛЕ_JSON(fiscalParams, "fiscalDocumentSign", "");
+			ДатаВремяФД 	= ПОЛЕ_JSON(fiscalParams, "fiscalDocumentDateTime", "");
+			НомерЧекаВСмене = ПОЛЕ_JSON(fiscalParams, "fiscalReceiptNumber", "");
+			НомерСмены 		= ПОЛЕ_JSON(fiscalParams, "shiftNumber", "");
+			НомерФН 		= ПОЛЕ_JSON(fiscalParams, "fnNumber", "");
+			РегНомер		= ПОЛЕ_JSON(fiscalParams, "registrationNumber", "");
+			АдресФНС 		= ПОЛЕ_JSON(fiscalParams, "fnsUrl", "");			
 		}
+		*/
 		IF ( !ПУСТО( warnings ) AND warnings <> "null" )
 		{
 			ЗАГРУЗИТЬJSON( "ОшибкиЗакрытияЧека", warnings );
@@ -61,6 +62,7 @@ IF ( ФискальныйЧек )
 				
 				IF ( !fptr.getParamBool( fptr.LIBFPTR_PARAM_DOCUMENT_CLOSED ) )
 				{
+					УДАЛИТЬКОНТЕКСТ( "ОшибкиЗакрытияЧека" );
 					// Документ не закрылся. Требуется его отменить (если это чек) и сформировать заново
 					fptr.cancelReceipt( );
 					ФР.АТОЛДТО10_ДеактивацияФР( );
@@ -83,6 +85,7 @@ IF ( ФискальныйЧек )
 	}
 	ELSE
 	{
+		УДАЛИТЬКОНТЕКСТ("РезультатЗадания");
 		ФР.АТОЛДТО10_ДеактивацияФР( );
 		СООБЩЕНИЕ( "Не удалось прочитать ответные данные от ККМ" );
 		RETURN false;

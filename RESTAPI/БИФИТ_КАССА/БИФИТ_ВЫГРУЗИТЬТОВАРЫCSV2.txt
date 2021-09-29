@@ -116,7 +116,7 @@ IF (ПРИЗНАКОЧИСТКИККМ)
 _ЕСТЬМАРКИРОВКА	= VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprres') AND (COLUMN_NAME = N'f_mark')) THEN 1 ELSE 0 END"));
 _ЕСТЬТИПМАРКИРОВКИ	= VAL( ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprres') AND (COLUMN_NAME = N'markgroup')) THEN 1 ELSE 0 END") );
 
-СтрокаЗаголовка = "ID;NAME;GROUP;PRICE;VENDOR_CODE;PURCHASE_PRICE;WEIGHTED;NDS;PAYMENT_SUBJECT;BARCODE;UNIT_CODE;ALCOHOL;MARK_TYPE;GROUPED;MODIFIERS;INGREDIENTS;GOOD_TYPE";
+СтрокаЗаголовка = "ID;NAME;GROUP;PRICE;VENDOR_CODE;PURCHASE_PRICE;WEIGHTED;NDS;PAYMENT_SUBJECT;BARCODE;CURRENCY_CODE;COUTRY_CODE;UNIT_CODE;ALCOHOL;MARK_TYPE";
 
 //записываем первую строку с заголовками в файл
 ФайлОбмена	= ФАЙЛОТКРЫТЬ( ИмяФайлаОбмена, 1, 1 );
@@ -226,9 +226,8 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 	mfullpath	= STRTRANC(fullpath, "Справочник#", "");
 	rsubject	= СписокТоваров.rsubject;
 	mBarcodes	= STRTRANC(barCodes[0],",", "|"); 
-	ТипТовара	= "DEFAULT";
 	
-	СтрокаТовара = uuid + ";" + mName + ";" + mfullpath + ";" + price + ";" + articleNumber + ";" + costPrice + ";" + mWeighted + ";" + tax + ";" + rsubject + ";" + mBarcodes + ";" + mEdn + ";" + ЕСЛИ(ПивнаяПродукция OR mAlco, "1", "0") + ";" + markType + ";;;;" + ТипТовара;
+	СтрокаТовара = uuid + ";" + mName + ";" + mfullpath + ";" + price + ";" + articleNumber + ";" + costPrice + ";" + mWeighted + ";" + tax + ";" + rsubject + ";" + mBarcodes + ";643;;" + mEdn + ";" + ЕСЛИ(ПивнаяПродукция OR mAlco, "1", "0") + ";" + markType;
 		
 	ФайлОбмена	= ФАЙЛОТКРЫТЬ( ИмяФайлаОбмена, 1, 1 );
 	ФАЙЛУСТАНОВИТЬУКАЗАТЕЛЬ( ФайлОбмена, 0, 0, 2 );

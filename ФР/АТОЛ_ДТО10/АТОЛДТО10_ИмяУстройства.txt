@@ -80,7 +80,7 @@ IF ( fptr.errorCode( ) == 0 )
 		СтрокаСтатусСмены = "Смена > 24ч";
 	ELSE
 		СтрокаСтатусСмены = "";
-	deviceName = "(" + ВерсияБиблиотеки + ") " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true", "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
+	deviceName = "(" + ВерсияБиблиотеки + ") " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true" OR fiscal == true, "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
 	
 	УДАЛИТЬКОНТЕКСТ("ДанныеСтатусККТ");
 	УДАЛИТЬКОНТЕКСТ("ДанныеИнфоККТ");

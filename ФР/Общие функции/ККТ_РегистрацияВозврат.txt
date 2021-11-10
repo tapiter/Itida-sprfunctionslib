@@ -80,21 +80,29 @@ ELSE
 }
 _ЕСТЬМАРКИРОВКА			= VAL( ЗАПРОС( "SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprres' ) AND (COLUMN_NAME = N'f_mark')) THEN 1 ELSE 0 END"));
 
-ДОБАВИТЬКОНТЕКСТ( "SELECT ISNULL( sprres_g.rsubject, 0 ) AS rsubject, ISNULL( sprres_g.paytype, 0 ) AS paytype, " + ЕСЛИ( _ЕСТЬМАРКИРОВКА == 1, "sprres.f_mark", "0" ) + " AS f_mark 
-				   FROM sprres sprres
-				   LEFT OUTER JOIN sprres_g sprres_g ON sprres.group_ = sprres_g.code
-				   WHERE sprres.maincode = '" + Код + "'","ТоварИнфо",1);
 
+МаркированныйТовар = false;
 //если подарочная карта без привязки к товару, то подменим предмет и способ расчета
-IF ( ПУСТО( Код ) AND LEFT( ШТРИХКОД, 8 ) == "PAYCARD:" )
+IF ( ПУСТО( Код ) AND LEFT( ШТРИХКОД, 6 ) == "PCARD:" )
 {
 	ПредметРасчетаАйтида = 10; //платеж
-	СпособРасчетаАйтида = 1; //аванс
+	СпособРасчетаАйтида = 1; //аванс	
+}
+ELSE IF ( ПУСТО( Код ) AND LEFT( ШТРИХКОД, 6 ) <> "PCARD:" )
+{
+	ПредметРасчетаАйтида = 1; //товар
+	СпособРасчетаАйтида = 2; //полный расчет
 }
 ELSE
 {
+	ДОБАВИТЬКОНТЕКСТ( "SELECT ISNULL( sprres_g.rsubject, 0 ) AS rsubject, ISNULL( sprres_g.paytype, 0 ) AS paytype, " + ЕСЛИ( _ЕСТЬМАРКИРОВКА == 1, "sprres.f_mark", "0" ) + " AS f_mark 
+				   FROM sprres sprres
+				   LEFT OUTER JOIN sprres_g sprres_g ON sprres.group_ = sprres_g.code
+				   WHERE sprres.maincode = '" + Код + "'","ТоварИнфо",1);
+				   
 	ПредметРасчетаАйтида 	= VAL( ТоварИнфо.rsubject );
 	СпособРасчетаАйтида 	= VAL( ТоварИнфо.paytype );
+	МаркированныйТовар		= ТоварИнфо.f_mark;
 }
 
 ПредметРасчета 			= СООТВЕТСТВИЕПРЕДМЕТОВРАСЧЕТА[ ПредметРасчетаАйтида ];
@@ -104,7 +112,7 @@ ELSE
 ТипМаркировки			= "";
 ШтрихКодМаркировки		= "";
 
-МаркированныйТовар		= ТоварИнфо.f_mark;
+
 IF ( МаркированныйТовар )
 {
 	_ЕСТЬТИПМАРКИРОВКИ	= VAL( ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprres') AND (COLUMN_NAME = N'markgroup' ) ) THEN 1 ELSE 0 END" ) );
@@ -139,8 +147,8 @@ _Цена_Учет = Цена;
 //СуммаСкидкиПозиции = summadiscount;
 
 //если это продажа по свободной цене, то обнулим скидку, иначе она будер равна 100% на такую позицию
-IF (ПУСТО(Код))
-	СуммаСкидкиПозиции = 0;
+//IF (ПУСТО(Код))
+//	СуммаСкидкиПозиции = 0;
 
 /*
 //для отладки

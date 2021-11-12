@@ -58,5 +58,7 @@ IF ( fptr.errorCode( ) == 3 )
 		}
 	}
 }
+ELSE IF (fptr.errorCode( ) <> 0 )
+	СООБЩЕНИЕ( "Ошибка подключения к ФР (" + МестоВызова + ")." + CHR( 13 ) + CHR(10) + "Код ошибки: " + fptr.errorCode( ) + ". Описание ошибки: " + fptr.errorDescription( ), МестоВызова );
 
 RETURN fptr.errorCode( ) == 0;

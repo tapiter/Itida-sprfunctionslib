@@ -10,6 +10,7 @@ IF ( КомандыЧека.checktype == 0 OR КомандыЧека.checktype =
 ELSE
 {
 	ФискальныйЧек = true;
+	
 	СистемаНО	= ФР.АТОЛДТО10_ПолучитьЗначениеСНО( ЗАПРОС( "SELECT taxtype FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'" ) );
 	_ИННКАССИРА = ЗАПРОС("SELECT inn FROM sprempl WHERE code = " + _КАССИР );
 	ВерсияФФД	= КомандыЧека.ffd_version;

@@ -1,1 +1,130 @@
-СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );ИННФИРМЫ				= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );НАЗВАНИЕФИРМЫ			= ЗАПРОС( "SELECT name FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );ДатаДокумента			= ЗАПРОС( "SELECT date FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );НомерДокумента			= ЗАПРОС( "SELECT ndok FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );Причина					= ЗАПРОС( "SELECT reason FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );ТипСписания				= ЗАПРОС( "SELECT type_ FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );ТипДокумента			= ЗАПРОС( "SELECT doctype FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );НеУчастникуОборота		= ЗАПРОС( "SELECT to_not_participant FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );ВыбываетИзОборота		= ЗАПРОС( "SELECT withdrawal_from_turnover FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );КОДКЛИЕНТА				= ЗАПРОС( "SELECT client FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );ИННКЛИЕНТА				= ЗАПРОС( "SELECT inn FROM sprclient WHERE code = '" + КОДКЛИЕНТА + "'" );НАЗВАНИЕКЛИЕНТА			= ЗАПРОС( "SELECT name FROM sprclient WHERE code = '" + КОДКЛИЕНТА + "'" );ТекстЗапроса			= "{	""document_num"": """ + ЗАМЕНИТЬ( НомерДокумента, """", "\""" ) + """,	""document_date"": """ + DTOC( ДатаДокумента, 7, "-" ) + "T00:00:00Z"",	""receiver_inn"": """ + ИННКЛИЕНТА + """,	""receiver"": """ + ЗАМЕНИТЬ( НАЗВАНИЕКЛИЕНТА, """", "\""" ) + """,	""sender_inn"": """ + ИННФИРМЫ + """,	""sender"": """ + ЗАМЕНИТЬ( НАЗВАНИЕФИРМЫ, """", "\""" ) + """,	""owner_inn"": """ + ИННКЛИЕНТА + """,	""owner"": """ + ЗАМЕНИТЬ( НАЗВАНИЕКЛИЕНТА, """", "\""" ) + """,	""request_type"": ""SHIPMENT"",	""turnover_type"": """ + ТипСписания + """,	""transfer_date"": """ + DTOC( ДатаДокумента, 7, "-" ) + "T00:00:00Z"", 	""to_not_participant"":" + ЕСЛИ( НеУчастникуОборота, "true", "false" )+ ", " + 	ЕСЛИ( UPPER( ТипДокумента ) == "LP_SHIP_RECEIPT", "	""withdrawal_type"": """ + ЕСЛИ( ПУСТО( Причина ), "NO_RETAIL_USE", Причина ) + """,	""withdrawal_date"": """ + DTOC( ДатаДокумента, 7, "-" ) + "T00:00:00Z"", ", "" ) + "	""products"": [";//	ЕСЛИ( ТипДокумента == "LP_SHIP_RECEIPT", "//	""withdrawal_from_turnover"":" + ЕСЛИ( ВыбываетИзОборота, "true", "false" )+ ",ДОБАВИТЬКОНТЕКСТ( "SELECT mrk.mark, mrk.cena, spr.name, dbo.fn_getsumnds( spr.kodn, mrk.cena, '" + DTOC( ДАТАДОКУМЕНТА ) + "' ) AS tax				   FROM mark_out_spec mrk				   LEFT OUTER JOIN sprres spr ON mrk.nn=spr.code				   WHERE mrk.ic = " + ИДДОКУМЕНТА, "СписокСтрок" );WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) ){	ТекстЗапроса		+= ЕСЛИ( НОМЕРСТРОКИ( ) == 0, "", "," ) + "		{			""uit_code"":""" + ЗАМЕНИТЬ( LEFT( СписокСтрок.mark, 31 ), """", "\""" ) + """,			""uitu_code"":null,			""product_description"": """ + ЗАМЕНИТЬ( СписокСтрок.name, """", "\""" ) + """,			""product_cost"": " + STR( СписокСтрок.cena * 100, 16 ) + ",			""product_tax"": " + STR( СписокСтрок.tax * 100, 16 ) + "		}";		ПРОПУСТИТЬ( 1, "СписокСтрок" );}УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );ТекстЗапроса			+= "	]}";Ответ					= "";GUIDДокумента			= "";ТекстЗапроса			= ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "ANSI", "UTF-8" );// Отправляем запрос в МАРКИРОВКУ// АвторизуемсяМАРКИРОВКАТОКЕН			=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );try{	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );		Подпись				= ПЕРЕКОДИРОВАТЬ( ШИФРОВАНИЕ( СЕРТИФИКАТ, ТекстЗапроса, 1, true, false, _МАРКИРОВКА_ХРАНИЛИЩЕСЕРТИФИКАТОВ ), "", "BASE64" );	Документ		 	= "{""product_document"":""" + ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "", "BASE64" ) + """,						  ""document_format"": ""MANUAL"", ""type"": """ + ТипДокумента + """, ""signature"":""" + Подпись + """}";	Заголовки[ 0 ]		= "Content-Type: application/json";	Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;		Ответ				= HTTPPOST( Соединение, "/api/v3/lk/documents/create?pg=" + ГРУППАМАРКИРОВКИ, Документ, "Заголовки" );	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );	GUIDДокумента		= СЖАТЬПРОБЕЛЫ( Ответ );	// Запрашиваем статус документа	Документ			= МАРКИРОВКА.ЗАПРОСДОКУМЕНТАСПРОВЕРКОЙСТАТУСА( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР, ОТВЕТ );	IF ( ПУСТО( Документ ) ) 	{		IF ( !ПУСТО( ОТВЕТ ) )			ЗАПРОС( "UPDATE mark_out SET guid = '" + STDF( Ответ ) + "', status = 4, reply= 'ответ ГИС МТ не был получен' WHERE identity_column = " + ИДДОКУМЕНТА );		RETURN "";	}		ЗАГРУЗИТЬJSON( "Документ", Документ );	// Если документ был принят без ошибок, то ставим статус 1.	СтатусДокумента		= ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( ЗНАЧЕНИЕПОЛЯ( "Документ", "status", "" ) ) );	IF ( СтатусДокумента == "CHECKED_OK" || СтатусДокумента == "WAIT_ACCEPTANCE" )		ЗАПРОС( "UPDATE mark_out SET guid = '" + STDF( Ответ ) + "', status = 1, reply= 'нет ошибок' WHERE identity_column = " + ИДДОКУМЕНТА );	ELSE IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( ЗНАЧЕНИЕПОЛЯ( "Документ", "status", "" ) ) ) == "IN_PROGRESS" )		THROW( "Сервер ГИС МТ не успел обработать документ за отведенное для этого время." + CHR( 13 ) + "Проверьте статус отправки позже запросив обновления документов." );	ELSE	{		// Иначе, выводим сообщение об ошибке и статус 2		ЗАГРУЗИТЬJSON( "Ошибка", ЗНАЧЕНИЕПОЛЯ( "Документ", "errors", "" ), "error_message" );		ТекстОшибки		= ПЕРЕКОДИРОВАТЬ( ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_message", "" ), "UTF-8", "ANSI" );		ЗАПРОС( "UPDATE mark_out SET guid = '" + STDF( Ответ ) + "', status = 4, reply= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + ИДДОКУМЕНТА );		THROW( ТекстОшибки );	}}catch ( ТекстСообщения ){	HTTPCLOSE( Соединение );	УДАЛИТЬКОНТЕКСТ( "Документ" );	УДАЛИТЬКОНТЕКСТ( "Ошибка" );	СООБЩЕНИЕ( ТекстСообщения );			RETURN "";}HTTPCLOSE( Соединение );УДАЛИТЬКОНТЕКСТ( "Документ" );RETURN GUIDДокумента;
+
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );
+ИННФИРМЫ				= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );
+НАЗВАНИЕФИРМЫ			= ЗАПРОС( "SELECT name FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );
+
+ДатаДокумента			= ЗАПРОС( "SELECT date FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+НомерДокумента			= ЗАПРОС( "SELECT ndok FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+Причина					= ЗАПРОС( "SELECT reason FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+ТипСписания				= ЗАПРОС( "SELECT type_ FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+ТипДокумента			= ЗАПРОС( "SELECT doctype FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+НеУчастникуОборота		= ЗАПРОС( "SELECT to_not_participant FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+ВыбываетИзОборота		= ЗАПРОС( "SELECT withdrawal_from_turnover FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+КОДКЛИЕНТА				= ЗАПРОС( "SELECT client FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+ИННКЛИЕНТА				= ЗАПРОС( "SELECT inn FROM sprclient WHERE code = '" + КОДКЛИЕНТА + "'" );
+НАЗВАНИЕКЛИЕНТА			= ЗАПРОС( "SELECT name FROM sprclient WHERE code = '" + КОДКЛИЕНТА + "'" );
+ТекстЗапроса			= "
+{
+	""document_num"": """ + ЗАМЕНИТЬ( НомерДокумента, """", "\""" ) + """,
+	""document_date"": """ + DTOC( ДатаДокумента, 7, "-" ) + "T00:00:00Z"",
+	""receiver_inn"": """ + ИННКЛИЕНТА + """,
+	""receiver"": """ + ЗАМЕНИТЬ( НАЗВАНИЕКЛИЕНТА, """", "\""" ) + """,
+	""sender_inn"": """ + ИННФИРМЫ + """,
+	""sender"": """ + ЗАМЕНИТЬ( НАЗВАНИЕФИРМЫ, """", "\""" ) + """,
+	""owner_inn"": """ + ИННКЛИЕНТА + """,
+	""owner"": """ + ЗАМЕНИТЬ( НАЗВАНИЕКЛИЕНТА, """", "\""" ) + """,
+	""request_type"": ""SHIPMENT"",
+	""turnover_type"": """ + ТипСписания + """,
+	""transfer_date"": """ + DTOC( ДатаДокумента, 7, "-" ) + "T00:00:00Z"", 
+	""to_not_participant"":" + ЕСЛИ( НеУчастникуОборота, "true", "false" )+ ", " + 
+	ЕСЛИ( UPPER( ТипДокумента ) == "LP_SHIP_RECEIPT", "
+	""withdrawal_type"": """ + ЕСЛИ( ПУСТО( Причина ), "NO_RETAIL_USE", Причина ) + """,
+	""withdrawal_date"": """ + DTOC( ДатаДокумента, 7, "-" ) + "T00:00:00Z"", ", "" ) + "
+	""products"": [";
+//	ЕСЛИ( ТипДокумента == "LP_SHIP_RECEIPT", "
+//	""withdrawal_from_turnover"":" + ЕСЛИ( ВыбываетИзОборота, "true", "false" )+ ",
+
+ДОБАВИТЬКОНТЕКСТ( "SELECT mrk.mark, mrk.cena, spr.name, dbo.fn_getsumnds( spr.kodn, mrk.cena, '" + DTOC( ДАТАДОКУМЕНТА ) + "' ) AS tax
+				   FROM mark_out_spec mrk
+				   LEFT OUTER JOIN sprres spr ON mrk.nn=spr.code
+				   WHERE mrk.ic = " + ИДДОКУМЕНТА, "СписокСтрок" );
+
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+{
+	ТекстЗапроса		+= ЕСЛИ( НОМЕРСТРОКИ( ) == 0, "", "," ) + "
+		{
+			""uit_code"":""" + ЗАМЕНИТЬ( LEFT( СписокСтрок.mark, 31 ), """", "\""" ) + """,
+			""uitu_code"":null,
+			""product_description"": """ + ЗАМЕНИТЬ( СписокСтрок.name, """", "\""" ) + """,
+			""product_cost"": " + STR( СписокСтрок.cena * 100, 16 ) + ",
+			""product_tax"": " + STR( СписокСтрок.tax * 100, 16 ) + "
+		}";
+	
+	ПРОПУСТИТЬ( 1, "СписокСтрок" );
+}
+УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );
+
+ТекстЗапроса			+= "
+	]
+}";
+
+Ответ					= "";
+GUIDДокумента			= "";
+
+ТекстЗапроса			= ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "ANSI", "UTF-8" );
+
+// Отправляем запрос в МАРКИРОВКУ
+// Авторизуемся
+МАРКИРОВКАТОКЕН			=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );
+IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;
+
+АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );
+try
+{
+	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+	Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );
+	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+	
+	Подпись				= ПЕРЕКОДИРОВАТЬ( ШИФРОВАНИЕ( СЕРТИФИКАТ, ТекстЗапроса, 1, true, false, _МАРКИРОВКА_ХРАНИЛИЩЕСЕРТИФИКАТОВ ), "", "BASE64" );
+	Документ		 	= "{""product_document"":""" + ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "", "BASE64" ) + """,
+						  ""document_format"": ""MANUAL"", ""type"": """ + ТипДокумента + """, ""signature"":""" + Подпись + """}";
+
+	Заголовки[ 0 ]		= "Content-Type: application/json";
+	Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;
+	
+	Ответ				= HTTPPOST( Соединение, "/api/v3/lk/documents/create?pg=" + ГРУППАМАРКИРОВКИ, Документ, "Заголовки" );
+	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+
+	GUIDДокумента		= СЖАТЬПРОБЕЛЫ( Ответ );
+
+	// Запрашиваем статус документа
+	Документ			= МАРКИРОВКА.ЗАПРОСДОКУМЕНТАСПРОВЕРКОЙСТАТУСА( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР, ОТВЕТ );
+	IF ( ПУСТО( Документ ) ) 
+	{
+		IF ( !ПУСТО( ОТВЕТ ) )
+			ЗАПРОС( "UPDATE mark_out SET guid = '" + STDF( Ответ ) + "', status = 4, reply= 'ответ ГИС МТ не был получен' WHERE identity_column = " + ИДДОКУМЕНТА );
+		RETURN "";
+	}
+	
+	ЗАГРУЗИТЬJSON( "Документ", Документ );
+	// Если документ был принят без ошибок, то ставим статус 1.
+	СтатусДокумента		= ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( ЗНАЧЕНИЕПОЛЯ( "Документ", "status", "" ) ) );
+	IF ( СтатусДокумента == "CHECKED_OK" || СтатусДокумента == "WAIT_ACCEPTANCE" )
+		ЗАПРОС( "UPDATE mark_out SET guid = '" + STDF( Ответ ) + "', status = 1, reply= 'нет ошибок' WHERE identity_column = " + ИДДОКУМЕНТА );
+	ELSE IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( ЗНАЧЕНИЕПОЛЯ( "Документ", "status", "" ) ) ) == "IN_PROGRESS" )
+		THROW( "Сервер ГИС МТ не успел обработать документ за отведенное для этого время." + CHR( 13 ) + "Проверьте статус отправки позже запросив обновления документов." );
+	ELSE
+	{
+		// Иначе, выводим сообщение об ошибке и статус 2
+		ЗАГРУЗИТЬJSON( "Ошибка", ЗНАЧЕНИЕПОЛЯ( "Документ", "errors", "" ), "error_message" );
+		ТекстОшибки		= ПЕРЕКОДИРОВАТЬ( ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_message", "" ), "UTF-8", "ANSI" );
+		ЗАПРОС( "UPDATE mark_out SET guid = '" + STDF( Ответ ) + "', status = 4, reply= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + ИДДОКУМЕНТА );
+		THROW( ТекстОшибки );
+	}
+
+}
+catch ( ТекстСообщения )
+{
+	HTTPCLOSE( Соединение );
+	УДАЛИТЬКОНТЕКСТ( "Документ" );
+	УДАЛИТЬКОНТЕКСТ( "Ошибка" );
+
+	СООБЩЕНИЕ( ТекстСообщения );
+		
+	RETURN "";
+}
+HTTPCLOSE( Соединение );
+УДАЛИТЬКОНТЕКСТ( "Документ" );
+RETURN GUIDДокумента;

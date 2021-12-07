@@ -1,1 +1,56 @@
-// АвторизуемсяМАРКИРОВКАТОКЕН		=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;ГРУППАМАРКИРОВКИ	= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );ИмяТаблицы			= "##" + УНИКАЛЬНОЕИМЯ( );ЗАПРОС( "CREATE TABLE " + ИмяТаблицы + "( id int, name varchar( 250 ), gtin varchar( 250 ), brand varchar( 250 ), packageType varchar( 250 ), innerUnitCount int, model varchar( 250 ), publicationDate int,								inn varchar( 250 ), country varchar( 250 ), productTypeDesc varchar( 250 ), color varchar( 250 ), materialDown varchar( 250 ), materialUpper varchar( 250 ), materialLining varchar( 250 ),								productType varchar( 250 ), productGroupId int, productSize varchar( 250 ), goodSignedFlag int, goodMarkFlag int, goodTurnFlag int ) " );								IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: id int, name char, gtin char, brand char, packageType char, innerUnitCount int, model char, publicationDate int,								inn char, country char, productTypeDesc char, color char, materialDown char, materialUpper char, materialLining char,								productType char, productGroupId int, productSize char, goodSignedFlag int, goodMarkFlag int, goodTurnFlag int", "СписокGTIN" ) ) RETURN false;АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );Ответ					= "";try{	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );		Заголовки[ 0 ]		= "Content-Type: application/json";	Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;	НомерСтраницы		= 0;	ПолученоДо			= 0;	ПолученоПосле		= 0;	ПОКА ( НомерСтраницы == 0 OR ПолученоПосле > ПолученоДо )	{		ПолученоДо			= КОЛИЧЕСТВОСТРОК( "ОтветGTIN" );		Ответ				= HTTPGET( Соединение, "/api/v3/product/search?limit=100&page=" + СТРОКА( НомерСтраницы ) + "&pg=" + ГРУППАМАРКИРОВКИ, "Заголовки" );		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				ЗАГРУЗИТЬJSON( "ОтветGTIN", ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" ) );				ЗАГРУЗИТЬ( "СписокGTIN", "JSON", ЗНАЧЕНИЕПОЛЯ( "ОтветGTIN", "results" ) );		ПолученоПосле		= КОЛИЧЕСТВОСТРОК( "ОтветGTIN" );		НомерСтраницы++;	}	ВЫГРУЗИТЬ( ИмяТаблицы, "", "", "СписокGTIN" );}catch ( ТекстСообщения ){	HTTPCLOSE( Соединение );	СООБЩЕНИЕ( ТекстСообщения );	УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );	УДАЛИТЬКОНТЕКСТ( "ОтветGTIN" );		RETURN "";}HTTPCLOSE( Соединение );УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );УДАЛИТЬКОНТЕКСТ( "ОтветGTIN" );RETURN ИмяТаблицы;
+
+// Авторизуемся
+МАРКИРОВКАТОКЕН		=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );
+IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;
+
+ГРУППАМАРКИРОВКИ	= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );
+ИмяТаблицы			= "##" + УНИКАЛЬНОЕИМЯ( );
+ЗАПРОС( "CREATE TABLE " + ИмяТаблицы + "( id int, name varchar( 250 ), gtin varchar( 250 ), brand varchar( 250 ), packageType varchar( 250 ), innerUnitCount int, model varchar( 250 ), publicationDate int,
+								inn varchar( 250 ), country varchar( 250 ), productTypeDesc varchar( 250 ), color varchar( 250 ), materialDown varchar( 250 ), materialUpper varchar( 250 ), materialLining varchar( 250 ),
+								productType varchar( 250 ), productGroupId int, productSize varchar( 250 ), goodSignedFlag int, goodMarkFlag int, goodTurnFlag int ) " );
+								
+IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: id int, name char, gtin char, brand char, packageType char, innerUnitCount int, model char, publicationDate int,
+								inn char, country char, productTypeDesc char, color char, materialDown char, materialUpper char, materialLining char,
+								productType char, productGroupId int, productSize char, goodSignedFlag int, goodMarkFlag int, goodTurnFlag int", "СписокGTIN" ) ) RETURN false;
+
+АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );
+Ответ					= "";
+try
+{
+	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+	Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );
+	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+	
+	Заголовки[ 0 ]		= "Content-Type: application/json";
+	Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;
+	НомерСтраницы		= 0;
+	ПолученоДо			= 0;
+	ПолученоПосле		= 0;
+	ПОКА ( НомерСтраницы == 0 OR ПолученоПосле > ПолученоДо )
+	{
+		ПолученоДо			= КОЛИЧЕСТВОСТРОК( "ОтветGTIN" );
+		Ответ				= HTTPGET( Соединение, "/api/v3/product/search?limit=100&page=" + СТРОКА( НомерСтраницы ) + "&pg=" + ГРУППАМАРКИРОВКИ, "Заголовки" );
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		ЗАГРУЗИТЬJSON( "ОтветGTIN", ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" ) );
+		
+		ЗАГРУЗИТЬ( "СписокGTIN", "JSON", ЗНАЧЕНИЕПОЛЯ( "ОтветGTIN", "results" ) );
+		ПолученоПосле		= КОЛИЧЕСТВОСТРОК( "ОтветGTIN" );
+		НомерСтраницы++;
+	}
+	ВЫГРУЗИТЬ( ИмяТаблицы, "", "", "СписокGTIN" );
+}
+catch ( ТекстСообщения )
+{
+	HTTPCLOSE( Соединение );
+	СООБЩЕНИЕ( ТекстСообщения );
+	УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );
+	УДАЛИТЬКОНТЕКСТ( "ОтветGTIN" );
+	
+	RETURN "";
+}
+HTTPCLOSE( Соединение );
+УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );
+УДАЛИТЬКОНТЕКСТ( "ОтветGTIN" );
+
+RETURN ИмяТаблицы;

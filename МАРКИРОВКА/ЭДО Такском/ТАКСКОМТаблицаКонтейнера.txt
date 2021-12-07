@@ -1,1 +1,4 @@
-ИМЯТАБЛИЦЫ				= "##" + УНИКАЛЬНОЕИМЯ( );ЗАПРОС( "CREATE TABLE " + ИМЯТАБЛИЦЫ + " ( filename varchar( 250 ), signname varchar( 250 ), type varchar( 250 ), 										   content varbinary( max ), signcontent varbinary( max ), identity_column int IDENTITY( 1, 1 ) )" );RETURN ИМЯТАБЛИЦЫ;
+ИМЯТАБЛИЦЫ				= "##" + УНИКАЛЬНОЕИМЯ( );
+ЗАПРОС( "CREATE TABLE " + ИМЯТАБЛИЦЫ + " ( filename varchar( 250 ), signname varchar( 250 ), type varchar( 250 ), 
+										   content varbinary( max ), signcontent varbinary( max ), identity_column int IDENTITY( 1, 1 ) )" );
+RETURN ИМЯТАБЛИЦЫ;

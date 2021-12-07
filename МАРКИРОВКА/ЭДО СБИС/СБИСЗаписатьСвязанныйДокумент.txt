@@ -1,1 +1,40 @@
-/* типы документов	DP_PDOTPR - подтверждение даты отправки	DP_IZVPOL - квитанция	DP_UVUTOCH - отказ	ON_SCHFDOPPOK - подтверждение*/ДатаДокумента	= DTOC( ДАТА( ) );ТипДокумента	= ЕСЛИ( ATC( Ответ, "DP_PDOTPR" ) > 0, 		"DP_PDOTPR",				  ЕСЛИ( ATC( Ответ, "DP_IZVPOL" ) > 0, 		"DP_IZVPOL",				  ЕСЛИ( ATC( Ответ, "DP_UVUTOCH" ) > 0, 	"DP_UVUTOCH",				  ЕСЛИ( ATC( Ответ, "ON_SCHFDOPPOK" ) > 0,	"ON_SCHFDOPPOK", 				  ЕСЛИ( ATC( Ответ, "ON_NSCHFDOPPR" ) > 0,	"ON_NSCHFDOPPR", "" ) ) ) ) );__sql( ){	IF NOT EXISTS( SELECT * FROM edi_notifications WHERE guid = '[[ ИДДокумента ]]' AND 														 parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 														 editionguid= '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 														 ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]' )		INSERT INTO edi_notifications ( guid, parentguid, editionguid, ent, type, date, firstname, middlename, surname, position, xml )		VALUES ( '[[ ИДДокумента ]]', '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]', '[[ STDF( ИДРЕДАКЦИИ ) ]]', '[[ STDF( ПРЕДПРИЯТИЕ ) ]]',				 '[[ ТипДокумента ]]','[[ ДатаДокумента ]]','[[ Имя ]]','[[ Отчество ]]','[[ Фамилия ]]','[[ Должность ]]','[[ STDF( Ответ ) ]]' 		);	ELSE		UPDATE edi_notifications		SET			type		= '[[ ТипДокумента ]]',			date		= '[[ ДатаДокумента ]]',			firstname	= '[[ Имя ]]',			middlename	= '[[ Отчество ]]',			surname		= '[[ Фамилия ]]',			position	= '[[ Должность ]]',			xml			= '[[ STDF( Ответ ) ]]'		WHERE guid = '[[ ИДДокумента ]]' AND 			  parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 			  editionguid = '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 			  ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]';}RETURN true;
+
+/* типы документов
+	DP_PDOTPR - подтверждение даты отправки
+	DP_IZVPOL - квитанция
+	DP_UVUTOCH - отказ
+	ON_SCHFDOPPOK - подтверждение
+*/
+
+ДатаДокумента	= DTOC( ДАТА( ) );
+ТипДокумента	= ЕСЛИ( ATC( Ответ, "DP_PDOTPR" ) > 0, 		"DP_PDOTPR",
+				  ЕСЛИ( ATC( Ответ, "DP_IZVPOL" ) > 0, 		"DP_IZVPOL",
+				  ЕСЛИ( ATC( Ответ, "DP_UVUTOCH" ) > 0, 	"DP_UVUTOCH",
+				  ЕСЛИ( ATC( Ответ, "ON_SCHFDOPPOK" ) > 0,	"ON_SCHFDOPPOK", 
+				  ЕСЛИ( ATC( Ответ, "ON_NSCHFDOPPR" ) > 0,	"ON_NSCHFDOPPR", "" ) ) ) ) );
+__sql( )
+{
+	IF NOT EXISTS( SELECT * FROM edi_notifications WHERE guid = '[[ ИДДокумента ]]' AND 
+														 parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 
+														 editionguid= '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 
+														 ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]' )
+		INSERT INTO edi_notifications ( guid, parentguid, editionguid, ent, type, date, firstname, middlename, surname, position, xml )
+		VALUES ( '[[ ИДДокумента ]]', '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]', '[[ STDF( ИДРЕДАКЦИИ ) ]]', '[[ STDF( ПРЕДПРИЯТИЕ ) ]]',
+				 '[[ ТипДокумента ]]','[[ ДатаДокумента ]]','[[ Имя ]]','[[ Отчество ]]','[[ Фамилия ]]','[[ Должность ]]','[[ STDF( Ответ ) ]]' 
+		);
+	ELSE
+		UPDATE edi_notifications
+		SET
+			type		= '[[ ТипДокумента ]]',
+			date		= '[[ ДатаДокумента ]]',
+			firstname	= '[[ Имя ]]',
+			middlename	= '[[ Отчество ]]',
+			surname		= '[[ Фамилия ]]',
+			position	= '[[ Должность ]]',
+			xml			= '[[ STDF( Ответ ) ]]'
+		WHERE guid = '[[ ИДДокумента ]]' AND 
+			  parentguid = '[[ STDF( ИДРОДИТЕЛЬСКОГОДОКУМЕНТА ) ]]' AND 
+			  editionguid = '[[ STDF( ИДРЕДАКЦИИ ) ]]' AND 
+			  ent = '[[ STDF( ПРЕДПРИЯТИЕ ) ]]';
+}
+RETURN true;

@@ -1,1 +1,100 @@
-СКЛАДПРИХОДА			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_SKLAD" + ПРЕДПРИЯТИЕ + "'" );IF ( ПУСТО( СКЛАДПРИХОДА ) )	СКЛАДПРИХОДА		= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value_ ) FROM userprop WHERE prop_ = 'SKLCODE' AND user_ = SUSER_SNAME( )" );	ФИРМАДОКУМЕНТА			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );РСДОКУМЕНТА				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm = '" + ФИРМАДОКУМЕНТА + "' AND fmain = 1" );АВТОРДОКУМЕНТА			= ЗАПРОС( "SELECT SUSER_SNAME( )" );;ВАЛЮТАДОКУМЕНТА			= ЗАПРОС( "SELECT value FROM param WHERE param= 'CUR'" );КУРСДОКУМЕНТА			= 1;ФИЛИАЛДОКУМЕНТА			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code = '" + СКЛАДПРИХОДА + "'" );НОМЕРДОКУМЕНТА			= ЗАПРОС( "SELECT ndok FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );ДАТАДОКУМЕНТА			= ЗАПРОС( "SELECT date FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );КОММЕНТАРИЙ				= "Создан на основании входящего УПД № " + НОМЕРДОКУМЕНТА + " от " + DTOC( ДАТАДОКУМЕНТА );КОНТРАГЕНТ				= ЗАПРОС( "SELECT client FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );_ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );// Формируем список учетов для нового документаСписокУчетов			= "";ДОБАВИТЬКОНТЕКСТ( "SELECT account_ FROM specviewpoints_acn WHERE code = '" + _ТОЧКАЗРЕНИЯ + "' AND objcode= '001' AND objtype= 'DOC'", "МоделиУчета");WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) ){	СписокУчетов				+= МоделиУчета.account_;	ПРОПУСТИТЬ( 1, "МоделиУчета" );}УДАЛИТЬКОНТЕКСТ( "МоделиУчета" );СписокУчетов				= ALLTRIM( СписокУчетов );ИДНакладной					= ЗАПРОС( "EXECUTE sp_insertdoc '001', '', '" + ДатаДокумента + "', '', '" + ФирмаДокумента + "', 																'" + АвторДокумента + "', '" + ВалютаДокумента + "', '', '" + СписокУчетов + "', '" + _ТОЧКАЗРЕНИЯ + "', 0, '001'", "ident" );																	// Устанваливаем обязательные поля нового документаЗАПРОС( "UPDATE spr001 SET			cur					= '" + ВАЛЮТАДОКУМЕНТА + "',			client				= '" + КОНТРАГЕНТ + "',			cur_rate			=  " + КУРСДОКУМЕНТА + ",			firm				= '" + ФИРМАДОКУМЕНТА + "',			rs					= '" + РСДОКУМЕНТА + "',			note				= '" + STDF( КОММЕНТАРИЙ ) + "',			branch				= '" + ФИЛИАЛДОКУМЕНТА + "', 			branch_d			= '" + ФИЛИАЛДОКУМЕНТА + "',			sklad				= '" + СКЛАДПРИХОДА + "', 			nknum				= '" + STDF( НОМЕРДОКУМЕНТА ) + "', 			nkdate				= '" + DTOC( ДАТАДОКУМЕНТА ) + "', 			intype				= 'Закупка',			summa				= 0		WHERE identity_column = " + ИДНакладной );// Заполняем спецификацию нового документа// Необходимо перенести не только товары, но и связанные с ним маркиДОБАВИТЬКОНТЕКСТ( "SELECT identity_column, nn, ed FROM mark_in_spec spec WHERE spec.ic= " + ИДДОКУМЕНТА + " AND nn <> ''", "Строки" );ПОКА ( !КОНЕЦКОНТЕКСТА( "Строки" ) ){	Единица		= STDF( Строки.ed );	koef_e		= ЗАПРОС( "SELECT koef, koef_c 						   FROM sprres_ed						   WHERE code = '" + STDF( Строки.nn ) + "' AND ed = '" + Единица + "'						   UNION SELECT g.koef, g.koef_c 						   FROM sprres_g_edlist g						   INNER JOIN sprres r ON r.group_ = g.code						   WHERE r.code = '" + STDF( Строки.nn ) + "' AND g.ed = '" + Единица + "'", "koef" );	koef_c		= ЗАПРОС( "", "koef_c" );		IF ( koef_e <= 0 || koef_c <= 0 )	{		koef_e		= 1;		koef_c		= 1;		Единица		= STDF( ЗАПРОС( "SELECT ed FROM sprres WHERE code = '" + STDF( Строки.nn ) + "'" ) );	}		ИДСтроки	= ЗАПРОС( "INSERT INTO spec001 ( ic, linenum, nn, s_code, ed, koef_e, koef_c, nnname, cena, kolp, realkolp, kodn, summa, sumnds, inside, packs )						   SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, '', '" + Единица + "', " + СТРОКА( koef_e, 16, 8 ) + ", " + СТРОКА( koef_c, 16, 8 ) + ", 						   ISNULL( sprres.name, '' ), ROUND( spec.cena, 6 ), CASE WHEN kolp = 0 THEN 1 ELSE kolp END, 						   CASE WHEN realkolp = 0 AND kolp = 0 THEN CASE WHEN realmark = '' THEN 0 ELSE 1 END ELSE realkolp END, 						   ISNULL( sprres.kodn, '' ), ROUND( spec.cena, 6 ) * kolp, dbo.fn_getsumnds( ISNULL( sprres.kodn, '' ), 						   ROUND( spec.cena, 6 ) * kolp, '" + DTOC( ДАТАДОКУМЕНТА ) + "' ), 1, kolp						   FROM mark_in_spec spec 						   LEFT OUTER JOIN sprres sprres ON spec.nn = sprres.code						   WHERE spec.identity_column = " + Строки.identity_column );						   	// Марки переносим в ШК	ДОБАВИТЬКОНТЕКСТ( "INSERT INTO barcodes ( code, ic, spec_ic, nn, barcode, kolp  )					   SELECT '001', " + ИДНакладной + ", " + ИДСтроки + ", '" + STDF( Строки.nn ) + "', mark.mark, mark.kolp 					   FROM mark_in_marks mark WHERE mark.ic= " + ИДДОКУМЕНТА + " AND mark.spec_ic = " + Строки.identity_column + "					   UNION SELECT '001', " + ИДНакладной + ", " + ИДСтроки + ", '" + STDF( Строки.nn ) + "', mark, CASE WHEN realmark <> '' THEN 1 ELSE 0 END					   FROM mark_in_spec WHERE identity_column = " + Строки.identity_column + " AND mark <> ''", "Марки" );					   	УДАЛИТЬКОНТЕКСТ( "Марки" );	ПРОПУСТИТЬ( 1, "Строки" );}УДАЛИТЬКОНТЕКСТ( "Строки" );// Устанавливаем поля Сумма в спецификации и в шапке документаЗАПРОС( "UPDATE spr001 SET summa= (SELECT SUM( summa ) FROM spec001 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );ЗАПРОС( "UPDATE mark_in SET code = '001', ic = " + ИДНакладной + " WHERE identity_column= " + ИДДОКУМЕНТА );ЕГАИС.ВЫПОЛНИТЬСКРИПТПРОВЕРКИПЕРЕДЗАПИСЬЮ( "001", ИДНакладной );RETURN true;
+
+СКЛАДПРИХОДА			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_SKLAD" + ПРЕДПРИЯТИЕ + "'" );
+IF ( ПУСТО( СКЛАДПРИХОДА ) )
+	СКЛАДПРИХОДА		= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value_ ) FROM userprop WHERE prop_ = 'SKLCODE' AND user_ = SUSER_SNAME( )" );
+	
+ФИРМАДОКУМЕНТА			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );
+РСДОКУМЕНТА				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm = '" + ФИРМАДОКУМЕНТА + "' AND fmain = 1" );
+АВТОРДОКУМЕНТА			= ЗАПРОС( "SELECT SUSER_SNAME( )" );;
+ВАЛЮТАДОКУМЕНТА			= ЗАПРОС( "SELECT value FROM param WHERE param= 'CUR'" );
+КУРСДОКУМЕНТА			= 1;
+ФИЛИАЛДОКУМЕНТА			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code = '" + СКЛАДПРИХОДА + "'" );
+
+НОМЕРДОКУМЕНТА			= ЗАПРОС( "SELECT ndok FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );
+ДАТАДОКУМЕНТА			= ЗАПРОС( "SELECT date FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );
+КОММЕНТАРИЙ				= "Создан на основании входящего УПД № " + НОМЕРДОКУМЕНТА + " от " + DTOC( ДАТАДОКУМЕНТА );
+КОНТРАГЕНТ				= ЗАПРОС( "SELECT client FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );
+_ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
+
+// Формируем список учетов для нового документа
+СписокУчетов			= "";
+ДОБАВИТЬКОНТЕКСТ( "SELECT account_ FROM specviewpoints_acn WHERE code = '" + _ТОЧКАЗРЕНИЯ + "' AND objcode= '001' AND objtype= 'DOC'", "МоделиУчета");
+WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) )
+{
+	СписокУчетов				+= МоделиУчета.account_;
+	ПРОПУСТИТЬ( 1, "МоделиУчета" );
+}
+УДАЛИТЬКОНТЕКСТ( "МоделиУчета" );
+СписокУчетов				= ALLTRIM( СписокУчетов );
+
+ИДНакладной					= ЗАПРОС( "EXECUTE sp_insertdoc '001', '', '" + ДатаДокумента + "', '', '" + ФирмаДокумента + "', 
+																'" + АвторДокумента + "', '" + ВалютаДокумента + "', '', '" + СписокУчетов + "', '" + _ТОЧКАЗРЕНИЯ + "', 0, '001'", "ident" );
+																	
+// Устанваливаем обязательные поля нового документа
+ЗАПРОС( "UPDATE spr001 SET
+			cur					= '" + ВАЛЮТАДОКУМЕНТА + "',
+			client				= '" + КОНТРАГЕНТ + "',
+			cur_rate			=  " + КУРСДОКУМЕНТА + ",
+			firm				= '" + ФИРМАДОКУМЕНТА + "',
+			rs					= '" + РСДОКУМЕНТА + "',
+			note				= '" + STDF( КОММЕНТАРИЙ ) + "',
+			branch				= '" + ФИЛИАЛДОКУМЕНТА + "', 
+			branch_d			= '" + ФИЛИАЛДОКУМЕНТА + "',
+			sklad				= '" + СКЛАДПРИХОДА + "', 
+			nknum				= '" + STDF( НОМЕРДОКУМЕНТА ) + "', 
+			nkdate				= '" + DTOC( ДАТАДОКУМЕНТА ) + "', 
+			intype				= 'Закупка',
+			summa				= 0
+		WHERE identity_column = " + ИДНакладной );
+
+// Заполняем спецификацию нового документа
+// Необходимо перенести не только товары, но и связанные с ним марки
+ДОБАВИТЬКОНТЕКСТ( "SELECT identity_column, nn, ed FROM mark_in_spec spec WHERE spec.ic= " + ИДДОКУМЕНТА + " AND nn <> ''", "Строки" );
+ПОКА ( !КОНЕЦКОНТЕКСТА( "Строки" ) )
+{
+	Единица		= STDF( Строки.ed );
+	koef_e		= ЗАПРОС( "SELECT koef, koef_c 
+						   FROM sprres_ed
+						   WHERE code = '" + STDF( Строки.nn ) + "' AND ed = '" + Единица + "'
+						   UNION SELECT g.koef, g.koef_c 
+						   FROM sprres_g_edlist g
+						   INNER JOIN sprres r ON r.group_ = g.code
+						   WHERE r.code = '" + STDF( Строки.nn ) + "' AND g.ed = '" + Единица + "'", "koef" );
+	koef_c		= ЗАПРОС( "", "koef_c" );
+	
+	IF ( koef_e <= 0 || koef_c <= 0 )
+	{
+		koef_e		= 1;
+		koef_c		= 1;
+		Единица		= STDF( ЗАПРОС( "SELECT ed FROM sprres WHERE code = '" + STDF( Строки.nn ) + "'" ) );
+	}
+	
+	ИДСтроки	= ЗАПРОС( "INSERT INTO spec001 ( ic, linenum, nn, s_code, ed, koef_e, koef_c, nnname, cena, kolp, realkolp, kodn, summa, sumnds, inside, packs )
+						   SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, '', '" + Единица + "', " + СТРОКА( koef_e, 16, 8 ) + ", " + СТРОКА( koef_c, 16, 8 ) + ", 
+						   ISNULL( sprres.name, '' ), ROUND( spec.cena, 6 ), CASE WHEN kolp = 0 THEN 1 ELSE kolp END, 
+						   CASE WHEN realkolp = 0 AND kolp = 0 THEN CASE WHEN realmark = '' THEN 0 ELSE 1 END ELSE realkolp END, 
+						   ISNULL( sprres.kodn, '' ), ROUND( spec.cena, 6 ) * kolp, dbo.fn_getsumnds( ISNULL( sprres.kodn, '' ), 
+						   ROUND( spec.cena, 6 ) * kolp, '" + DTOC( ДАТАДОКУМЕНТА ) + "' ), 1, kolp
+						   FROM mark_in_spec spec 
+						   LEFT OUTER JOIN sprres sprres ON spec.nn = sprres.code
+						   WHERE spec.identity_column = " + Строки.identity_column );
+						   
+	// Марки переносим в ШК
+	ДОБАВИТЬКОНТЕКСТ( "INSERT INTO barcodes ( code, ic, spec_ic, nn, barcode, kolp  )
+					   SELECT '001', " + ИДНакладной + ", " + ИДСтроки + ", '" + STDF( Строки.nn ) + "', mark.mark, mark.kolp 
+					   FROM mark_in_marks mark WHERE mark.ic= " + ИДДОКУМЕНТА + " AND mark.spec_ic = " + Строки.identity_column + "
+					   UNION SELECT '001', " + ИДНакладной + ", " + ИДСтроки + ", '" + STDF( Строки.nn ) + "', mark, CASE WHEN realmark <> '' THEN 1 ELSE 0 END
+					   FROM mark_in_spec WHERE identity_column = " + Строки.identity_column + " AND mark <> ''", "Марки" );
+					   
+	УДАЛИТЬКОНТЕКСТ( "Марки" );
+	ПРОПУСТИТЬ( 1, "Строки" );
+}
+УДАЛИТЬКОНТЕКСТ( "Строки" );
+
+
+// Устанавливаем поля Сумма в спецификации и в шапке документа
+ЗАПРОС( "UPDATE spr001 SET summa= (SELECT SUM( summa ) FROM spec001 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );
+ЗАПРОС( "UPDATE mark_in SET code = '001', ic = " + ИДНакладной + " WHERE identity_column= " + ИДДОКУМЕНТА );
+ЕГАИС.ВЫПОЛНИТЬСКРИПТПРОВЕРКИПЕРЕДЗАПИСЬЮ( "001", ИДНакладной );
+
+RETURN true;

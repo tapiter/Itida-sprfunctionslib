@@ -1,1 +1,64 @@
-СКЛАДСПИСАНИЯ			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_SKLAD" + ПРЕДПРИЯТИЕ + "'" );IF ( ПУСТО( СКЛАДСПИСАНИЯ ) )	СКЛАДСПИСАНИЯ		= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value_ ) FROM userprop WHERE prop_ = 'SKLCODE' AND user_ = SUSER_SNAME( )" );	ФИРМАДОКУМЕНТА			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );РСДОКУМЕНТА				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm = '" + ФИРМАДОКУМЕНТА + "' AND fmain = 1" );АВТОРДОКУМЕНТА			= ЗАПРОС( "SELECT SUSER_SNAME( )" );;ВАЛЮТАДОКУМЕНТА			= ЗАПРОС( "SELECT value FROM param WHERE param= 'CUR'" );КУРСДОКУМЕНТА			= 1;ФИЛИАЛДОКУМЕНТА			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code = '" + СКЛАДСПИСАНИЯ + "'" );ДАТАДОКУМЕНТА			= ЗАПРОС( "SELECT date FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );КОММЕНТАРИЙ				= ЗАПРОС( "SELECT note FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );КОНТРАГЕНТ				= ЗАПРОС( "SELECT client FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );_ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );// Формируем список учетов для нового документаСписокУчетов			= "";ДОБАВИТЬКОНТЕКСТ( "SELECT account_ FROM specviewpoints_acn WHERE code = '" + _ТОЧКАЗРЕНИЯ + "' AND objcode= '002' AND objtype= 'DOC'", "МоделиУчета");WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) ){	СписокУчетов				+= МоделиУчета.account_;	ПРОПУСТИТЬ( 1, "МоделиУчета" );}УДАЛИТЬКОНТЕКСТ( "МоделиУчета" );СписокУчетов				= ALLTRIM( СписокУчетов );ИДНакладной					= ЗАПРОС( "EXECUTE sp_insertdoc '002', '', '" + ДатаДокумента + "', '', '" + ФирмаДокумента + "', 																'" + АвторДокумента + "', '" + ВалютаДокумента + "', '', '" + СписокУчетов + "', '" + _ТОЧКАЗРЕНИЯ + "', 0, '001'", "ident" );																	// Устанваливаем обязательные поля нового документаЗАПРОС( "UPDATE spr002 SET			cur					= '" + ВАЛЮТАДОКУМЕНТА + "',			client				= '" + КОНТРАГЕНТ + "',			cur_rate			=  " + КУРСДОКУМЕНТА + ",			firm				= '" + ФИРМАДОКУМЕНТА + "',			rs					= '" + РСДОКУМЕНТА + "',			note				= '" + STDF( КОММЕНТАРИЙ ) + "',			branch				= '" + ФИЛИАЛДОКУМЕНТА + "', 			branch_d			= '" + ФИЛИАЛДОКУМЕНТА + "',			sklad				= '" + СКЛАДСПИСАНИЯ + "', 			outtype				= 'Продажа',			summa				= 0		WHERE identity_column = " + ИДНакладной );// Заполняем спецификацию нового документа// Выполняем запрос функцией ДобавитьКонтекст, т.к. запрос может вернуть много строк результата, пожтому функция Запрос, получив первую строку может отменить все остальноеДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec002 ( ic, nn, s_code, ed, koef_e, koef_c, nnname, cena, incena, kolp, kodn, summa, inside, packs, cenawoall, summawoall )				   SELECT " + ИДНакладной + ", spec.nn, '', sprres.ed, 1, 1, sprres.name, ROUND( spec.cena, 2 ), dbo.fn_calcsklad_incena( spec.nn, '" + TTOC( ДатаДокумента ) + "', '" + СКЛАДСПИСАНИЯ + "', '001' ),						  COUNT( * ), sprres.kodn, ROUND( spec.cena, 2 ) * COUNT( * ), 1, COUNT( * ), 0, 0				   FROM mark_out_spec spec 				   INNER JOIN sprres sprres ON spec.nn = sprres.code				   WHERE spec.ic= " + ИДДОКУМЕНТА + " 				   GROUP BY spec.nn, sprres.ed, sprres.name, sprres.kodn, ROUND( spec.cena, 2 )", "Спецификация" );УдалитьКонтекст( "Спецификация" );// Устанавливаем поля Сумма в спецификации и в шапке документаЗАПРОС( "UPDATE spr002 SET summa= (SELECT SUM( summa ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );ЗАПРОС( "UPDATE spr002 SET insumma= (SELECT SUM( incena*kolp ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );ЗАПРОС( "UPDATE mark_out SET code = '002', ic = " + ИДНакладной + " WHERE identity_column= " + ИДДОКУМЕНТА );ЕГАИС.ВЫПОЛНИТЬСКРИПТПРОВЕРКИПЕРЕДЗАПИСЬЮ( "002", ИДНакладной );RETURN true;
+
+СКЛАДСПИСАНИЯ			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_SKLAD" + ПРЕДПРИЯТИЕ + "'" );
+IF ( ПУСТО( СКЛАДСПИСАНИЯ ) )
+	СКЛАДСПИСАНИЯ		= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value_ ) FROM userprop WHERE prop_ = 'SKLCODE' AND user_ = SUSER_SNAME( )" );
+	
+ФИРМАДОКУМЕНТА			= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );
+РСДОКУМЕНТА				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm = '" + ФИРМАДОКУМЕНТА + "' AND fmain = 1" );
+АВТОРДОКУМЕНТА			= ЗАПРОС( "SELECT SUSER_SNAME( )" );;
+ВАЛЮТАДОКУМЕНТА			= ЗАПРОС( "SELECT value FROM param WHERE param= 'CUR'" );
+КУРСДОКУМЕНТА			= 1;
+ФИЛИАЛДОКУМЕНТА			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code = '" + СКЛАДСПИСАНИЯ + "'" );
+
+ДАТАДОКУМЕНТА			= ЗАПРОС( "SELECT date FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+КОММЕНТАРИЙ				= ЗАПРОС( "SELECT note FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+КОНТРАГЕНТ				= ЗАПРОС( "SELECT client FROM mark_out WHERE identity_column = " + ИДДОКУМЕНТА );
+_ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
+
+// Формируем список учетов для нового документа
+СписокУчетов			= "";
+ДОБАВИТЬКОНТЕКСТ( "SELECT account_ FROM specviewpoints_acn WHERE code = '" + _ТОЧКАЗРЕНИЯ + "' AND objcode= '002' AND objtype= 'DOC'", "МоделиУчета");
+WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) )
+{
+	СписокУчетов				+= МоделиУчета.account_;
+	ПРОПУСТИТЬ( 1, "МоделиУчета" );
+}
+УДАЛИТЬКОНТЕКСТ( "МоделиУчета" );
+СписокУчетов				= ALLTRIM( СписокУчетов );
+
+ИДНакладной					= ЗАПРОС( "EXECUTE sp_insertdoc '002', '', '" + ДатаДокумента + "', '', '" + ФирмаДокумента + "', 
+																'" + АвторДокумента + "', '" + ВалютаДокумента + "', '', '" + СписокУчетов + "', '" + _ТОЧКАЗРЕНИЯ + "', 0, '001'", "ident" );
+																	
+// Устанваливаем обязательные поля нового документа
+ЗАПРОС( "UPDATE spr002 SET
+			cur					= '" + ВАЛЮТАДОКУМЕНТА + "',
+			client				= '" + КОНТРАГЕНТ + "',
+			cur_rate			=  " + КУРСДОКУМЕНТА + ",
+			firm				= '" + ФИРМАДОКУМЕНТА + "',
+			rs					= '" + РСДОКУМЕНТА + "',
+			note				= '" + STDF( КОММЕНТАРИЙ ) + "',
+			branch				= '" + ФИЛИАЛДОКУМЕНТА + "', 
+			branch_d			= '" + ФИЛИАЛДОКУМЕНТА + "',
+			sklad				= '" + СКЛАДСПИСАНИЯ + "', 
+			outtype				= 'Продажа',
+			summa				= 0
+		WHERE identity_column = " + ИДНакладной );
+
+// Заполняем спецификацию нового документа
+// Выполняем запрос функцией ДобавитьКонтекст, т.к. запрос может вернуть много строк результата, пожтому функция Запрос, получив первую строку может отменить все остальное
+ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec002 ( ic, nn, s_code, ed, koef_e, koef_c, nnname, cena, incena, kolp, kodn, summa, inside, packs, cenawoall, summawoall )
+				   SELECT " + ИДНакладной + ", spec.nn, '', sprres.ed, 1, 1, sprres.name, ROUND( spec.cena, 2 ), dbo.fn_calcsklad_incena( spec.nn, '" + TTOC( ДатаДокумента ) + "', '" + СКЛАДСПИСАНИЯ + "', '001' ),
+						  COUNT( * ), sprres.kodn, ROUND( spec.cena, 2 ) * COUNT( * ), 1, COUNT( * ), 0, 0
+				   FROM mark_out_spec spec 
+				   INNER JOIN sprres sprres ON spec.nn = sprres.code
+				   WHERE spec.ic= " + ИДДОКУМЕНТА + " 
+				   GROUP BY spec.nn, sprres.ed, sprres.name, sprres.kodn, ROUND( spec.cena, 2 )", "Спецификация" );
+УдалитьКонтекст( "Спецификация" );
+
+// Устанавливаем поля Сумма в спецификации и в шапке документа
+ЗАПРОС( "UPDATE spr002 SET summa= (SELECT SUM( summa ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );
+ЗАПРОС( "UPDATE spr002 SET insumma= (SELECT SUM( incena*kolp ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );
+ЗАПРОС( "UPDATE mark_out SET code = '002', ic = " + ИДНакладной + " WHERE identity_column= " + ИДДОКУМЕНТА );
+ЕГАИС.ВЫПОЛНИТЬСКРИПТПРОВЕРКИПЕРЕДЗАПИСЬЮ( "002", ИДНакладной );
+
+RETURN true;

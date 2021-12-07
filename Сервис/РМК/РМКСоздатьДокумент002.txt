@@ -1,1 +1,111 @@
-_ERRORCODE				= 0;_ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );Контрагент				= ПартнерДокумента;Договор					= "";СкладСписания			= СкладДокумента;РСДокумента				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm= '" + ФирмаДокумента + "' AND fmain= 1");АвторДокумента			= ЗАПРОС( "SELECT SUSER_SNAME( )" );ВалютаДокумента			= ЗАПРОС( "SELECT value FROM param WHERE param='cur'" );КурсДокумента			= 1;НомерДокумента			= "";ФилиалДокумента			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code= '" + СкладДокумента + "'" );КатегорияЦены			= ЗАПРОС( "SELECT clev FROM sprskl WHERE code= '" + СкладДокумента + "'" );IF ( _ERRORCODE != 0 ) RETURN -1;				   // Формируем список учетов для нового документаСписокУчетов					= "";IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT account_ FROM specviewpoints_def WHERE code = dbo.fn_getdefaultviewpoint( ) AND objcode='002' AND objtype='DOC'", "МоделиУчета") ) RETURN -1;WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) ){	СписокУчетов				+= МоделиУчета.account_;	ПРОПУСТИТЬ( 1, "МоделиУчета" );}УДАЛИТЬКОНТЕКСТ( "МоделиУчета" );СписокУчетов			= ALLTRIM( СписокУчетов );ИДНакладной				= ЗАПРОС( "EXECUTE sp_insertdoc '002', '', '" + TTOC( ДатаДокумента ) + "', '" + НомерДокумента + "', '" + ФирмаДокумента + "', 																'" + АвторДокумента + "', '" + ВалютаДокумента + "', '', '" + СписокУчетов + "', '" + _ТОЧКАЗРЕНИЯ + "', 0, '001'", "ident" );																	// Устанваливаем обязательные поля нового документаЗАПРОС( "UPDATE spr002 SET			cur					= '" + ВалютаДокумента + "',			client				= '" + Контрагент + "',			contract			= '" + Договор + "',			cur_rate			=  " + КурсДокумента + ",			firm				= '" + ФирмаДокумента + "',			rs					= '" + РСДокумента + "',			note				= 'Создан на основании кассовых чеков.',			branch				= '" + ФилиалДокумента + "', 			branch_d			= '" + ФилиалДокумента + "',			sklad				= '" + СкладСписания + "', 			outtype				= 'Продажа',			summa				= 0		WHERE identity_column = " + ИДНакладной );IF ( _ERRORCODE != 0 ) RETURN -1;// Заполняем спецификацию нового документа. Для этого делаем выборку сгруппированных строк__SQL( "Строки" ){	SELECT CONVERT( varchar( max ), ( SELECT CONVERT( varchar( 10 ), c.identity_column ) + ' '		     FROM chequespec c			 INNER JOIN [[ ТаблицаСтрок ]] t ON t.spec_ic = c.identity_column			 WHERE t.docic= temp.docic AND c.nn = spec.nn AND c.s_code = spec.s_code AND c.ed = spec.ed AND c.koef_e = spec.koef_e AND 				   c.koef_c = spec.koef_c AND ROUND( c.cena_wd, 2 ) = ROUND( spec.cena_wd, 2 ) 			 FOR XML PATH( '' ) ) ) AS spec_iclist	FROM chequespec spec	INNER JOIN [[ ТаблицаСтрок ]] temp ON temp.spec_ic = spec.identity_column	WHERE temp.docic= [[ ИДСПИСКА ]] 	GROUP BY temp.docic, spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, ROUND( spec.cena_wd, 2 );}SQLERROR{	RETURN -1;}WHILE ( !КОНЕЦКОНТЕКСТА( "Строки" ) ){	ИДСтрок			= ЗАМЕНИТЬ( Строки.spec_iclist, " ", "," );	IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec002 ( ic, npp, nn, s_code, ed, koef_e, koef_c, nnname, cena, incena, kolp, kodn, summa, inside, packs )							 SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, 									dbo.fn_fullnnname( sprres.code ), ROUND( spec.cena_wd, 2 ), dbo.fn_calcsklad_incena( spec.nn, temp.date, '" + СкладДокумента + "', '001' ), SUM( spec.kolp ), 									sprres.kodn, SUM( spec.summa_wd ), 1, SUM( spec.kolp )							 FROM chequespec spec							 INNER JOIN " + ТаблицаСтрок + " temp ON temp.spec_ic = spec.identity_column							 INNER JOIN sprres sprres ON (spec.nn <> '' AND spec.nn = sprres.code) OR (spec.s_code <> '' AND spec.s_code = sprres.code)							 WHERE temp.docic= " + ИДСПИСКА + " AND temp.spec_ic IN ( " + ИДСтрок + " )							 GROUP BY spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, ROUND( spec.cena_wd, 2 ), temp.date, sprres.kodn, sprres.code", "Спецификация" ) ) RETURN -1;	ИДСтроки	= Спецификация.ident;	УДАЛИТЬКОНТЕКСТ( "Спецификация" );	IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO barcodes ( code, ic, spec_ic, nn, barcode, kolp, sklad )							 SELECT '002', " + ИДНакладной + ", spec.identity_column, spec.nn, barcodes.barcode, 1,'" + СкладДокумента + "'							 FROM spec002 spec, chequebarcodes barcodes							 WHERE spec.identity_column = " + ИДСтроки + " AND barcodes.spec_ic IN ( " + ИДСтрок + " )", "ШК" ) ) RETURN -1;	УДАЛИТЬКОНТЕКСТ( "ШК" );	ПРОПУСТИТЬ( 1, "Строки" );}УДАЛИТЬКОНТЕКСТ( "Строки" );// Добавляем модификаторы, если былиВыражениеНомерСтроки	= "CONVERT( varchar( 10 ), ROW_NUMBER( ) OVER( ORDER BY spec.ware ASC ) + " + СТРОКА( КОЛИЧЕСТВОСТРОК( "Строки" ) + 1 ) + ")";ВыражениеСебестоимость	= "dbo.fn_calcsklad_incena( spec.ware, '" + TTOC( ДатаДокумента ) + "', '" + СкладДокумента + "', '001' )";IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec002 ( ic, npp, nn, s_code, ed, koef_e, koef_c, nnname, cena, incena, kolp, kodn, summa, inside, packs )						 SELECT " + ИДНакладной + ", " + ВыражениеНомерСтроки + ", sprres.code, '', sprres.ed, 1, 1, 								dbo.fn_fullnnname( sprres.code ), 0, " + ВыражениеСебестоимость + ", SUM( spec.qty ), sprres.kodn, 0, 1, SUM( spec.qty )						 FROM " + ТаблицаМодификаторов + " spec						 INNER JOIN sprres sprres ON spec.ware = sprres.code						 WHERE spec.docic= " + ИДСПИСКА + "						 GROUP BY spec.ware, sprres.ed, sprres.code, sprres.kodn" , "Модификаторы" ) ) RETURN -1;УДАЛИТЬКОНТЕКСТ( "Модификаторы" );// Устанавливаем поля Сумма в спецификации и в шапке документа_ERRORCODE 		= 0;ЗАПРОС( "UPDATE spr002 SET summa= (SELECT SUM( summa ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );ЗАПРОС( "UPDATE spr002 SET insumma= (SELECT SUM( incena*kolp ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );IF ( _ERRORCODE != 0 ) RETURN -1;RETURN ИДНакладной;
+
+_ERRORCODE				= 0;
+
+_ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
+Контрагент				= ПартнерДокумента;
+Договор					= "";
+СкладСписания			= СкладДокумента;
+РСДокумента				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm= '" + ФирмаДокумента + "' AND fmain= 1");
+АвторДокумента			= ЗАПРОС( "SELECT SUSER_SNAME( )" );
+ВалютаДокумента			= ЗАПРОС( "SELECT value FROM param WHERE param='cur'" );
+КурсДокумента			= 1;
+НомерДокумента			= "";
+ФилиалДокумента			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code= '" + СкладДокумента + "'" );
+КатегорияЦены			= ЗАПРОС( "SELECT clev FROM sprskl WHERE code= '" + СкладДокумента + "'" );
+
+IF ( _ERRORCODE != 0 ) RETURN -1;
+				   
+// Формируем список учетов для нового документа
+СписокУчетов					= "";
+IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT account_ FROM specviewpoints_def WHERE code = dbo.fn_getdefaultviewpoint( ) AND objcode='002' AND objtype='DOC'", "МоделиУчета") ) RETURN -1;
+WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) )
+{
+	СписокУчетов				+= МоделиУчета.account_;
+	ПРОПУСТИТЬ( 1, "МоделиУчета" );
+}
+УДАЛИТЬКОНТЕКСТ( "МоделиУчета" );
+СписокУчетов			= ALLTRIM( СписокУчетов );
+
+ИДНакладной				= ЗАПРОС( "EXECUTE sp_insertdoc '002', '', '" + TTOC( ДатаДокумента ) + "', '" + НомерДокумента + "', '" + ФирмаДокумента + "', 
+																'" + АвторДокумента + "', '" + ВалютаДокумента + "', '', '" + СписокУчетов + "', '" + _ТОЧКАЗРЕНИЯ + "', 0, '001'", "ident" );
+																	
+// Устанваливаем обязательные поля нового документа
+ЗАПРОС( "UPDATE spr002 SET
+			cur					= '" + ВалютаДокумента + "',
+			client				= '" + Контрагент + "',
+			contract			= '" + Договор + "',
+			cur_rate			=  " + КурсДокумента + ",
+			firm				= '" + ФирмаДокумента + "',
+			rs					= '" + РСДокумента + "',
+			note				= 'Создан на основании кассовых чеков.',
+			branch				= '" + ФилиалДокумента + "', 
+			branch_d			= '" + ФилиалДокумента + "',
+			sklad				= '" + СкладСписания + "', 
+			outtype				= 'Продажа',
+			summa				= 0
+		WHERE identity_column = " + ИДНакладной );
+
+IF ( _ERRORCODE != 0 ) RETURN -1;
+
+// Заполняем спецификацию нового документа. Для этого делаем выборку сгруппированных строк
+__SQL( "Строки" )
+{
+	SELECT CONVERT( varchar( max ), ( SELECT CONVERT( varchar( 10 ), c.identity_column ) + ' '
+		     FROM chequespec c
+			 INNER JOIN [[ ТаблицаСтрок ]] t ON t.spec_ic = c.identity_column
+			 WHERE t.docic= temp.docic AND c.nn = spec.nn AND c.s_code = spec.s_code AND c.ed = spec.ed AND c.koef_e = spec.koef_e AND 
+				   c.koef_c = spec.koef_c AND ROUND( c.cena_wd, 2 ) = ROUND( spec.cena_wd, 2 ) 
+			 FOR XML PATH( '' ) ) ) AS spec_iclist
+	FROM chequespec spec
+	INNER JOIN [[ ТаблицаСтрок ]] temp ON temp.spec_ic = spec.identity_column
+	WHERE temp.docic= [[ ИДСПИСКА ]] 
+	GROUP BY temp.docic, spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, ROUND( spec.cena_wd, 2 );
+}
+SQLERROR
+{
+	RETURN -1;
+}
+
+WHILE ( !КОНЕЦКОНТЕКСТА( "Строки" ) )
+{
+	ИДСтрок			= ЗАМЕНИТЬ( Строки.spec_iclist, " ", "," );
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec002 ( ic, npp, nn, s_code, ed, koef_e, koef_c, nnname, cena, incena, kolp, kodn, summa, inside, packs )
+							 SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, 
+									dbo.fn_fullnnname( sprres.code ), ROUND( spec.cena_wd, 2 ), dbo.fn_calcsklad_incena( spec.nn, temp.date, '" + СкладДокумента + "', '001' ), SUM( spec.kolp ), 
+									sprres.kodn, SUM( spec.summa_wd ), 1, SUM( spec.kolp )
+							 FROM chequespec spec
+							 INNER JOIN " + ТаблицаСтрок + " temp ON temp.spec_ic = spec.identity_column
+							 INNER JOIN sprres sprres ON (spec.nn <> '' AND spec.nn = sprres.code) OR (spec.s_code <> '' AND spec.s_code = sprres.code)
+							 WHERE temp.docic= " + ИДСПИСКА + " AND temp.spec_ic IN ( " + ИДСтрок + " )
+							 GROUP BY spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, ROUND( spec.cena_wd, 2 ), temp.date, sprres.kodn, sprres.code", "Спецификация" ) ) RETURN -1;
+	ИДСтроки	= Спецификация.ident;
+	УДАЛИТЬКОНТЕКСТ( "Спецификация" );
+
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO barcodes ( code, ic, spec_ic, nn, barcode, kolp, sklad )
+							 SELECT '002', " + ИДНакладной + ", spec.identity_column, spec.nn, barcodes.barcode, 1,'" + СкладДокумента + "'
+							 FROM spec002 spec, chequebarcodes barcodes
+							 WHERE spec.identity_column = " + ИДСтроки + " AND barcodes.spec_ic IN ( " + ИДСтрок + " )", "ШК" ) ) RETURN -1;
+	УДАЛИТЬКОНТЕКСТ( "ШК" );
+	ПРОПУСТИТЬ( 1, "Строки" );
+}
+УДАЛИТЬКОНТЕКСТ( "Строки" );
+
+// Добавляем модификаторы, если были
+ВыражениеНомерСтроки	= "CONVERT( varchar( 10 ), ROW_NUMBER( ) OVER( ORDER BY spec.ware ASC ) + " + СТРОКА( КОЛИЧЕСТВОСТРОК( "Строки" ) + 1 ) + ")";
+ВыражениеСебестоимость	= "dbo.fn_calcsklad_incena( spec.ware, '" + TTOC( ДатаДокумента ) + "', '" + СкладДокумента + "', '001' )";
+IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec002 ( ic, npp, nn, s_code, ed, koef_e, koef_c, nnname, cena, incena, kolp, kodn, summa, inside, packs )
+						 SELECT " + ИДНакладной + ", " + ВыражениеНомерСтроки + ", sprres.code, '', sprres.ed, 1, 1, 
+								dbo.fn_fullnnname( sprres.code ), 0, " + ВыражениеСебестоимость + ", SUM( spec.qty ), sprres.kodn, 0, 1, SUM( spec.qty )
+						 FROM " + ТаблицаМодификаторов + " spec
+						 INNER JOIN sprres sprres ON spec.ware = sprres.code
+						 WHERE spec.docic= " + ИДСПИСКА + "
+						 GROUP BY spec.ware, sprres.ed, sprres.code, sprres.kodn" , "Модификаторы" ) ) RETURN -1;
+УДАЛИТЬКОНТЕКСТ( "Модификаторы" );
+
+// Устанавливаем поля Сумма в спецификации и в шапке документа
+_ERRORCODE 		= 0;
+ЗАПРОС( "UPDATE spr002 SET summa= (SELECT SUM( summa ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );
+ЗАПРОС( "UPDATE spr002 SET insumma= (SELECT SUM( incena*kolp ) FROM spec002 WHERE ic= " + ИДНакладной + ") WHERE identity_column= " + ИДНакладной );
+IF ( _ERRORCODE != 0 ) RETURN -1;
+
+RETURN ИДНакладной;

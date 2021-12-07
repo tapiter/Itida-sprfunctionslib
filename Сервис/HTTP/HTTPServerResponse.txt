@@ -1,1 +1,54 @@
-// Получаем от сервера ответ// Первой строкой идет ответ в формате Версия протокола и код ответаIF ( ПУСТО( ВремяОтвета ) ) ВремяОтвета	= 10;ВремяОтвета			= VAL( ВремяОтвета );ВремяОтвета			= ВремяОтвета * 1000;HTTPResponse		= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S", ВремяОтвета );ТекстОшибки			= "";IF ( UPPER( LEFT( HTTPResponse, 4 ) ) != "HTTP" ){	ТекстОшибки	= "Ответ сервера не был распознан";	RETURN "";}HTTPRCode	= ПОДСТРОКА( HTTPREsponse, 10, 3 );IF ( HTTPRCode == "100" ){	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );	HTTPRCode	= ПОДСТРОКА( HTTPREsponse, 10, 3 );}// Ответ должен начинаться с 2, а остальное ошибкиIF ( LEFT( HTTPRCode, 1 ) != "2" ) {	ТекстОшибки	= "Сервер вернул сообщение об ошибке " + HTTPRCode;}Длина		= 0;HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );WHILE ( !ПУСТО( HTTPResponse ) ) {	IF ( UPPER( LEFT( HTTPResponse, 15 ) ) == "CONTENT-LENGTH:" )		Длина	= VAL( SUBSTR( HTTPResponse, 16 ) );	ELSE IF ( UPPER( LEFT( HTTPResponse, 18 ) ) == "TRANSFER-ENCODING:" AND ( UPPER( ALLTRIM( SUBSTR( HTTPResponse, 19 ) ) ) == "CHUNKED") )		Длина	= -1;	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );}IF ( Длина > 0 )	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, Длина, "S" );ELSE IF ( Длина < 0 ){	Длина		= ВЫЧИСЛИТЬ( "0x" + СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" ) );	HTTPResponse= "";	WHILE ( Длина > 0 ) 	{		HTTPResponse	+= СОКЕТПОЛУЧИТЬ( HTTPConnection, Длина, "S" );		// Далее обязательно пустая строка		СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );		Длина			= ВЫЧИСЛИТЬ( "0x" + СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" ) );	}}RETURN ЕСЛИ( !ПУСТО( ТекстОшибки ), "", HTTPResponse );
+// Получаем от сервера ответ
+// Первой строкой идет ответ в формате Версия протокола и код ответа
+IF ( ПУСТО( ВремяОтвета ) ) ВремяОтвета	= 10;
+
+ВремяОтвета			= VAL( ВремяОтвета );
+ВремяОтвета			= ВремяОтвета * 1000;
+HTTPResponse		= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S", ВремяОтвета );
+ТекстОшибки			= "";
+
+IF ( UPPER( LEFT( HTTPResponse, 4 ) ) != "HTTP" )
+{
+	ТекстОшибки	= "Ответ сервера не был распознан";
+	RETURN "";
+}
+HTTPRCode	= ПОДСТРОКА( HTTPREsponse, 10, 3 );
+IF ( HTTPRCode == "100" )
+{
+	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );
+	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );
+	HTTPRCode	= ПОДСТРОКА( HTTPREsponse, 10, 3 );
+}
+// Ответ должен начинаться с 2, а остальное ошибки
+IF ( LEFT( HTTPRCode, 1 ) != "2" ) 
+{
+	ТекстОшибки	= "Сервер вернул сообщение об ошибке " + HTTPRCode;
+}
+
+Длина		= 0;
+HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );
+WHILE ( !ПУСТО( HTTPResponse ) ) 
+{
+	IF ( UPPER( LEFT( HTTPResponse, 15 ) ) == "CONTENT-LENGTH:" )
+		Длина	= VAL( SUBSTR( HTTPResponse, 16 ) );
+	ELSE IF ( UPPER( LEFT( HTTPResponse, 18 ) ) == "TRANSFER-ENCODING:" AND ( UPPER( ALLTRIM( SUBSTR( HTTPResponse, 19 ) ) ) == "CHUNKED") )
+		Длина	= -1;
+	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );
+}
+IF ( Длина > 0 )
+	HTTPResponse= СОКЕТПОЛУЧИТЬ( HTTPConnection, Длина, "S" );
+ELSE IF ( Длина < 0 )
+{
+	Длина		= ВЫЧИСЛИТЬ( "0x" + СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" ) );
+	HTTPResponse= "";
+
+	WHILE ( Длина > 0 ) 
+	{
+		HTTPResponse	+= СОКЕТПОЛУЧИТЬ( HTTPConnection, Длина, "S" );
+		// Далее обязательно пустая строка
+		СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" );
+		Длина			= ВЫЧИСЛИТЬ( "0x" + СОКЕТПОЛУЧИТЬ( HTTPConnection, CHR( 13 ) + CHR( 10 ), "S" ) );
+	}
+}
+
+RETURN ЕСЛИ( !ПУСТО( ТекстОшибки ), "", HTTPResponse );

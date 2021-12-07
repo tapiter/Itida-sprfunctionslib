@@ -1,1 +1,248 @@
-ФУНКЦИЯ ЛОКАЛЬНАЯ DockFlowStatusIN_РазобратьТэги( Родитель, ТипТэга, Имя, Значение, ФлагЗакрытия ){	IF ( ТипТэга == "ТЭГ" )	{		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCFLOW" && ФлагЗакрытия )		{			IF ( !НАЙТИ( "DocFlow", "Id", mId ) ) 			{				ДОБАВИТЬСТРОКИ( 1, "DocFlow" );				REPLACE( "DocFlow", "Id", mId );			}			IF ( mInvoice == 1 ) REPLACE( "DocFlow", "Invoice", mInvoice );			IF ( mPostDateConfirmation == 1 ) REPLACE( "DocFlow", "PostDateConfirmation", mPostDateConfirmation );			IF ( mPostDateConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "PostDateConfirmationReceiveNotice", mPostDateConfirmationReceiveNotice );			IF ( mReceiveNotice == 1 ) REPLACE( "DocFlow", "ReceiveNotice", mReceiveNotice );			IF ( mCustomerInformation == 1 ) REPLACE( "DocFlow", "CustomerInformation", mCustomerInformation );			IF ( mReceiveNoticePostDateConfirmation == 1 ) REPLACE( "DocFlow", "ReceiveNoticePostDateConfirmation", mReceiveNoticePostDateConfirmation );			IF ( mReceiveNoticePostDateConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "ReceiveNoticePostDateConfirmationReceiveNotice", mReceiveNoticePostDateConfirmationReceiveNotice );			IF ( mCustomerInformationPostDateConfirmation == 1 ) REPLACE( "DocFlow", "CustomerInformationPostDateConfirmation", mCustomerInformationPostDateConfirmation );			IF ( mCustomerInformationPostDateConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "CustomerInformationPostDateConfirmationReceiveNotice", mCustomerInformationPostDateConfirmationReceiveNotice );			IF ( mSendConfirmation == 1 ) REPLACE( "DocFlow", "SendConfirmation", mSendConfirmation );			IF ( mSendConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "SendConfirmationReceiveNotice", mSendConfirmationReceiveNotice );			IF ( mCancelled == 1 ) REPLACE( "DocFlow", "Cancelled", mCancelled );			IF ( mCorrect == 1 ) REPLACE( "DocFlow", "Correct", mCorrect );			IF ( mError == 1 ) REPLACE( "DocFlow", "Error", mError );			IF ( !ПУСТО( mErrorID ) ) REPLACE( "DocFlow", "ErrorID", mErrorID );			mId															= "";			mInvoice													= 0;			mPostDateConfirmation 										= 0;			mPostDateConfirmationReceiveNotice							= 0;			mReceiveNotice												= 0;			mCustomerInformation										= 0;			mReceiveNoticePostDateConfirmation							= 0;			mReceiveNoticePostDateConfirmationReceiveNotice				= 0;			mCustomerInformationPostDateConfirmation 					= 0;			mCustomerInformationPostDateConfirmationReceiveNotice		= 0;			mSendConfirmation											= 0;			mSendConfirmationReceiveNotice								= 0;			mCancelled													= 0;			mCorrect													= 0;			mError														= 0;			mErrorID													= "";		}		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" )			КодТранзакции												= "";	}	IF ( ТипТэга == "АТРИБУТ" )	{//		сообщение( "Атрибут: " + Имя + CHR( 13 ) + "Значение: " + Значение );		IF ( UPPER( ALLTRIM( Имя ) ) == "ID" )			mId															= Значение;		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )		{			Значение													= UPPER( ALLTRIM( Значение ) );			КодТранзакции												= Значение;			IF ( Значение == "INVOICE" )				mInvoice												= 1;			ELSE IF ( Значение == "POSTDATECONFIRMATION" )				mPostDateConfirmation 									= 1;			ELSE IF ( Значение == "POSTDATECONFIRMATIONRECEIVENOTICE" )				mPostDateConfirmationReceiveNotice						= 1;			ELSE IF ( Значение == "RECEIVENOTICE" )				mReceiveNotice											= 1;			ELSE IF ( Значение == "CUSTOMERINFORMATION" )				mCustomerInformation									= 1;			ELSE IF ( Значение == "RECEIVENOTICEPOSTDATECONFIRMATION" )				mReceiveNoticePostDateConfirmation						= 1;			ELSE IF ( Значение == "RECEIVENOTICEPOSTDATECONFIRMATIONRECEIVENOTICE" )				mReceiveNoticePostDateConfirmationReceiveNotice			= 1;			ELSE IF ( Значение == "CUSTOMERINFORMATIONPOSTDATECONFIRMATION" )				mCustomerInformationPostDateConfirmation 				= 1;			ELSE IF ( Значение == "CUSTOMERINFORMATIONPOSTDATECONFIRMATIONRECEIVENOTICE" )				mCustomerInformationPostDateConfirmationReceiveNotice	= 1;			ELSE IF ( Значение == "SENDCONFIRMATION" )				mSendConfirmation										= 1;			ELSE IF ( Значение == "SENDCONFIRMATIONRECEIVENOTICE" )				mSendConfirmationReceiveNotice							= 1;			ELSE IF ( ЛЕВСИМВ( Значение, 6 ) == "CANCEL" )				mCancelled												= 1;			ELSE IF ( ЛЕВСИМВ( Значение, 7 ) == "CORRECT" )				mCorrect												= 1;			ELSE IF ( Значение == "ERRORMESSAGE" )				mError													= 1;		}		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "INTERNALID" && КодТранзакции == "ERRORMESSAGE" )				mErrorID												= Значение;	}}// Статусы в mark_in// 0- не был отправелн, // 1- Получен// 2- Отправлено подтверждение или отказ// 3- ОшибкаСЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;ДАТАЗАГРУЗКИ			= CTOD( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIDOWNLOADDATE" + ПРЕДПРИЯТИЕ + "'" ) );ТОЛЬКОМАРКИРОВКА		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMARKING" + ПРЕДПРИЯТИЕ + "'" ) ) != 0;IF ( РАЗНИЦАДАТ( ДАТАЗАГРУЗКИ, ДАТА( ), "day" ) > 30 )	ДАТАЗАГРУЗКИ		= ДОБАВИТЬДНИ( ДАТА( ), -30 );// Перед проверкой статусов обрабатываем служебные этапыIF ( !МАРКИРОВКА.ТАКСКОМОБРАБОТКАСЛУЖЕБНЫХЭТАПОВ( ПРЕДПРИЯТИЕ ) ) return false;ТАКСКОМТОКЕН			= Маркировка.ТАКСКОМАвторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ );IF ( ПУСТО( ТАКСКОМТОКЕН ) ) RETURN false;IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: uri char, id char", "Загрузка" ) ) RETURN false;АдресСервера 			= Маркировка.ТАКСКОМАдресСервера( ТЕСТОВЫЙКОНТУР );Заголовки[ 0 ]			= Маркировка.ТАКСКОМИнтегратор( );Заголовки[ 1 ]			= "Assistant-Key: " + ТАКСКОМТОКЕН;Заголовки[ 2 ]			= "Content-Type: application/x-www-form-urlencoded";mId															= "";mInvoice													= 0;mPostDateConfirmation 										= 0;mPostDateConfirmationReceiveNotice							= 0;mReceiveNotice												= 0;mCustomerInformation										= 0;mReceiveNoticePostDateConfirmation							= 0;mReceiveNoticePostDateConfirmationReceiveNotice				= 0;mCustomerInformationPostDateConfirmation 					= 0;mCustomerInformationPostDateConfirmationReceiveNotice		= 0;mSendConfirmation											= 0;mSendConfirmationReceiveNotice								= 0;mCancelled													= 0;mCorrect													= 0;mError														= 0;mErrorID													= "";КодТранзакции												= "";СообщениеОбОшибке											= "";Результат													= true;Соединение													= -1;ДОБАВИТЬКОНТЕКСТ( "LOCAL: Id char, Invoice int, PostDateConfirmation int, PostDateConfirmationReceiveNotice int,						  ReceiveNotice int, CustomerInformation int, ReceiveNoticePostDateConfirmation int,						  ReceiveNoticePostDateConfirmationReceiveNotice int, CustomerInformationPostDateConfirmation int,						  CustomerInformationPostDateConfirmationReceiveNotice int, SendConfirmation int, 						  SendConfirmationReceiveNotice int, Cancelled int, Correct int, Error int, errorID char", "DocFlow" );try{	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 			= HTTPCONNECT( АдресСервера, "", true, Маркировка.ФАЙЛЖУРНАЛА( ) );	Продолжать			= true;	ВсегоДокументов		= 0;	Дата				= СТРОКАИЗВРЕМЕНИ( ДАТАЗАГРУЗКИ, 7, ".", "T" );	ПОКА ( Продолжать )	{		Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessageList?date=" + Дата + "&direction=ingoing", "Заголовки" );		IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				ДОБАВИТЬКОНТЕКСТ( "LOCAL: IsLast char, LastRecordDateTime char", "Результат" );		ЗАГРУЗИТЬ( "Результат", "XMLSTRING", Ответ, "", "", "", "DocFlow" );		ПЕРЕЙТИВНАЧАЛО( "Результат" );		Продолжать		= ЗНАЧЕНИЕПОЛЯ( "Результат", "IsLast", "" ) != "true";		Дата			= СТРОКАИЗВРЕМЕНИ( CTOD( ЗНАЧЕНИЕПОЛЯ( "Результат", "LastRecordDateTime", "" ) ), 7, ".", "T" );		// Заполняем таблицу со списком документов и их статусами		РАЗОБРАТЬ_XML( Ответ, "DockFlowStatusIN_РазобратьТэги" );				ВсегоДокументов	+= КОЛИЧЕСТВОСТРОК( "DocFlow" );		СИСТЕМНОЕСООБЩЕНИЕ( "Проверка статусов поступлений. Получение данных с сервера taxcom.ru. Получено " + STR( ВсегоДокументов ) + " записей документов" );	}	// Теперь исходящая очередь	Продолжать			= true;	Дата				= СТРОКАИЗВРЕМЕНИ( ДАТАЗАГРУЗКИ, 7, ".", "T" );	ПОКА ( Продолжать )	{		Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessageList?date=" + Дата + "&direction=outgoing", "Заголовки" );		IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				ДОБАВИТЬКОНТЕКСТ( "LOCAL: IsLast char, LastRecordDateTime char", "Результат" );		ЗАГРУЗИТЬ( "Результат", "XMLSTRING", Ответ, "", "", "", "DocFlow" );		ПЕРЕЙТИВНАЧАЛО( "Результат" );		Продолжать		= ЗНАЧЕНИЕПОЛЯ( "Результат", "IsLast", "" ) != "true";		Дата			= СТРОКАИЗВРЕМЕНИ( CTOD( ЗНАЧЕНИЕПОЛЯ( "Результат", "LastRecordDateTime", "" ) ), 7, ".", "T" );		// Заполняем таблицу со списком документов и их статусами		РАЗОБРАТЬ_XML( Ответ, "DockFlowStatusIN_РазобратьТэги" );				ВсегоДокументов	+= КОЛИЧЕСТВОСТРОК( "DocFlow" );		СИСТЕМНОЕСООБЩЕНИЕ( "Проверка статусов поступлений. Получение данных с сервера taxcom.ru. Получено " + STR( ВсегоДокументов ) + " записей документов" );	}	// Проходим по полученному контексту и определяем статус документа	ПЕРЕЙТИВНАЧАЛО( "DocFlow" );	ПОКА( !КОНЕЦКОНТЕКСТА( "DocFlow" ) )	{		Статус		= 0;		// Если есть SendConfirmationReceiveNotice, то, значит был полчен и отправлено извещение о дате получвения. 		// Это означает, что документ пошел в работу		if ( DocFlow.CustomerInformation == 1 ) 			Статус	= 1;		// Если есть CustomerInformationPostDateConfirmationReceiveNotice или Correct, то значит отправили подтверждение или отказ		if ( DocFlow.CustomerInformationPostDateConfirmationReceiveNotice == 1 OR DocFlow.Correct == 1 ) 			Статус	= 2;		if ( DocFlow.Error == 1 ) 		{			Статус	= 4;			// В случае ошибки необходимо её достать и записать			Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessage/" + DocFlow.errorID, "Заголовки", false, "B" );			IF ( МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ, true ) )			{				НомерАрхива		= АРХИВОТКРЫТЬ( Ответ );				Количествофайлов= АРХИВ( НомерАрхива, "СписокФайлов", "", "", "Файлы" );				FOR ( Индекс = 0; Индекс < Количествофайлов; Индекс ++ )				{					ИмяФА		= Файлы[ Индекс ];					IF ( ATC( ИмяФА, "ErrorMessage" ) > 0 && ПРАВСИМВ( ПРОПИСНЫЕ( ИмяФА ), 4 ) == ".XML" )					{						ФайлОшибки		= СТРОКАИЗМАССИВА( АРХИВ( НомерАрхива, "Извлечь", Индекс ) );						МАРКИРОВКА.ТАКСКОМЗаписатьСвязанныйДокумент( ПРЕДПРИЯТИЕ, DocFlow.ID, DocFlow.errorID, ФайлОшибки, "Error" );						Позиция1		= ПОЗИЦИЯР( ФайлОшибки, "<описание>" );						Позиция2		= ПОЗИЦИЯР( ФайлОшибки, "</описание>" );						IF ( Позиция1 > 0 && Позиция2 > 0 )							ТекстОшибки	= ПОДСТРОКА( ФайлОшибки, Позиция1 + 10, Позиция2 - Позиция1 - 10 );						ELSE							ТекстОшибки	= ФайлОшибки;						ЗАПРОС( "IF EXISTS( SELECT * FROM mark_in WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "' ) 								UPDATE mark_in SET reply = '" + STDF( ТекстОшибки, 250 ) + "' WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "'" );														Индекс 			= Количествофайлов;					}				}				АРХИВЗАКРЫТЬ( НомерАрхива );			}		}		ЗАПРОС( "IF EXISTS( SELECT * FROM mark_in WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "' ) 				 UPDATE mark_in SET status = " + Статус + " WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "' " );		ПРОПУСТИТЬ( 1, "DocFlow" );	}	УДАЛИТЬКОНТЕКСТ( "DocFlow" );}catch ( ТекстСообщения ){	СообщениеОбОшибке	= ТекстСообщения;	Результат			= false;}СИСТЕМНОЕСООБЩЕНИЕ( ); ИНДИКАТОР( );IF ( Соединение >= 0 ) HTTPCLOSE( Соединение );IF ( !Результат ) СООБЩЕНИЕ( ТекстСообщения );УДАЛИТЬКОНТЕКСТ( "Загрузка" );RETURN Результат;
+ФУНКЦИЯ ЛОКАЛЬНАЯ DockFlowStatusIN_РазобратьТэги( Родитель, ТипТэга, Имя, Значение, ФлагЗакрытия )
+{
+	IF ( ТипТэга == "ТЭГ" )
+	{
+		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCFLOW" && ФлагЗакрытия )
+		{
+			IF ( !НАЙТИ( "DocFlow", "Id", mId ) ) 
+			{
+				ДОБАВИТЬСТРОКИ( 1, "DocFlow" );
+				REPLACE( "DocFlow", "Id", mId );
+			}
+			IF ( mInvoice == 1 ) REPLACE( "DocFlow", "Invoice", mInvoice );
+			IF ( mPostDateConfirmation == 1 ) REPLACE( "DocFlow", "PostDateConfirmation", mPostDateConfirmation );
+			IF ( mPostDateConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "PostDateConfirmationReceiveNotice", mPostDateConfirmationReceiveNotice );
+			IF ( mReceiveNotice == 1 ) REPLACE( "DocFlow", "ReceiveNotice", mReceiveNotice );
+			IF ( mCustomerInformation == 1 ) REPLACE( "DocFlow", "CustomerInformation", mCustomerInformation );
+			IF ( mReceiveNoticePostDateConfirmation == 1 ) REPLACE( "DocFlow", "ReceiveNoticePostDateConfirmation", mReceiveNoticePostDateConfirmation );
+			IF ( mReceiveNoticePostDateConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "ReceiveNoticePostDateConfirmationReceiveNotice", mReceiveNoticePostDateConfirmationReceiveNotice );
+			IF ( mCustomerInformationPostDateConfirmation == 1 ) REPLACE( "DocFlow", "CustomerInformationPostDateConfirmation", mCustomerInformationPostDateConfirmation );
+			IF ( mCustomerInformationPostDateConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "CustomerInformationPostDateConfirmationReceiveNotice", mCustomerInformationPostDateConfirmationReceiveNotice );
+			IF ( mSendConfirmation == 1 ) REPLACE( "DocFlow", "SendConfirmation", mSendConfirmation );
+			IF ( mSendConfirmationReceiveNotice == 1 ) REPLACE( "DocFlow", "SendConfirmationReceiveNotice", mSendConfirmationReceiveNotice );
+			IF ( mCancelled == 1 ) REPLACE( "DocFlow", "Cancelled", mCancelled );
+			IF ( mCorrect == 1 ) REPLACE( "DocFlow", "Correct", mCorrect );
+			IF ( mError == 1 ) REPLACE( "DocFlow", "Error", mError );
+			IF ( !ПУСТО( mErrorID ) ) REPLACE( "DocFlow", "ErrorID", mErrorID );
+			mId															= "";
+			mInvoice													= 0;
+			mPostDateConfirmation 										= 0;
+			mPostDateConfirmationReceiveNotice							= 0;
+			mReceiveNotice												= 0;
+			mCustomerInformation										= 0;
+			mReceiveNoticePostDateConfirmation							= 0;
+			mReceiveNoticePostDateConfirmationReceiveNotice				= 0;
+			mCustomerInformationPostDateConfirmation 					= 0;
+			mCustomerInformationPostDateConfirmationReceiveNotice		= 0;
+			mSendConfirmation											= 0;
+			mSendConfirmationReceiveNotice								= 0;
+			mCancelled													= 0;
+			mCorrect													= 0;
+			mError														= 0;
+			mErrorID													= "";
+		}
+		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" )
+			КодТранзакции												= "";
+	}
+	IF ( ТипТэга == "АТРИБУТ" )
+	{
+//		сообщение( "Атрибут: " + Имя + CHR( 13 ) + "Значение: " + Значение );
+		IF ( UPPER( ALLTRIM( Имя ) ) == "ID" )
+			mId															= Значение;
+		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )
+		{
+			Значение													= UPPER( ALLTRIM( Значение ) );
+			КодТранзакции												= Значение;
+			IF ( Значение == "INVOICE" )
+				mInvoice												= 1;
+			ELSE IF ( Значение == "POSTDATECONFIRMATION" )
+				mPostDateConfirmation 									= 1;
+			ELSE IF ( Значение == "POSTDATECONFIRMATIONRECEIVENOTICE" )
+				mPostDateConfirmationReceiveNotice						= 1;
+			ELSE IF ( Значение == "RECEIVENOTICE" )
+				mReceiveNotice											= 1;
+			ELSE IF ( Значение == "CUSTOMERINFORMATION" )
+				mCustomerInformation									= 1;
+			ELSE IF ( Значение == "RECEIVENOTICEPOSTDATECONFIRMATION" )
+				mReceiveNoticePostDateConfirmation						= 1;
+			ELSE IF ( Значение == "RECEIVENOTICEPOSTDATECONFIRMATIONRECEIVENOTICE" )
+				mReceiveNoticePostDateConfirmationReceiveNotice			= 1;
+			ELSE IF ( Значение == "CUSTOMERINFORMATIONPOSTDATECONFIRMATION" )
+				mCustomerInformationPostDateConfirmation 				= 1;
+			ELSE IF ( Значение == "CUSTOMERINFORMATIONPOSTDATECONFIRMATIONRECEIVENOTICE" )
+				mCustomerInformationPostDateConfirmationReceiveNotice	= 1;
+			ELSE IF ( Значение == "SENDCONFIRMATION" )
+				mSendConfirmation										= 1;
+			ELSE IF ( Значение == "SENDCONFIRMATIONRECEIVENOTICE" )
+				mSendConfirmationReceiveNotice							= 1;
+			ELSE IF ( ЛЕВСИМВ( Значение, 6 ) == "CANCEL" )
+				mCancelled												= 1;
+			ELSE IF ( ЛЕВСИМВ( Значение, 7 ) == "CORRECT" )
+				mCorrect												= 1;
+			ELSE IF ( Значение == "ERRORMESSAGE" )
+				mError													= 1;
+		}
+		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "INTERNALID" && КодТранзакции == "ERRORMESSAGE" )
+				mErrorID												= Значение;
+	}
+}
+// Статусы в mark_in
+// 0- не был отправелн, 
+// 1- Получен
+// 2- Отправлено подтверждение или отказ
+// 3- Ошибка
+
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+ДАТАЗАГРУЗКИ			= CTOD( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIDOWNLOADDATE" + ПРЕДПРИЯТИЕ + "'" ) );
+ТОЛЬКОМАРКИРОВКА		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMARKING" + ПРЕДПРИЯТИЕ + "'" ) ) != 0;
+IF ( РАЗНИЦАДАТ( ДАТАЗАГРУЗКИ, ДАТА( ), "day" ) > 30 )
+	ДАТАЗАГРУЗКИ		= ДОБАВИТЬДНИ( ДАТА( ), -30 );
+
+// Перед проверкой статусов обрабатываем служебные этапы
+IF ( !МАРКИРОВКА.ТАКСКОМОБРАБОТКАСЛУЖЕБНЫХЭТАПОВ( ПРЕДПРИЯТИЕ ) ) return false;
+
+ТАКСКОМТОКЕН			= Маркировка.ТАКСКОМАвторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ );
+IF ( ПУСТО( ТАКСКОМТОКЕН ) ) RETURN false;
+
+IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: uri char, id char", "Загрузка" ) ) RETURN false;
+
+АдресСервера 			= Маркировка.ТАКСКОМАдресСервера( ТЕСТОВЫЙКОНТУР );
+Заголовки[ 0 ]			= Маркировка.ТАКСКОМИнтегратор( );
+Заголовки[ 1 ]			= "Assistant-Key: " + ТАКСКОМТОКЕН;
+Заголовки[ 2 ]			= "Content-Type: application/x-www-form-urlencoded";
+mId															= "";
+mInvoice													= 0;
+mPostDateConfirmation 										= 0;
+mPostDateConfirmationReceiveNotice							= 0;
+mReceiveNotice												= 0;
+mCustomerInformation										= 0;
+mReceiveNoticePostDateConfirmation							= 0;
+mReceiveNoticePostDateConfirmationReceiveNotice				= 0;
+mCustomerInformationPostDateConfirmation 					= 0;
+mCustomerInformationPostDateConfirmationReceiveNotice		= 0;
+mSendConfirmation											= 0;
+mSendConfirmationReceiveNotice								= 0;
+mCancelled													= 0;
+mCorrect													= 0;
+mError														= 0;
+mErrorID													= "";
+КодТранзакции												= "";
+СообщениеОбОшибке											= "";
+Результат													= true;
+Соединение													= -1;
+
+ДОБАВИТЬКОНТЕКСТ( "LOCAL: Id char, Invoice int, PostDateConfirmation int, PostDateConfirmationReceiveNotice int,
+						  ReceiveNotice int, CustomerInformation int, ReceiveNoticePostDateConfirmation int,
+						  ReceiveNoticePostDateConfirmationReceiveNotice int, CustomerInformationPostDateConfirmation int,
+						  CustomerInformationPostDateConfirmationReceiveNotice int, SendConfirmation int, 
+						  SendConfirmationReceiveNotice int, Cancelled int, Correct int, Error int, errorID char", "DocFlow" );
+
+try
+{
+	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+	Соединение 			= HTTPCONNECT( АдресСервера, "", true, Маркировка.ФАЙЛЖУРНАЛА( ) );
+
+	Продолжать			= true;
+	ВсегоДокументов		= 0;
+	Дата				= СТРОКАИЗВРЕМЕНИ( ДАТАЗАГРУЗКИ, 7, ".", "T" );
+	ПОКА ( Продолжать )
+	{
+		Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessageList?date=" + Дата + "&direction=ingoing", "Заголовки" );
+		IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		ДОБАВИТЬКОНТЕКСТ( "LOCAL: IsLast char, LastRecordDateTime char", "Результат" );
+		ЗАГРУЗИТЬ( "Результат", "XMLSTRING", Ответ, "", "", "", "DocFlow" );
+		ПЕРЕЙТИВНАЧАЛО( "Результат" );
+
+		Продолжать		= ЗНАЧЕНИЕПОЛЯ( "Результат", "IsLast", "" ) != "true";
+		Дата			= СТРОКАИЗВРЕМЕНИ( CTOD( ЗНАЧЕНИЕПОЛЯ( "Результат", "LastRecordDateTime", "" ) ), 7, ".", "T" );
+
+		// Заполняем таблицу со списком документов и их статусами
+		РАЗОБРАТЬ_XML( Ответ, "DockFlowStatusIN_РазобратьТэги" );
+		
+		ВсегоДокументов	+= КОЛИЧЕСТВОСТРОК( "DocFlow" );
+		СИСТЕМНОЕСООБЩЕНИЕ( "Проверка статусов поступлений. Получение данных с сервера taxcom.ru. Получено " + STR( ВсегоДокументов ) + " записей документов" );
+	}
+	// Теперь исходящая очередь
+	Продолжать			= true;
+	Дата				= СТРОКАИЗВРЕМЕНИ( ДАТАЗАГРУЗКИ, 7, ".", "T" );
+	ПОКА ( Продолжать )
+	{
+		Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessageList?date=" + Дата + "&direction=outgoing", "Заголовки" );
+		IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		ДОБАВИТЬКОНТЕКСТ( "LOCAL: IsLast char, LastRecordDateTime char", "Результат" );
+		ЗАГРУЗИТЬ( "Результат", "XMLSTRING", Ответ, "", "", "", "DocFlow" );
+		ПЕРЕЙТИВНАЧАЛО( "Результат" );
+
+		Продолжать		= ЗНАЧЕНИЕПОЛЯ( "Результат", "IsLast", "" ) != "true";
+		Дата			= СТРОКАИЗВРЕМЕНИ( CTOD( ЗНАЧЕНИЕПОЛЯ( "Результат", "LastRecordDateTime", "" ) ), 7, ".", "T" );
+
+		// Заполняем таблицу со списком документов и их статусами
+		РАЗОБРАТЬ_XML( Ответ, "DockFlowStatusIN_РазобратьТэги" );
+		
+		ВсегоДокументов	+= КОЛИЧЕСТВОСТРОК( "DocFlow" );
+		СИСТЕМНОЕСООБЩЕНИЕ( "Проверка статусов поступлений. Получение данных с сервера taxcom.ru. Получено " + STR( ВсегоДокументов ) + " записей документов" );
+	}
+	// Проходим по полученному контексту и определяем статус документа
+	ПЕРЕЙТИВНАЧАЛО( "DocFlow" );
+	ПОКА( !КОНЕЦКОНТЕКСТА( "DocFlow" ) )
+	{
+		Статус		= 0;
+		// Если есть SendConfirmationReceiveNotice, то, значит был полчен и отправлено извещение о дате получвения. 
+		// Это означает, что документ пошел в работу
+		if ( DocFlow.CustomerInformation == 1 ) 
+			Статус	= 1;
+		// Если есть CustomerInformationPostDateConfirmationReceiveNotice или Correct, то значит отправили подтверждение или отказ
+		if ( DocFlow.CustomerInformationPostDateConfirmationReceiveNotice == 1 OR DocFlow.Correct == 1 ) 
+			Статус	= 2;
+		if ( DocFlow.Error == 1 ) 
+		{
+			Статус	= 4;
+			// В случае ошибки необходимо её достать и записать
+			Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessage/" + DocFlow.errorID, "Заголовки", false, "B" );
+			IF ( МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ, true ) )
+			{
+				НомерАрхива		= АРХИВОТКРЫТЬ( Ответ );
+				Количествофайлов= АРХИВ( НомерАрхива, "СписокФайлов", "", "", "Файлы" );
+				FOR ( Индекс = 0; Индекс < Количествофайлов; Индекс ++ )
+				{
+					ИмяФА		= Файлы[ Индекс ];
+					IF ( ATC( ИмяФА, "ErrorMessage" ) > 0 && ПРАВСИМВ( ПРОПИСНЫЕ( ИмяФА ), 4 ) == ".XML" )
+					{
+						ФайлОшибки		= СТРОКАИЗМАССИВА( АРХИВ( НомерАрхива, "Извлечь", Индекс ) );
+						МАРКИРОВКА.ТАКСКОМЗаписатьСвязанныйДокумент( ПРЕДПРИЯТИЕ, DocFlow.ID, DocFlow.errorID, ФайлОшибки, "Error" );
+						Позиция1		= ПОЗИЦИЯР( ФайлОшибки, "<описание>" );
+						Позиция2		= ПОЗИЦИЯР( ФайлОшибки, "</описание>" );
+						IF ( Позиция1 > 0 && Позиция2 > 0 )
+							ТекстОшибки	= ПОДСТРОКА( ФайлОшибки, Позиция1 + 10, Позиция2 - Позиция1 - 10 );
+						ELSE
+							ТекстОшибки	= ФайлОшибки;
+						ЗАПРОС( "IF EXISTS( SELECT * FROM mark_in WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "' ) 
+								UPDATE mark_in SET reply = '" + STDF( ТекстОшибки, 250 ) + "' WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "'" );
+								
+						Индекс 			= Количествофайлов;
+					}
+				}
+				АРХИВЗАКРЫТЬ( НомерАрхива );
+			}
+		}
+
+		ЗАПРОС( "IF EXISTS( SELECT * FROM mark_in WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "' ) 
+				 UPDATE mark_in SET status = " + Статус + " WHERE guid= '" + STDF( DocFlow.id ) + "' AND ent='" + ПРЕДПРИЯТИЕ + "' " );
+		ПРОПУСТИТЬ( 1, "DocFlow" );
+	}
+	УДАЛИТЬКОНТЕКСТ( "DocFlow" );
+}
+catch ( ТекстСообщения )
+{
+	СообщениеОбОшибке	= ТекстСообщения;
+	Результат			= false;
+}
+СИСТЕМНОЕСООБЩЕНИЕ( ); ИНДИКАТОР( );
+IF ( Соединение >= 0 ) HTTPCLOSE( Соединение );
+IF ( !Результат ) СООБЩЕНИЕ( ТекстСообщения );
+УДАЛИТЬКОНТЕКСТ( "Загрузка" );
+
+RETURN Результат;

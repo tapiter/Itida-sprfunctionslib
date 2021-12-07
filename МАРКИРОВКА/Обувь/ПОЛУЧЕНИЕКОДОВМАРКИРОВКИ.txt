@@ -1,1 +1,129 @@
-СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;СУЗИД					= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_SUZID" + ПРЕДПРИЯТИЕ + "'" );//ТОКЕНКЛИЕНТА			= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CLIENTTOKEN" + ПРЕДПРИЯТИЕ + "'" );URLСУЗ					= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_URLSUZ" + ПРЕДПРИЯТИЕ + "'" );КОНТАКТНОЕЛИЦО			= ЗАПРОС( "SELECT name FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );Ответ					= "";АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", ЕСЛИ( ПУСТО( URLСУЗ ), "https://suz2.crpt.ru", СЖАТЬПРОБЕЛЫ( URLСУЗ ) ) );Ресурс					= ЕСЛИ( ГРУППАМАРКИРОВКИ == "shoes", "shoes", ЕСЛИ( ГРУППАМАРКИРОВКИ == "lp", "lp", ЕСЛИ( ГРУППАМАРКИРОВКИ == "perfumery", "perfum", 						  ЕСЛИ( ГРУППАМАРКИРОВКИ == "electronics", "photo", ЕСЛИ( ГРУППАМАРКИРОВКИ == "tires", "tires", "" ) ) ) ) );// АвторизуемсяМАРКИРОВКАТОКЕН			=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР, "СУЗ" );IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;try{	// Сначала по каждому GTIN запрашиваем статус кодов	order_guid				= ЗАПРОС( "SELECT guid FROM mark_stock WHERE identity_column = " + ИДДОКУМЕНТА );	IF ( !ЗАПРОС( "UPDATE mark_stock SET reply= '<нет ошибок>' WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );				   	IF ( _ERRORCODE != 0  ) THROW( _ERRORDESCRIPTION ); 	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT gtin FROM mark_stock_spec WHERE ic = " + ИДДОКУМЕНТА, "СписокGTIN" ) ) THROW( _ERRORDESCRIPTION );	ТекстОшибки				= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 				= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );	ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокGTIN" ) ) 	{		СИСТЕМНОЕСООБЩЕНИЕ( "Получение кодов маркировки для GTIN " + СписокGTIN.gtin );		Заголовки[ 0 ]		= "Content-Type: application/json";		Заголовки[ 1 ]		= "clientToken:" + МАРКИРОВКАТОКЕН;		Параметры			= "?omsId=" + СУЗИД + "&orderId=" + order_guid + "&gtin=" + СписокGTIN.gtin;					Ответ				= HTTPGET( Соединение, "/api/v2/" + Ресурс + "/buffer/status" + Параметры, "Заголовки" );		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				// Возможны следующие состоянии буфера кодов маркировки		ЗАГРУЗИТЬJSON( "Статус", Ответ );		IF ( ТИПЗНАЧЕНИЯПОЛЯ( "Статус", "bufferStatus" ) != "C" ) THROW ( "Ошибка в формате принятых данных" );		Статцс				= UPPER( ALLTRIM( Статус.bufferStatus ) );		IF ( Статцс == "PENDING" || Статцс == "EXHAUSTED" ||  Статцс == "CLOSED" ) 		{			IF ( !ЗАПРОС( "UPDATE mark_stock_spec 						   SET status = " + ЕСЛИ( Статцс == "PENDING", "1", '4' ) + ", 							   description = '" + ЕСЛИ( Статцс == "PENDING", "Ожидание доставки", 'Закрыт/исчерпан' ) + "' 						   WHERE ic = "  + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'" ) ) THROW( _ERRORDESCRIPTION );			ПРОПУСТИТЬ( 1, "СписокGTIN" );			CONTINUE;		}		IF ( Статцс == "REJECTED" ) 		{			ПричинаОтказа	= ЛЕВСИМВ( STDF( ПЕРЕКОДИРОВАТЬ( ЗНАЧЕНИЕПОЛЯ( "Статус", "rejectionReason", "<РЅРµ СѓРєР°Р·Р°РЅРѕ>" ), "UTF-8", "ANSI" ) ), 250 );			IF ( !ЗАПРОС( "UPDATE mark_stock_spec SET status = 3, description = '" + ПричинаОтказа + "' 						   WHERE ic = "  + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'" ) ) THROW( _ERRORDESCRIPTION );			IF ( !ЗАПРОС( "UPDATE mark_stock SET status = 4, reply= '" + ПричинаОтказа + "' 						   WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );			THROW( "" );		}		// Вариант ACTIVE - Буфер создан. Выбираем КМ		// Колчиество доступных КМ в поле availableCodes		Ответ				= HTTPGET( Соединение, "/api/v2/" + Ресурс + "/codes" + Параметры + "&quantity=" + STR( VAL( ЗНАЧЕНИЕПОЛЯ( "Статус", "availableCodes", "" ) ) ), "Заголовки" );		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );		ЗАГРУЗИТЬJSON( "СписокКМ", Ответ ); 		lastBlockId			= ЗНАЧЕНИЕПОЛЯ( "СписокКМ", "lastBlockId", "" );		ЗАГРУЗИТЬJSON( "СписокКМ", ЗНАЧЕНИЕПОЛЯ( "СписокКМ", "codes", "" ), "mark" ); 				// Проходим по полченному списку кодов маркировки и записываем в строки документа		IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT identity_column, kolp FROM mark_stock_spec WHERE ic = " + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'", "СписокСтрок" ) ) THROW( _ERRORDESCRIPTION );		ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) && !КОНЕЦКОНТЕКСТА( "СписокКМ" ) ) 		{			ТекущееКоличество		= СписокСтрок.kolp;			WHILE ( !КОНЕЦКОНТЕКСТА( "СписокКМ" ) && ТекущееКоличество > 0 )			{				IF ( !ЗАПРОС( "IF NOT EXISTS( SELECT * FROM mark_stock_marks WHERE ic=" + ИДДОКУМЕНТА + " AND spec_ic= " + СписокСтрок.identity_column + " AND mark= '" + STDF( СписокКМ.mark ) + "' ) 							   INSERT INTO mark_stock_marks ( ic, spec_ic, mark ) VALUES ( " + ИДДОКУМЕНТА + ", " + СписокСтрок.identity_column + ", '" + STDF( СписокКМ.mark ) + "' )" ) ) THROW( _ERRORDESCRIPTION );				ПРОПУСТИТЬ( 1, "СписокКМ" ); 				ТекущееКоличество	-= 1;			}			ПРОПУСТИТЬ( 1, "СписокСтрок" );		}		УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );				IF ( !КОНЕЦКОНТЕКСТА( "СписокКМ" ) ) 		{			THROW( "Не удалось распределить все полученные коды маркировки." + CHR( 13 ) + 				   "Заказ № " + ЗАПРОС( "SELECT RTRIM( ndok ) + ' от ' + CONVERT( char( 10 ), date, 4 ) FROM mark_stock WHERE identity_column = " + ИДДОКУМЕНТА ) + CHR( 13 ) +				   "Было получено: " + STR( КОЛИЧЕСТВОСТРОК( "СписокКМ" ) ) + CHR( 13 ) + 				   "Удалось распределить: " + STR( НОМЕРСТРОКИ( "СписокКМ" ) ) );		}		   		IF ( !ЗАПРОС( "UPDATE mark_stock_spec 					   SET status = 2, 						   description = 'Коды маркировки получены успешно' 					   WHERE ic = "  + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'" ) ) THROW( _ERRORDESCRIPTION );		// Если все успешно, то закрываем заказ		Ответ				= HTTPPOST( Соединение, "/api/v2/" + Ресурс + "/buffer/close" + Параметры + "&lastBlockId=" + lastBlockId, "", "Заголовки" );		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				ПРОПУСТИТЬ( 1, "СписокGTIN" );	}	УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );	// Если полчены все коды маркировки, то ставим следующий статус у документа	IF ( !ЗАПРОС( "UPDATE mark_stock				   SET status = CASE WHEN EXISTS( SELECT * FROM mark_stock_spec WHERE ic= "  + ИДДОКУМЕНТА + " AND status IN ( 3, 4 ) ) THEN 4 ELSE 								CASE WHEN EXISTS( SELECT * FROM mark_stock_spec WHERE ic= "  + ИДДОКУМЕНТА + " AND status IN ( 1, 0 ) ) THEN 1 ELSE 2 END END				   WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );	УДАЛИТЬКОНТЕКСТ( "СписокКМ" );}catch ( ТекстСообщения ){		HTTPCLOSE( Соединение );	СИСТЕМНОЕСООБЩЕНИЕ( );	УДАЛИТЬКОНТЕКСТ( "СписокКМ" );	УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );	УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );		IF ( !ПУСТО( ТекстСообщения ) ) СООБЩЕНИЕ( ТекстСообщения );	RETURN false;}HTTPCLOSE( Соединение );СИСТЕМНОЕСООБЩЕНИЕ( );RETURN true;
+
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+СУЗИД					= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_SUZID" + ПРЕДПРИЯТИЕ + "'" );
+//ТОКЕНКЛИЕНТА			= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CLIENTTOKEN" + ПРЕДПРИЯТИЕ + "'" );
+URLСУЗ					= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_URLSUZ" + ПРЕДПРИЯТИЕ + "'" );
+КОНТАКТНОЕЛИЦО			= ЗАПРОС( "SELECT name FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );
+ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );
+
+Ответ					= "";
+АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", ЕСЛИ( ПУСТО( URLСУЗ ), "https://suz2.crpt.ru", СЖАТЬПРОБЕЛЫ( URLСУЗ ) ) );
+Ресурс					= ЕСЛИ( ГРУППАМАРКИРОВКИ == "shoes", "shoes", ЕСЛИ( ГРУППАМАРКИРОВКИ == "lp", "lp", ЕСЛИ( ГРУППАМАРКИРОВКИ == "perfumery", "perfum", 
+						  ЕСЛИ( ГРУППАМАРКИРОВКИ == "electronics", "photo", ЕСЛИ( ГРУППАМАРКИРОВКИ == "tires", "tires", "" ) ) ) ) );
+// Авторизуемся
+МАРКИРОВКАТОКЕН			=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР, "СУЗ" );
+IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;
+
+try
+{
+	// Сначала по каждому GTIN запрашиваем статус кодов
+	order_guid				= ЗАПРОС( "SELECT guid FROM mark_stock WHERE identity_column = " + ИДДОКУМЕНТА );
+	IF ( !ЗАПРОС( "UPDATE mark_stock SET reply= '<нет ошибок>' WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );
+				   
+	IF ( _ERRORCODE != 0  ) THROW( _ERRORDESCRIPTION ); 
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT gtin FROM mark_stock_spec WHERE ic = " + ИДДОКУМЕНТА, "СписокGTIN" ) ) THROW( _ERRORDESCRIPTION );
+
+	ТекстОшибки				= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+	Соединение 				= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );
+	IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+
+	ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокGTIN" ) ) 
+	{
+		СИСТЕМНОЕСООБЩЕНИЕ( "Получение кодов маркировки для GTIN " + СписокGTIN.gtin );
+		Заголовки[ 0 ]		= "Content-Type: application/json";
+		Заголовки[ 1 ]		= "clientToken:" + МАРКИРОВКАТОКЕН;
+
+		Параметры			= "?omsId=" + СУЗИД + "&orderId=" + order_guid + "&gtin=" + СписокGTIN.gtin;
+			
+		Ответ				= HTTPGET( Соединение, "/api/v2/" + Ресурс + "/buffer/status" + Параметры, "Заголовки" );
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		// Возможны следующие состоянии буфера кодов маркировки
+		ЗАГРУЗИТЬJSON( "Статус", Ответ );
+		IF ( ТИПЗНАЧЕНИЯПОЛЯ( "Статус", "bufferStatus" ) != "C" ) THROW ( "Ошибка в формате принятых данных" );
+		Статцс				= UPPER( ALLTRIM( Статус.bufferStatus ) );
+		IF ( Статцс == "PENDING" || Статцс == "EXHAUSTED" ||  Статцс == "CLOSED" ) 
+		{
+			IF ( !ЗАПРОС( "UPDATE mark_stock_spec 
+						   SET status = " + ЕСЛИ( Статцс == "PENDING", "1", '4' ) + ", 
+							   description = '" + ЕСЛИ( Статцс == "PENDING", "Ожидание доставки", 'Закрыт/исчерпан' ) + "' 
+						   WHERE ic = "  + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'" ) ) THROW( _ERRORDESCRIPTION );
+			ПРОПУСТИТЬ( 1, "СписокGTIN" );
+			CONTINUE;
+		}
+		IF ( Статцс == "REJECTED" ) 
+		{
+			ПричинаОтказа	= ЛЕВСИМВ( STDF( ПЕРЕКОДИРОВАТЬ( ЗНАЧЕНИЕПОЛЯ( "Статус", "rejectionReason", "<РЅРµ СѓРєР°Р·Р°РЅРѕ>" ), "UTF-8", "ANSI" ) ), 250 );
+			IF ( !ЗАПРОС( "UPDATE mark_stock_spec SET status = 3, description = '" + ПричинаОтказа + "' 
+						   WHERE ic = "  + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'" ) ) THROW( _ERRORDESCRIPTION );
+			IF ( !ЗАПРОС( "UPDATE mark_stock SET status = 4, reply= '" + ПричинаОтказа + "' 
+						   WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );
+			THROW( "" );
+		}
+		// Вариант ACTIVE - Буфер создан. Выбираем КМ
+		// Колчиество доступных КМ в поле availableCodes
+		Ответ				= HTTPGET( Соединение, "/api/v2/" + Ресурс + "/codes" + Параметры + "&quantity=" + STR( VAL( ЗНАЧЕНИЕПОЛЯ( "Статус", "availableCodes", "" ) ) ), "Заголовки" );
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+
+		ЗАГРУЗИТЬJSON( "СписокКМ", Ответ ); 
+		lastBlockId			= ЗНАЧЕНИЕПОЛЯ( "СписокКМ", "lastBlockId", "" );
+		ЗАГРУЗИТЬJSON( "СписокКМ", ЗНАЧЕНИЕПОЛЯ( "СписокКМ", "codes", "" ), "mark" ); 
+		
+		// Проходим по полченному списку кодов маркировки и записываем в строки документа
+		IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT identity_column, kolp FROM mark_stock_spec WHERE ic = " + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'", "СписокСтрок" ) ) THROW( _ERRORDESCRIPTION );
+		ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) && !КОНЕЦКОНТЕКСТА( "СписокКМ" ) ) 
+		{
+			ТекущееКоличество		= СписокСтрок.kolp;
+			WHILE ( !КОНЕЦКОНТЕКСТА( "СписокКМ" ) && ТекущееКоличество > 0 )
+			{
+				IF ( !ЗАПРОС( "IF NOT EXISTS( SELECT * FROM mark_stock_marks WHERE ic=" + ИДДОКУМЕНТА + " AND spec_ic= " + СписокСтрок.identity_column + " AND mark= '" + STDF( СписокКМ.mark ) + "' ) 
+							   INSERT INTO mark_stock_marks ( ic, spec_ic, mark ) VALUES ( " + ИДДОКУМЕНТА + ", " + СписокСтрок.identity_column + ", '" + STDF( СписокКМ.mark ) + "' )" ) ) THROW( _ERRORDESCRIPTION );
+				ПРОПУСТИТЬ( 1, "СписокКМ" ); 
+				ТекущееКоличество	-= 1;
+			}
+			ПРОПУСТИТЬ( 1, "СписокСтрок" );
+		}
+		УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );
+		
+		IF ( !КОНЕЦКОНТЕКСТА( "СписокКМ" ) ) 
+		{
+			THROW( "Не удалось распределить все полученные коды маркировки." + CHR( 13 ) + 
+				   "Заказ № " + ЗАПРОС( "SELECT RTRIM( ndok ) + ' от ' + CONVERT( char( 10 ), date, 4 ) FROM mark_stock WHERE identity_column = " + ИДДОКУМЕНТА ) + CHR( 13 ) +
+				   "Было получено: " + STR( КОЛИЧЕСТВОСТРОК( "СписокКМ" ) ) + CHR( 13 ) + 
+				   "Удалось распределить: " + STR( НОМЕРСТРОКИ( "СписокКМ" ) ) );
+		}		   
+		IF ( !ЗАПРОС( "UPDATE mark_stock_spec 
+					   SET status = 2, 
+						   description = 'Коды маркировки получены успешно' 
+					   WHERE ic = "  + ИДДОКУМЕНТА + " AND gtin = '" + STDF( СписокGTIN.gtin ) + "'" ) ) THROW( _ERRORDESCRIPTION );
+
+		// Если все успешно, то закрываем заказ
+		Ответ				= HTTPPOST( Соединение, "/api/v2/" + Ресурс + "/buffer/close" + Параметры + "&lastBlockId=" + lastBlockId, "", "Заголовки" );
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		ПРОПУСТИТЬ( 1, "СписокGTIN" );
+	}
+	УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );
+	// Если полчены все коды маркировки, то ставим следующий статус у документа
+	IF ( !ЗАПРОС( "UPDATE mark_stock
+				   SET status = CASE WHEN EXISTS( SELECT * FROM mark_stock_spec WHERE ic= "  + ИДДОКУМЕНТА + " AND status IN ( 3, 4 ) ) THEN 4 ELSE 
+								CASE WHEN EXISTS( SELECT * FROM mark_stock_spec WHERE ic= "  + ИДДОКУМЕНТА + " AND status IN ( 1, 0 ) ) THEN 1 ELSE 2 END END
+				   WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );
+
+	УДАЛИТЬКОНТЕКСТ( "СписокКМ" );
+}
+catch ( ТекстСообщения )
+{	
+	HTTPCLOSE( Соединение );
+	СИСТЕМНОЕСООБЩЕНИЕ( );
+	УДАЛИТЬКОНТЕКСТ( "СписокКМ" );
+	УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );
+	УДАЛИТЬКОНТЕКСТ( "СписокGTIN" );
+	
+	IF ( !ПУСТО( ТекстСообщения ) ) СООБЩЕНИЕ( ТекстСообщения );
+	RETURN false;
+}
+HTTPCLOSE( Соединение );
+СИСТЕМНОЕСООБЩЕНИЕ( );
+RETURN true;

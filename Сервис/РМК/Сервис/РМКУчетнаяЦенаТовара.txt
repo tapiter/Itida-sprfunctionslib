@@ -1,1 +1,5 @@
-IF ( ДЛИНА( Товар ) < 10 )	Товар	= ЗАПРОС( "SELECT code FROM sprres WHERE maincode= '" + Товар + "'" );Склад		= ЗАПРОС( "SELECT sklad FROM specrmkschem WHERE code = '" + _РМКСХЕМА + "' AND rmk = '" + _РМККОД + "' AND element_type = 1" );RETURN ЗАПРОС( "SELECT dbo.fn_calcsklad_cena( '" + Товар + "', '', '" + Склад + "', '001' )" );
+
+IF ( ДЛИНА( Товар ) < 10 )
+	Товар	= ЗАПРОС( "SELECT code FROM sprres WHERE maincode= '" + Товар + "'" );
+Склад		= ЗАПРОС( "SELECT sklad FROM specrmkschem WHERE code = '" + _РМКСХЕМА + "' AND rmk = '" + _РМККОД + "' AND element_type = 1" );
+RETURN ЗАПРОС( "SELECT dbo.fn_calcsklad_cena( '" + Товар + "', '', '" + Склад + "', '001' )" );

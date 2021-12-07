@@ -1,1 +1,29 @@
-// Создаем временную таблицу, в которую будем собирать данныеIF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT f_delete, barcode, name, shortname, ed, article, brand, country FROM " + ИМЯТАБЛИЦЫ, "Данные" ) ){	ТекстОшибки		= _ERRORDESCRIPTION;	RETURN false;}ПОКА ( !КОНЕЦКОНТЕКСТА( "Данные" ) ){	IF ( !ПУСТО( Данные.barcode ) )	{		СтрокаXML		= "<?xml version=""1.0"" encoding=""UTF-8""?>" + 							Сервис.НепустойТЭГ( "name", Данные.name )   + Сервис.НепустойТЭГ( "shortname", Данные.shortname ) +							Сервис.НепустойТЭГ( "ed", Данные.ed )       + Сервис.НепустойТЭГ( "article", Данные.article ) +							Сервис.НепустойТЭГ( "brand", Данные.brand ) + Сервис.НепустойТЭГ( "country", Данные.country ) +							Сервис.НепустойТЭГ( "barcode", Данные.barcode );				IF ( Данные.f_delete ) СтрокаXML	+= "<delete>1</delete>";					// Выполняем команду POST с нужным URL		ОтветСервера	= "";		IF ( !Сервис.HTTPCommand( "POST", "/warebarcode", ПЕРЕКОДИРОВАТЬ( СтрокаXML, "ANSI", "UTF-8" ), @ОтветСервера, "", АдресСервера ) ) RETURN false;	}	ПРОПУСТИТЬ( 1, "Данные" );}УДАЛИТЬКОНТЕКСТ( "Данные" );RETURN true;
+
+// Создаем временную таблицу, в которую будем собирать данные
+IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT f_delete, barcode, name, shortname, ed, article, brand, country FROM " + ИМЯТАБЛИЦЫ, "Данные" ) )
+{
+	ТекстОшибки		= _ERRORDESCRIPTION;
+	RETURN false;
+}
+
+ПОКА ( !КОНЕЦКОНТЕКСТА( "Данные" ) )
+{
+	IF ( !ПУСТО( Данные.barcode ) )
+	{
+		СтрокаXML		= "<?xml version=""1.0"" encoding=""UTF-8""?>" + 
+							Сервис.НепустойТЭГ( "name", Данные.name )   + Сервис.НепустойТЭГ( "shortname", Данные.shortname ) +
+							Сервис.НепустойТЭГ( "ed", Данные.ed )       + Сервис.НепустойТЭГ( "article", Данные.article ) +
+							Сервис.НепустойТЭГ( "brand", Данные.brand ) + Сервис.НепустойТЭГ( "country", Данные.country ) +
+							Сервис.НепустойТЭГ( "barcode", Данные.barcode );
+		
+		IF ( Данные.f_delete ) СтрокаXML	+= "<delete>1</delete>";
+			
+		// Выполняем команду POST с нужным URL
+		ОтветСервера	= "";
+		IF ( !Сервис.HTTPCommand( "POST", "/warebarcode", ПЕРЕКОДИРОВАТЬ( СтрокаXML, "ANSI", "UTF-8" ), @ОтветСервера, "", АдресСервера ) ) RETURN false;
+	}
+	ПРОПУСТИТЬ( 1, "Данные" );
+}
+УДАЛИТЬКОНТЕКСТ( "Данные" );
+
+RETURN true;

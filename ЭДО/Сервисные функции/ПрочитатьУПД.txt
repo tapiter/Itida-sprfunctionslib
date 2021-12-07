@@ -1,1 +1,42 @@
-КодДокумента		= ЗАПРОС( "SELECT code, ic FROM edioutcome WHERE guid = '" + GUIDДокумента + "'", "code" );ИДДокумента			= ЗАПРОС( "", "ic" );_ERRORDESCRIPTION	= "";IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT doc.*, client.inn AS clientinn, client.name AS clientname, client.kpp AS clientkpp, 						  firm.inn AS firminn, firm.name AS firmname, firm.kpp AS firmkpp, firm.dir_empl, firm.dir_title, firm.ogrn AS firmogrn,						  firm.postcode AS firmpostcode, LEFT( CASE WHEN firm.kpp <> '' THEN firm.kpp ELSE firm.inn END, 2 ) AS firmregion, 						  firm.city AS firmcity, firm.street AS firmstreet, firm.building AS firmbuilding, firm.telefon AS firmtelefon,						  firmempl.firstname AS firmfirstname, 						  (SELECT name FROM sprsimple WHERE code = firmempl.midname ) AS firmmidname, 						  (SELECT name FROM sprsimple WHERE code = firmempl.lastname ) AS firmlastname,						  client.postcode AS clientpostcode, LEFT( CASE WHEN client.kpp <> '' THEN client.kpp ELSE client.inn END, 2 ) AS clientregion, 						  client.city AS clientcity, client.street AS clientstreet, client.building AS clientbuilding, client.telefon AS clienttelefon,						  client.rs AS clientrs,						  firmbank.name AS firmbankname, firmbank.mfo AS firmbankmfo,						  clientbank.name AS clientbankname, clientbank.mfo AS clientbankmfo,						  LEFT( client.fio, CHARINDEX( ' ', client.fio ) ) AS clientfirstname, 						  CASE WHEN CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) > 0 THEN SUBSTRING( client.fio, CHARINDEX( ' ', client.fio ) + 1, CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) - CHARINDEX( ' ', client.fio ) - 1 ) ELSE '' END AS clientmidname, 						  CASE WHEN CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) > 0 THEN SUBSTRING( client.fio, CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) + 1,  100 ) ELSE '' END AS clientlastname				   FROM spr" + КодДокумента + " doc				   LEFT OUTER JOIN sprfirm firm ON doc.firm = firm.code				   LEFT OUTER JOIN sprempl firmempl ON firm.dir_empl = firmempl.code				   LEFT OUTER JOIN sprclient client ON doc.client = client.code				   LEFT OUTER JOIN sprrs rs ON doc.rs = rs.code 				   LEFT OUTER JOIN sprbank firmbank ON rs.bank = firmbank.code				   LEFT OUTER JOIN sprbank clientbank ON client.bank = clientbank.code				   WHERE doc.identity_column = " + ИДДокумента, "Документ" ) ) {	СООБЩЕНИЕ( _ERRORDESCRIPTION );	RETURN false;}IF ( !ДОБАВИТЬКОНТЕКСТ( "EXEC sp_docspec '" + КодДокумента + "', " + ИДДокумента, "Спецификация" ) ) {	УДАЛИТЬКОНТЕКСТ( "Документ" );	СООБЩЕНИЕ( _ERRORDESCRIPTION );	RETURN false;};RETURN true;
+
+КодДокумента		= ЗАПРОС( "SELECT code, ic FROM edioutcome WHERE guid = '" + GUIDДокумента + "'", "code" );
+ИДДокумента			= ЗАПРОС( "", "ic" );
+_ERRORDESCRIPTION	= "";
+IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT doc.*, client.inn AS clientinn, client.name AS clientname, client.kpp AS clientkpp, 
+						  firm.inn AS firminn, firm.name AS firmname, firm.kpp AS firmkpp, firm.dir_empl, firm.dir_title, firm.ogrn AS firmogrn,
+						  firm.postcode AS firmpostcode, LEFT( CASE WHEN firm.kpp <> '' THEN firm.kpp ELSE firm.inn END, 2 ) AS firmregion, 
+						  firm.city AS firmcity, firm.street AS firmstreet, firm.building AS firmbuilding, firm.telefon AS firmtelefon,
+						  firmempl.firstname AS firmfirstname, 
+						  (SELECT name FROM sprsimple WHERE code = firmempl.midname ) AS firmmidname, 
+						  (SELECT name FROM sprsimple WHERE code = firmempl.lastname ) AS firmlastname,
+
+						  client.postcode AS clientpostcode, LEFT( CASE WHEN client.kpp <> '' THEN client.kpp ELSE client.inn END, 2 ) AS clientregion, 
+						  client.city AS clientcity, client.street AS clientstreet, client.building AS clientbuilding, client.telefon AS clienttelefon,
+						  client.rs AS clientrs,
+
+						  firmbank.name AS firmbankname, firmbank.mfo AS firmbankmfo,
+						  clientbank.name AS clientbankname, clientbank.mfo AS clientbankmfo,
+						  LEFT( client.fio, CHARINDEX( ' ', client.fio ) ) AS clientfirstname, 
+						  CASE WHEN CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) > 0 THEN SUBSTRING( client.fio, CHARINDEX( ' ', client.fio ) + 1, CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) - CHARINDEX( ' ', client.fio ) - 1 ) ELSE '' END AS clientmidname, 
+						  CASE WHEN CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) > 0 THEN SUBSTRING( client.fio, CHARINDEX( ' ', client.fio, CHARINDEX( ' ', client.fio ) + 1 ) + 1,  100 ) ELSE '' END AS clientlastname
+
+				   FROM spr" + КодДокумента + " doc
+				   LEFT OUTER JOIN sprfirm firm ON doc.firm = firm.code
+				   LEFT OUTER JOIN sprempl firmempl ON firm.dir_empl = firmempl.code
+				   LEFT OUTER JOIN sprclient client ON doc.client = client.code
+				   LEFT OUTER JOIN sprrs rs ON doc.rs = rs.code 
+				   LEFT OUTER JOIN sprbank firmbank ON rs.bank = firmbank.code
+				   LEFT OUTER JOIN sprbank clientbank ON client.bank = clientbank.code
+				   WHERE doc.identity_column = " + ИДДокумента, "Документ" ) ) 
+{
+	СООБЩЕНИЕ( _ERRORDESCRIPTION );
+	RETURN false;
+}
+IF ( !ДОБАВИТЬКОНТЕКСТ( "EXEC sp_docspec '" + КодДокумента + "', " + ИДДокумента, "Спецификация" ) ) 
+{
+	УДАЛИТЬКОНТЕКСТ( "Документ" );
+	СООБЩЕНИЕ( _ERRORDESCRIPTION );
+	RETURN false;
+};
+
+RETURN true;

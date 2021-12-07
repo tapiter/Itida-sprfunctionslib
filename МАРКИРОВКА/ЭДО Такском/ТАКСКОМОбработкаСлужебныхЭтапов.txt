@@ -1,1 +1,252 @@
-ФУНКЦИЯ ЛОКАЛЬНАЯ DockFlowProcessSystem_РазобратьТэги( Родитель, ТипТэга, Имя, Значение, ФлагЗакрытия ){	IF ( ТипТэга == "ТЭГ" )	{		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" && ФлагЗакрытия )		{			ДОБАВИТЬСТРОКИ( 1, "DocFlow" );			REPLACE( "DocFlow", "DocFlowId", mId );			REPLACE( "DocFlow", "InternalId", mInternalId );			REPLACE( "DocFlow", "TransactionCode", mTransactionCode );			REPLACE( "DocFlow", "ReglamentCode", mReglamentCode );			mInternalId 		= "";			mTransactionCode	= "";			mReglamentCode		= "";		}		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCFLOW" )		{			mId					= "";			mInternalId 		= "";			mTransactionCode	= "";			mReglamentCode		= "";		}	}	IF ( ТипТэга == "АТРИБУТ" )	{//		сообщение( "Атрибут: " + Имя + CHR( 13 ) + "Значение: " + Значение );		IF ( UPPER( ALLTRIM( Имя ) ) == "ID" )			mId															= Значение;		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )			mTransactionCode											= Значение;		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "INTERNALID" )			mInternalId													= Значение;		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "REGLAMENTCODE" )			mReglamentCode												= Значение;	}}ФУНКЦИЯ ЛОКАЛЬНАЯ DockFlowMeta_РазобратьТэги( Родитель, ТипТэга, Имя, Значение, ФлагЗакрытия ){	IF ( ТипТэга == "ТЭГ" )	{		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" && ФлагЗакрытия )		{			ДОБАВИТЬСТРОКИ( 1, "MetaFile" );			REPLACE( "MetaFile", "path", mPath );			REPLACE( "MetaFile", "TransactionCode", mTransactionCode );			mTransactionCode	= "";			mPath				= "";		}		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCFLOW" )		{			mTransactionCode	= "";			mPath				= "";		}	}	IF ( ТипТэга == "АТРИБУТ" )	{		IF ( UPPER( ALLTRIM( Имя ) ) == "PATH" && UPPER( ALLTRIM( Родитель ) ) == "MAINIMAGE" )			mPath														= Значение;		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )			mTransactionCode											= Значение;	}}// Запрос информации об ЭДО ИДМАРКИРОВКА.ЭДОИНФОРМАЦИЯ( ПРЕДПРИЯТИЕ );СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ПОДПИСАНТИМЯ			= Сервис.XMLЗаменитьСимволы( ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIFIRSTNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" ) );ПОДПИСАНТФАМИЛИЯ		= Сервис.XMLЗаменитьСимволы( ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDISURNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" ) );ПОДПИСАНТОТЧЕСТВО		= Сервис.XMLЗаменитьСимволы( ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMIDDLENAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" ) );ПОДПИСАНТДОЛЖНОСТЬ		= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIPOSITION" + ПРЕДПРИЯТИЕ + "'" ) );Фирма					= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );ФирмаНаименование		= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "SELECT name, inn, kpp FROM sprfirm WHERE code = '" + Фирма + "'", "name" ) );ФирмаИНН				= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "", "inn" ) );ФирмаКПП				= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "", "kpp" ) );ФирмаЭДОИД				= Сервис.XMLЗаменитьСимволы( ЭДОИНФО_ИДФирмы );ЭДООперИД				= ЛЕВСИМВ( ФирмаЭДОИД, 3 );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;ДАТАЗАГРУЗКИ			= CTOD( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIDOWNLOADDATE" + ПРЕДПРИЯТИЕ + "'" ) );IF ( РАЗНИЦАДАТ( ДАТАЗАГРУЗКИ, ДАТА( ), "day" ) > 30 )	ДАТАЗАГРУЗКИ		= ДОБАВИТЬДНИ( ДАТА( ), -30 );ТАКСКОМТОКЕН			= Маркировка.ТАКСКОМАвторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ );IF ( ПУСТО( ТАКСКОМТОКЕН ) ) RETURN false;IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: TransactionCode char, InternalId char, ReglamentCode char", "Загрузка" ) ) RETURN false;АдресСервера 			= Маркировка.ТАКСКОМАдресСервера( ТЕСТОВЫЙКОНТУР );Заголовки[ 0 ]			= Маркировка.ТАКСКОМИнтегратор( );Заголовки[ 1 ]			= "Assistant-Key: " + ТАКСКОМТОКЕН;Заголовки[ 2 ]			= "Content-Type: application/x-www-form-urlencoded";Результат				= true;СообщениеОбОшибке		= "";Соединение				= -1;mTransactionCode		= "";mPath					= "";try{	ИМЯТАБЛИЦЫ			= Маркировка.ТАКСКОМТаблицаКонтейнера( );	IF ( ПУСТО( ИМЯТАБЛИЦЫ ) ) THROW( _ERRORDESCRIPTION );		ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 			= HTTPCONNECT( АдресСервера, "", true, Маркировка.ФАЙЛЖУРНАЛА( ) );	ВсегоЗагружено		= 0;	Продолжать			= true;	Дата				= СТРОКАИЗВРЕМЕНИ( ДАТАЗАГРУЗКИ, 7, ".", "T" );	ПОКА ( Продолжать )	{		Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessageList?date=" + Дата + "&direction=ingoing", "Заголовки" );		IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				ДОБАВИТЬКОНТЕКСТ( "LOCAL: IsLast char, LastRecordDateTime char", "Результат" );		ЗАГРУЗИТЬ( "Результат", "XMLSTRING", Ответ, "", "", "", "DocFlow" );		ПЕРЕЙТИВНАЧАЛО( "Результат" );		Продолжать		= ЗНАЧЕНИЕПОЛЯ( "Результат", "IsLast", "" ) != "true";		Дата			= СТРОКАИЗВРЕМЕНИ( CTOD( ЗНАЧЕНИЕПОЛЯ( "Результат", "LastRecordDateTime", "" ) ), 7, ".", "T" );				ДОБАВИТЬКОНТЕКСТ( "LOCAL: TransactionCode char, InternalId char, ReglamentCode char, DocFlowID char", "DocFlow" );		// Заполняем таблицу со списком документов и их статусами		РАЗОБРАТЬ_XML( Ответ, "DockFlowProcessSystem_РазобратьТэги" );				ВсегоЗагружено			+= КОЛИЧЕСТВОСТРОК( "DocFlow" );		СИСТЕМНОЕСООБЩЕНИЕ( "Обработка служебных этапов. Получение данных с сервера taxcom.ru. Получено " + STR( ВсегоЗагружено ) + " записей документов" );		ПЕРЕЙТИВНАЧАЛО( "DocFlow" );		ПОКА( !КОНЕЦКОНТЕКСТА( "DocFlow" ) )		{			ТипДокумента		= UPPER( ALLTRIM( DocFlow.TransactionCode ) );			ВнутреннийИД		= DocFlow.InternalId;			DocFlowID			= DocFlow.DocFlowId;			КодТранзакции		= "";			IF ( ТипДокумента == "POSTDATECONFIRMATION" )				КодТранзакции	= "PostDateConfirmationReceiveNotice";			ELSE IF ( ТипДокумента == "CORRECTIONNOTICE" )				КодТранзакции	= "CorrectionNoticeReceiveNotice";			ELSE IF ( ТипДокумента == "SENDCONFIRMATION" )				КодТранзакции	= "SendConfirmationReceiveNotice";			ELSE IF ( ТипДокумента == "RECEIVENOTICEPOSTDATECONFIRMATION" )				КодТранзакции	= "ReceiveNoticePostDateConfirmationReceiveNotice";			ELSE IF ( ТипДокумента == "CUSTOMERINFORMATIONPOSTDATECONFIRMATION" )				КодТранзакции	= "CustomerInformationPostDateConfirmationReceiveNotice";						// Если не обрабатываем такую транзакцию, или уже успешно отправляли такой файл, то ничего делать не надо			if ( ЕСЛИ( ПУСТО( КодТранзакции ), true,					ЗАПРОС( "SELECT CASE WHEN EXISTS( SELECT * 													  FROM edi_notifications 													  WHERE parentguid ='" + DocFlowID + "' AND type= '" + КодТранзакции + "' AND ent = '" + ПРЕДПРИЯТИЕ + "' ) 									THEN 1 ELSE 0 END" ) == 1 ) )			{				ПРОПУСТИТЬ( 1, "DocFlow" );				CONTINUE;			}						// Читаем пакет 			Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessage/" + ВнутреннийИД, "Заголовки", false, "B" );			IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ, true ) ) THROW ( Ответ );/*			ФАЙЛ			= ФАЙЛСОЗДАТЬ( "d:\входящийконтейнер.zip" );			ФАЙЛЗАПИСАТЬ( Файл, Ответ );			ФАЙЛЗАКРЫТЬ( Файл );			ФАЙЛА			= ФАЙЛСОЗДАТЬ( "d:\входящийконтейнер.lst" );*/			НомерАрхива		= АРХИВОТКРЫТЬ( Ответ );			ФайлОписания	= СТРОКАИЗМАССИВА( АРХИВ( НомерАрхива, "Извлечь", "meta.xml" ) );			IF ( ПУСТО( ФайлОписания ) )			{				ПРОПУСТИТЬ( 1, "DocFlow" );				CONTINUE;			}			ДОБАВИТЬКОНТЕКСТ( "LOCAL: TransactionCode char, path char", "MetaFile" );			// Заполняем таблицу со списком файлов и путями к ним			РАЗОБРАТЬ_XML( ФайлОписания, "DockFlowMeta_РазобратьТэги" );			ПЕРЕЙТИВНАЧАЛО( "MetaFile" );			ПОКА( !КОНЕЦКОНТЕКСТА( "MetaFile" ) )			{//				ИмяФА		= MetaFile.path;				IF ( UPPER( ALLTRIM( MetaFile.TransactionCode ) ) == ТипДокумента )				{//					ФАЙЛЗАПИСАТЬСТРОКУ( ФайлА, "Найден " + ВнутреннийИД );					ФайлДляПодписи	= АРХИВ( НомерАрхива, "Извлечь", MetaFile.path );					МАРКИРОВКА.ТАКСКОМЗаписатьСвязанныйДокумент( ПРЕДПРИЯТИЕ, DocFlowID, ВнутреннийИД, СТРОКАИЗМАССИВА( ФайлДляПодписи ), ТипДокумента );/*					ФАЙЛ			= ФАЙЛСОЗДАТЬ( "d:\" + ВнутреннийИД + ".xml" );					ФАЙЛЗАПИСАТЬ( Файл, ФайлДляПодписи );					ФАЙЛЗАКРЫТЬ( Файл );*/					ДОБАВИТЬКОНТЕКСТ( "LOCAL: ИДФайл char", "ФайлИнфо" );					ЗАГРУЗИТЬ( "ФайлИнфо", "XMLSTRING", СТРОКАИЗМАССИВА( ФайлДляПодписи ) );					ИмяПодписанногоФайла= ФайлИнфо.ИДФайл;					УДАЛИТЬКОНТЕКСТ( "ФайлИнфо" );					ВЫБРАТЬКОНТЕКСТ( "DocFlow" );					// В ответ должны получить контейнер с файлами. Нужно найти нужный файл					УУИДИзвещения		= UUID( );					ИмяФайлаИзвещения	= "DP_IZVPOL_" + ЭДООперИД + "_" + ФирмаЭДОИД + "_" + DTOC( ДАТА( ), 7, "" ) + "_" + УУИДИзвещения;					ПодписьФайла		= ПЕРЕКОДИРОВАТЬ( ШИФРОВАНИЕ( СЕРТИФИКАТ, ФайлДляПодписи, 1, false, false, _МАРКИРОВКА_ХРАНИЛИЩЕСЕРТИФИКАТОВ ), "", "BASE64" );					ТекстПодтверждения	= МАРКИРОВКА.ТАКСКОМDP_IZVPOL( ПРЕДПРИЯТИЕ, ИмяФайлаИзвещения, ИмяПодписанногоФайла, ПодписьФайла );/*					ФАЙЛ				= ФАЙЛСОЗДАТЬ( "d:\" + ИмяФайлаИзвещения + ".xml" );					ФАЙЛЗАПИСАТЬ( Файл, ТекстПодтверждения );					ФАЙЛЗАКРЫТЬ( Файл );*/										IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, type, signname, signcontent ) VALUES 								   ( '" + ИмяФайлаИзвещения + ".xml" + "', " + МАССИВИЗСТРОКИ( ТекстПодтверждения ) + ", '" + КодТранзакции + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );								   					Карта				= МАРКИРОВКА.ТАКСКОМCard( ПРЕДПРИЯТИЕ, "ReceiveNotification", Фирма, "", "", "", ДАТАВРЕМЯ( ), 0 );					if ( ПУСТО( Карта ) ) THROW( "Ошибка создания card.xml" + CHR( 13 ) + _ERRORDESCRIPTION );					IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, type, signname, signcontent ) VALUES 								   ( 'card.xml', " + МАССИВИЗСТРОКИ( Карта ) + ", '" + КодТранзакции + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );								   					Контейнер			= МАРКИРОВКА.ТАКСКОМКонтейнер( ИМЯТАБЛИЦЫ, СЕРТИФИКАТ, DocFlowID );					Ответ				= HTTPPOST( Соединение, "v1.3/API/SendMessage/Outbox.zip", Контейнер, "Заголовки" );					IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );										// Запишем отправленные файлы					МАРКИРОВКА.ТАКСКОМЗАПИСАТЬСВЯЗАННЫЙДОКУМЕНТ( ПРЕДПРИЯТИЕ, DocFlowID, УУИДИзвещения, ТекстПодтверждения, КодТранзакции );					IF ( !ЗАПРОС( "DELETE FROM " + ИМЯТАБЛИЦЫ ) ) THROW( _ERRORDESCRIPTION );				}//				ФАЙЛЗАПИСАТЬСТРОКУ( ФайлА, ИмяФА );				ПРОПУСТИТЬ( 1, "MetaFile" );			}//			ФАЙЛЗАКРЫТЬ( ФайлА );			УДАЛИТЬКОНТЕКСТ( "MetaFile" );			АРХИВЗАКРЫТЬ( НомерАрхива, true );						ПРОПУСТИТЬ( 1, "DocFlow" );		}		УДАЛИТЬКОНТЕКСТ( "DocFlow" );		УДАЛИТЬКОНТЕКСТ( "Результат" );	}	}catch ( ТекстСообщения ){	СообщениеОбОшибке		= ЕСЛИ( ПУСТО( ТекстСообщения ), _ERRORDESCRIPTION, ТекстСообщения  );	Результат				= false;}СИСТЕМНОЕСООБЩЕНИЕ( ); УДАЛИТЬКОНТЕКСТ( "Загрузка" );IF ( Соединение >= 0 ) HTTPCLOSE( Соединение );IF ( !ПУСТО( СообщениеОбОшибке ) ) Сообщение( СообщениеОбОшибке );RETURN Результат;
+ФУНКЦИЯ ЛОКАЛЬНАЯ DockFlowProcessSystem_РазобратьТэги( Родитель, ТипТэга, Имя, Значение, ФлагЗакрытия )
+{
+	IF ( ТипТэга == "ТЭГ" )
+	{
+		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" && ФлагЗакрытия )
+		{
+			ДОБАВИТЬСТРОКИ( 1, "DocFlow" );
+			REPLACE( "DocFlow", "DocFlowId", mId );
+			REPLACE( "DocFlow", "InternalId", mInternalId );
+			REPLACE( "DocFlow", "TransactionCode", mTransactionCode );
+			REPLACE( "DocFlow", "ReglamentCode", mReglamentCode );
+			mInternalId 		= "";
+			mTransactionCode	= "";
+			mReglamentCode		= "";
+		}
+		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCFLOW" )
+		{
+			mId					= "";
+			mInternalId 		= "";
+			mTransactionCode	= "";
+			mReglamentCode		= "";
+		}
+	}
+	IF ( ТипТэга == "АТРИБУТ" )
+	{
+//		сообщение( "Атрибут: " + Имя + CHR( 13 ) + "Значение: " + Значение );
+		IF ( UPPER( ALLTRIM( Имя ) ) == "ID" )
+			mId															= Значение;
+		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )
+			mTransactionCode											= Значение;
+		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "INTERNALID" )
+			mInternalId													= Значение;
+		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "REGLAMENTCODE" )
+			mReglamentCode												= Значение;
+	}
+}
+
+ФУНКЦИЯ ЛОКАЛЬНАЯ DockFlowMeta_РазобратьТэги( Родитель, ТипТэга, Имя, Значение, ФлагЗакрытия )
+{
+	IF ( ТипТэга == "ТЭГ" )
+	{
+		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" && ФлагЗакрытия )
+		{
+			ДОБАВИТЬСТРОКИ( 1, "MetaFile" );
+			REPLACE( "MetaFile", "path", mPath );
+			REPLACE( "MetaFile", "TransactionCode", mTransactionCode );
+			mTransactionCode	= "";
+			mPath				= "";
+		}
+		IF ( UPPER( ALLTRIM( Имя ) ) == "DOCFLOW" )
+		{
+			mTransactionCode	= "";
+			mPath				= "";
+		}
+	}
+	IF ( ТипТэга == "АТРИБУТ" )
+	{
+		IF ( UPPER( ALLTRIM( Имя ) ) == "PATH" && UPPER( ALLTRIM( Родитель ) ) == "MAINIMAGE" )
+			mPath														= Значение;
+		ELSE IF ( UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )
+			mTransactionCode											= Значение;
+	}
+}
+
+// Запрос информации об ЭДО ИД
+МАРКИРОВКА.ЭДОИНФОРМАЦИЯ( ПРЕДПРИЯТИЕ );
+
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ПОДПИСАНТИМЯ			= Сервис.XMLЗаменитьСимволы( ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIFIRSTNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" ) );
+ПОДПИСАНТФАМИЛИЯ		= Сервис.XMLЗаменитьСимволы( ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDISURNAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" ) );
+ПОДПИСАНТОТЧЕСТВО		= Сервис.XMLЗаменитьСимволы( ЗАМЕНИТЬ( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMIDDLENAME" + ПРЕДПРИЯТИЕ + "'" ), " ", "_" ) );
+ПОДПИСАНТДОЛЖНОСТЬ		= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIPOSITION" + ПРЕДПРИЯТИЕ + "'" ) );
+Фирма					= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );
+ФирмаНаименование		= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "SELECT name, inn, kpp FROM sprfirm WHERE code = '" + Фирма + "'", "name" ) );
+ФирмаИНН				= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "", "inn" ) );
+ФирмаКПП				= Сервис.XMLЗаменитьСимволы( ЗАПРОС( "", "kpp" ) );
+ФирмаЭДОИД				= Сервис.XMLЗаменитьСимволы( ЭДОИНФО_ИДФирмы );
+ЭДООперИД				= ЛЕВСИМВ( ФирмаЭДОИД, 3 );
+
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+ДАТАЗАГРУЗКИ			= CTOD( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIDOWNLOADDATE" + ПРЕДПРИЯТИЕ + "'" ) );
+IF ( РАЗНИЦАДАТ( ДАТАЗАГРУЗКИ, ДАТА( ), "day" ) > 30 )
+	ДАТАЗАГРУЗКИ		= ДОБАВИТЬДНИ( ДАТА( ), -30 );
+
+ТАКСКОМТОКЕН			= Маркировка.ТАКСКОМАвторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ );
+IF ( ПУСТО( ТАКСКОМТОКЕН ) ) RETURN false;
+
+IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: TransactionCode char, InternalId char, ReglamentCode char", "Загрузка" ) ) RETURN false;
+
+АдресСервера 			= Маркировка.ТАКСКОМАдресСервера( ТЕСТОВЫЙКОНТУР );
+Заголовки[ 0 ]			= Маркировка.ТАКСКОМИнтегратор( );
+Заголовки[ 1 ]			= "Assistant-Key: " + ТАКСКОМТОКЕН;
+Заголовки[ 2 ]			= "Content-Type: application/x-www-form-urlencoded";
+Результат				= true;
+СообщениеОбОшибке		= "";
+Соединение				= -1;
+mTransactionCode		= "";
+mPath					= "";
+
+try
+{
+	ИМЯТАБЛИЦЫ			= Маркировка.ТАКСКОМТаблицаКонтейнера( );
+	IF ( ПУСТО( ИМЯТАБЛИЦЫ ) ) THROW( _ERRORDESCRIPTION );
+	
+	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+	Соединение 			= HTTPCONNECT( АдресСервера, "", true, Маркировка.ФАЙЛЖУРНАЛА( ) );
+
+	ВсегоЗагружено		= 0;
+	Продолжать			= true;
+	Дата				= СТРОКАИЗВРЕМЕНИ( ДАТАЗАГРУЗКИ, 7, ".", "T" );
+	ПОКА ( Продолжать )
+	{
+		Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessageList?date=" + Дата + "&direction=ingoing", "Заголовки" );
+		IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		ДОБАВИТЬКОНТЕКСТ( "LOCAL: IsLast char, LastRecordDateTime char", "Результат" );
+		ЗАГРУЗИТЬ( "Результат", "XMLSTRING", Ответ, "", "", "", "DocFlow" );
+		ПЕРЕЙТИВНАЧАЛО( "Результат" );
+
+		Продолжать		= ЗНАЧЕНИЕПОЛЯ( "Результат", "IsLast", "" ) != "true";
+		Дата			= СТРОКАИЗВРЕМЕНИ( CTOD( ЗНАЧЕНИЕПОЛЯ( "Результат", "LastRecordDateTime", "" ) ), 7, ".", "T" );
+		
+		ДОБАВИТЬКОНТЕКСТ( "LOCAL: TransactionCode char, InternalId char, ReglamentCode char, DocFlowID char", "DocFlow" );
+		// Заполняем таблицу со списком документов и их статусами
+		РАЗОБРАТЬ_XML( Ответ, "DockFlowProcessSystem_РазобратьТэги" );
+		
+		ВсегоЗагружено			+= КОЛИЧЕСТВОСТРОК( "DocFlow" );
+		СИСТЕМНОЕСООБЩЕНИЕ( "Обработка служебных этапов. Получение данных с сервера taxcom.ru. Получено " + STR( ВсегоЗагружено ) + " записей документов" );
+
+		ПЕРЕЙТИВНАЧАЛО( "DocFlow" );
+		ПОКА( !КОНЕЦКОНТЕКСТА( "DocFlow" ) )
+		{
+			ТипДокумента		= UPPER( ALLTRIM( DocFlow.TransactionCode ) );
+			ВнутреннийИД		= DocFlow.InternalId;
+			DocFlowID			= DocFlow.DocFlowId;
+			КодТранзакции		= "";
+
+			IF ( ТипДокумента == "POSTDATECONFIRMATION" )
+				КодТранзакции	= "PostDateConfirmationReceiveNotice";
+			ELSE IF ( ТипДокумента == "CORRECTIONNOTICE" )
+				КодТранзакции	= "CorrectionNoticeReceiveNotice";
+			ELSE IF ( ТипДокумента == "SENDCONFIRMATION" )
+				КодТранзакции	= "SendConfirmationReceiveNotice";
+			ELSE IF ( ТипДокумента == "RECEIVENOTICEPOSTDATECONFIRMATION" )
+				КодТранзакции	= "ReceiveNoticePostDateConfirmationReceiveNotice";
+			ELSE IF ( ТипДокумента == "CUSTOMERINFORMATIONPOSTDATECONFIRMATION" )
+				КодТранзакции	= "CustomerInformationPostDateConfirmationReceiveNotice";
+			
+			// Если не обрабатываем такую транзакцию, или уже успешно отправляли такой файл, то ничего делать не надо
+			if ( ЕСЛИ( ПУСТО( КодТранзакции ), true,
+					ЗАПРОС( "SELECT CASE WHEN EXISTS( SELECT * 
+													  FROM edi_notifications 
+													  WHERE parentguid ='" + DocFlowID + "' AND type= '" + КодТранзакции + "' AND ent = '" + ПРЕДПРИЯТИЕ + "' ) 
+									THEN 1 ELSE 0 END" ) == 1 ) )
+			{
+				ПРОПУСТИТЬ( 1, "DocFlow" );
+				CONTINUE;
+			}
+			
+			// Читаем пакет 
+			Ответ			= HTTPGET( Соединение, "v1.3/API/GetMessage/" + ВнутреннийИД, "Заголовки", false, "B" );
+			IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ, true ) ) THROW ( Ответ );
+
+
+/*			ФАЙЛ			= ФАЙЛСОЗДАТЬ( "d:\входящийконтейнер.zip" );
+			ФАЙЛЗАПИСАТЬ( Файл, Ответ );
+			ФАЙЛЗАКРЫТЬ( Файл );
+			ФАЙЛА			= ФАЙЛСОЗДАТЬ( "d:\входящийконтейнер.lst" );
+*/
+
+			НомерАрхива		= АРХИВОТКРЫТЬ( Ответ );
+			ФайлОписания	= СТРОКАИЗМАССИВА( АРХИВ( НомерАрхива, "Извлечь", "meta.xml" ) );
+			IF ( ПУСТО( ФайлОписания ) )
+			{
+				ПРОПУСТИТЬ( 1, "DocFlow" );
+				CONTINUE;
+			}
+			ДОБАВИТЬКОНТЕКСТ( "LOCAL: TransactionCode char, path char", "MetaFile" );
+			// Заполняем таблицу со списком файлов и путями к ним
+			РАЗОБРАТЬ_XML( ФайлОписания, "DockFlowMeta_РазобратьТэги" );
+			ПЕРЕЙТИВНАЧАЛО( "MetaFile" );
+			ПОКА( !КОНЕЦКОНТЕКСТА( "MetaFile" ) )
+			{
+//				ИмяФА		= MetaFile.path;
+				IF ( UPPER( ALLTRIM( MetaFile.TransactionCode ) ) == ТипДокумента )
+				{
+//					ФАЙЛЗАПИСАТЬСТРОКУ( ФайлА, "Найден " + ВнутреннийИД );
+					ФайлДляПодписи	= АРХИВ( НомерАрхива, "Извлечь", MetaFile.path );
+					МАРКИРОВКА.ТАКСКОМЗаписатьСвязанныйДокумент( ПРЕДПРИЯТИЕ, DocFlowID, ВнутреннийИД, СТРОКАИЗМАССИВА( ФайлДляПодписи ), ТипДокумента );
+
+/*
+					ФАЙЛ			= ФАЙЛСОЗДАТЬ( "d:\" + ВнутреннийИД + ".xml" );
+					ФАЙЛЗАПИСАТЬ( Файл, ФайлДляПодписи );
+					ФАЙЛЗАКРЫТЬ( Файл );
+*/
+					ДОБАВИТЬКОНТЕКСТ( "LOCAL: ИДФайл char", "ФайлИнфо" );
+					ЗАГРУЗИТЬ( "ФайлИнфо", "XMLSTRING", СТРОКАИЗМАССИВА( ФайлДляПодписи ) );
+					ИмяПодписанногоФайла= ФайлИнфо.ИДФайл;
+					УДАЛИТЬКОНТЕКСТ( "ФайлИнфо" );
+					ВЫБРАТЬКОНТЕКСТ( "DocFlow" );
+
+					// В ответ должны получить контейнер с файлами. Нужно найти нужный файл
+					УУИДИзвещения		= UUID( );
+					ИмяФайлаИзвещения	= "DP_IZVPOL_" + ЭДООперИД + "_" + ФирмаЭДОИД + "_" + DTOC( ДАТА( ), 7, "" ) + "_" + УУИДИзвещения;
+					ПодписьФайла		= ПЕРЕКОДИРОВАТЬ( ШИФРОВАНИЕ( СЕРТИФИКАТ, ФайлДляПодписи, 1, false, false, _МАРКИРОВКА_ХРАНИЛИЩЕСЕРТИФИКАТОВ ), "", "BASE64" );
+					ТекстПодтверждения	= МАРКИРОВКА.ТАКСКОМDP_IZVPOL( ПРЕДПРИЯТИЕ, ИмяФайлаИзвещения, ИмяПодписанногоФайла, ПодписьФайла );
+
+/*
+					ФАЙЛ				= ФАЙЛСОЗДАТЬ( "d:\" + ИмяФайлаИзвещения + ".xml" );
+					ФАЙЛЗАПИСАТЬ( Файл, ТекстПодтверждения );
+					ФАЙЛЗАКРЫТЬ( Файл );
+*/					
+					IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, type, signname, signcontent ) VALUES 
+								   ( '" + ИмяФайлаИзвещения + ".xml" + "', " + МАССИВИЗСТРОКИ( ТекстПодтверждения ) + ", '" + КодТранзакции + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );
+								   
+					Карта				= МАРКИРОВКА.ТАКСКОМCard( ПРЕДПРИЯТИЕ, "ReceiveNotification", Фирма, "", "", "", ДАТАВРЕМЯ( ), 0 );
+					if ( ПУСТО( Карта ) ) THROW( "Ошибка создания card.xml" + CHR( 13 ) + _ERRORDESCRIPTION );
+					IF ( !ЗАПРОС( "INSERT INTO " + ИМЯТАБЛИЦЫ + " ( filename, content, type, signname, signcontent ) VALUES 
+								   ( 'card.xml', " + МАССИВИЗСТРОКИ( Карта ) + ", '" + КодТранзакции + "', '', 0x0 ) " ) ) THROW( _ERRORDESCRIPTION );
+								   
+					Контейнер			= МАРКИРОВКА.ТАКСКОМКонтейнер( ИМЯТАБЛИЦЫ, СЕРТИФИКАТ, DocFlowID );
+					Ответ				= HTTPPOST( Соединение, "v1.3/API/SendMessage/Outbox.zip", Контейнер, "Заголовки" );
+					IF ( !МАРКИРОВКА.ТАКСКОМПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+					
+					// Запишем отправленные файлы
+					МАРКИРОВКА.ТАКСКОМЗАПИСАТЬСВЯЗАННЫЙДОКУМЕНТ( ПРЕДПРИЯТИЕ, DocFlowID, УУИДИзвещения, ТекстПодтверждения, КодТранзакции );
+
+					IF ( !ЗАПРОС( "DELETE FROM " + ИМЯТАБЛИЦЫ ) ) THROW( _ERRORDESCRIPTION );
+				}
+//				ФАЙЛЗАПИСАТЬСТРОКУ( ФайлА, ИмяФА );
+				ПРОПУСТИТЬ( 1, "MetaFile" );
+			}
+//			ФАЙЛЗАКРЫТЬ( ФайлА );
+			УДАЛИТЬКОНТЕКСТ( "MetaFile" );
+			АРХИВЗАКРЫТЬ( НомерАрхива, true );
+			
+			ПРОПУСТИТЬ( 1, "DocFlow" );
+		}
+		УДАЛИТЬКОНТЕКСТ( "DocFlow" );
+		УДАЛИТЬКОНТЕКСТ( "Результат" );
+	}	
+}
+catch ( ТекстСообщения )
+{
+	СообщениеОбОшибке		= ЕСЛИ( ПУСТО( ТекстСообщения ), _ERRORDESCRIPTION, ТекстСообщения  );
+	Результат				= false;
+}
+СИСТЕМНОЕСООБЩЕНИЕ( ); УДАЛИТЬКОНТЕКСТ( "Загрузка" );
+IF ( Соединение >= 0 ) HTTPCLOSE( Соединение );
+IF ( !ПУСТО( СообщениеОбОшибке ) ) Сообщение( СообщениеОбОшибке );
+
+RETURN Результат;

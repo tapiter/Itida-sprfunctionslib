@@ -1,1 +1,48 @@
-СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;ЭВОТОРТОКЕН				= Маркировка.ЭВОТОРАвторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ );IF ( ПУСТО( ЭВОТОРТОКЕН ) ) RETURN "";ИДПользователя			= "";АдресСервера 			= ЕСЛИ( ТЕСТОВЫЙКОНТУР, "https://edo-v2.platformaofd.ru", "https://edo.platformaofd.ru" );Заголовки[ 0 ]			= "Authorization: Bearer " + ЭВОТОРТОКЕН;Заголовки[ 1 ]			= "Content-Type: application/json;charset=UTF-8";try{	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );	Соединение 			= HTTPCONNECT( АдресСервера, "", true, Маркировка.ФАЙЛЖУРНАЛА( ) );	ДОБАВИТЬКОНТЕКСТ( "SELECT email, userlast, userfirst, usermiddle, userphone, userinfo, userposition					   FROM edi_registrations 					   WHERE ent= '" + ПРЕДПРИЯТИЕ + "' AND rid = '" + ИДСТРОКИ + "'", "Пользователь" );	ПОЧТА_JSON			= ДАННЫЕ_JSON( "email", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "email", "" ) );	ТЕЛЕФОН_JSON		= ДАННЫЕ_JSON( "phone", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userphone", "" ) );	ДОЛЖНОСТЬ_JSON		= ДАННЫЕ_JSON( "position", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userposition", "" ) );	СНИЛС_JSON			= ДАННЫЕ_JSON( "snils", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userinfo", "" ) );	ИМЯ_JSON			= ДАННЫЕ_JSON( "first", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userfirst", "" ) );	ФАМИЛИЯ_JSON		= ДАННЫЕ_JSON( "last", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userlast", "" ) );	IF ( !ПУСТО( ЗНАЧЕНИЕПОЛЯ( "Пользователь", "usermiddle", "" ) ) )		ОТЧЕСТВО_JSON	= ДАННЫЕ_JSON( "middle", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "usermiddle", "" ) );	ELSE		ОТЧЕСТВО_JSON	= "";		Текст				= "{""edmUser"": { " + ПОЧТА_JSON + ", ""fullName"": { " + ИМЯ_JSON + ", " + ФАМИЛИЯ_JSON +						  ЕСЛИ( !ПУСТО( ОТЧЕСТВО_JSON ), ", ", "" ) + ОТЧЕТСВО_JSON + "}, " + ТЕЛЕФОН_JSON + ", " +						  ДОЛЖНОСТЬ_JSON + ", " + СНИЛС_JSON + "}}";						  	Ответ				= HTTPPOST( Соединение, "/api/v1/partner/users", "", "Заголовки" );	IF ( !МАРКИРОВКА.ЭВОТОРПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );		ИДПользователя		= ПОЛЕ_JSON( Ответ, "id", "" );	// Запишем полученный ИЗ в таблицу	ЗАПРОС( "UPDATE edi_registrations SET userid = '" + STDF( ИДПользователя ) + "' WHERE rid = '" + ИДСтроки + "'" );}catch ( ТекстСообщения ){	СООБЩЕНИЕ( ТекстСообщения );}HTTPCLOSE( Соединение );RETURN ИДПользователя;
+
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+
+ЭВОТОРТОКЕН				= Маркировка.ЭВОТОРАвторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ );
+IF ( ПУСТО( ЭВОТОРТОКЕН ) ) RETURN "";
+
+ИДПользователя			= "";
+АдресСервера 			= ЕСЛИ( ТЕСТОВЫЙКОНТУР, "https://edo-v2.platformaofd.ru", "https://edo.platformaofd.ru" );
+Заголовки[ 0 ]			= "Authorization: Bearer " + ЭВОТОРТОКЕН;
+Заголовки[ 1 ]			= "Content-Type: application/json;charset=UTF-8";
+
+try
+{
+	ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+	Соединение 			= HTTPCONNECT( АдресСервера, "", true, Маркировка.ФАЙЛЖУРНАЛА( ) );
+	ДОБАВИТЬКОНТЕКСТ( "SELECT email, userlast, userfirst, usermiddle, userphone, userinfo, userposition
+					   FROM edi_registrations 
+					   WHERE ent= '" + ПРЕДПРИЯТИЕ + "' AND rid = '" + ИДСТРОКИ + "'", "Пользователь" );
+	ПОЧТА_JSON			= ДАННЫЕ_JSON( "email", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "email", "" ) );
+	ТЕЛЕФОН_JSON		= ДАННЫЕ_JSON( "phone", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userphone", "" ) );
+	ДОЛЖНОСТЬ_JSON		= ДАННЫЕ_JSON( "position", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userposition", "" ) );
+	СНИЛС_JSON			= ДАННЫЕ_JSON( "snils", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userinfo", "" ) );
+	ИМЯ_JSON			= ДАННЫЕ_JSON( "first", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userfirst", "" ) );
+	ФАМИЛИЯ_JSON		= ДАННЫЕ_JSON( "last", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "userlast", "" ) );
+	IF ( !ПУСТО( ЗНАЧЕНИЕПОЛЯ( "Пользователь", "usermiddle", "" ) ) )
+		ОТЧЕСТВО_JSON	= ДАННЫЕ_JSON( "middle", ЗНАЧЕНИЕПОЛЯ( "Пользователь", "usermiddle", "" ) );
+	ELSE
+		ОТЧЕСТВО_JSON	= "";
+	
+	Текст				= "{""edmUser"": { " + ПОЧТА_JSON + ", ""fullName"": { " + ИМЯ_JSON + ", " + ФАМИЛИЯ_JSON +
+						  ЕСЛИ( !ПУСТО( ОТЧЕСТВО_JSON ), ", ", "" ) + ОТЧЕТСВО_JSON + "}, " + ТЕЛЕФОН_JSON + ", " +
+						  ДОЛЖНОСТЬ_JSON + ", " + СНИЛС_JSON + "}}";
+						  
+	Ответ				= HTTPPOST( Соединение, "/api/v1/partner/users", "", "Заголовки" );
+	IF ( !МАРКИРОВКА.ЭВОТОРПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+	
+	ИДПользователя		= ПОЛЕ_JSON( Ответ, "id", "" );
+	// Запишем полученный ИЗ в таблицу
+	ЗАПРОС( "UPDATE edi_registrations SET userid = '" + STDF( ИДПользователя ) + "' WHERE rid = '" + ИДСтроки + "'" );
+}
+catch ( ТекстСообщения )
+{
+	СООБЩЕНИЕ( ТекстСообщения );
+}
+HTTPCLOSE( Соединение );
+
+RETURN ИДПользователя;

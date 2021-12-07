@@ -1,1 +1,80 @@
-IF ( ТипТэга == "ТЭГ" && UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" ){	IF ( ФлагЗакрытия )	{		ДОБАВИТЬСТРОКИ( 1, "FileImages" );		REPLACE( "FileImages", "MainImage", mMainImage );		REPLACE( "FileImages", "ReglamentCode", mReglamentCode );		REPLACE( "FileImages", "TransactionCode", mTransactionCode );		REPLACE( "FileImages", "AdditionalDocId", mAdditionalDocId );		REPLACE( "FileImages", "DataImage", mDataImage );		REPLACE( "FileImages", "MainPath", mMainPath );		REPLACE( "FileImages", "MainFileName", mMainFileName );		REPLACE( "FileImages", "DataPath", mDataPath );		REPLACE( "FileImages", "DataFileName", mDataFileName );		mMainImage 			= "";		mReglamentCode		= "";		mTransactionCode	= "";		mAdditionalDocId	= "";		mDataImage			= "";		mMainPath			= "";		mMainFileName		= "";		mDataPath			= "";		mDataFileName		= "";	}	ELSE	{		mMainImage 			= "";		mReglamentCode		= "";		mTransactionCode	= "";		mAdditionalDocId	= "";		mDataImage			= "";		mMainPath			= "";		mMainFileName		= "";		mDataPath			= "";		mDataFileName		= "";	}}ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "MAINIMAGE" && UPPER( ALLTRIM( Имя ) ) == "PATH" ){	mMainImage			= Значение;	ИмяФА				= Значение;	ПутьФайла			= "";	IF ( AT( ИмяФА, "/" ) > 0 ) 	{		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "/" ) );		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "/" ) + 1 );	}	IF ( AT( ИмяФА, "\" ) > 0 ) 	{		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "\" ) );		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "\" ) + 1 );	}	mMainPath		= ПутьФайла;	mMainFileName	= ИмяФА;}ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DOCUMENT" && UPPER( ALLTRIM( Имя ) ) == "REGLAMENTCODE" )	mReglamentCode	= Значение;ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DOCUMENT" && UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )	mTransactionCode	= Значение;ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DOCUMENT" && UPPER( ALLTRIM( Имя ) ) == "ADDITIONALDOCID" )	mAdditionalDocId	= Значение;ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DATAIMAGE" && UPPER( ALLTRIM( Имя ) ) == "PATH" ){	mDataImage			= Значение;	ИмяФА				= Значение;	ПутьФайла			= "";	IF ( AT( ИмяФА, "/" ) > 0 ) 	{		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "/" ) );		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "/" ) + 1 );	}	IF ( AT( ИмяФА, "\" ) > 0 ) 	{		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "\" ) );		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "\" ) + 1 );	}	mDataPath		= ПутьФайла;	mDataFileName	= ИмяФА;}
+IF ( ТипТэга == "ТЭГ" && UPPER( ALLTRIM( Имя ) ) == "DOCUMENT" )
+{
+	IF ( ФлагЗакрытия )
+	{
+		ДОБАВИТЬСТРОКИ( 1, "FileImages" );
+		REPLACE( "FileImages", "MainImage", mMainImage );
+		REPLACE( "FileImages", "ReglamentCode", mReglamentCode );
+		REPLACE( "FileImages", "TransactionCode", mTransactionCode );
+		REPLACE( "FileImages", "AdditionalDocId", mAdditionalDocId );
+		REPLACE( "FileImages", "DataImage", mDataImage );
+		REPLACE( "FileImages", "MainPath", mMainPath );
+		REPLACE( "FileImages", "MainFileName", mMainFileName );
+		REPLACE( "FileImages", "DataPath", mDataPath );
+		REPLACE( "FileImages", "DataFileName", mDataFileName );
+		mMainImage 			= "";
+		mReglamentCode		= "";
+		mTransactionCode	= "";
+		mAdditionalDocId	= "";
+		mDataImage			= "";
+		mMainPath			= "";
+		mMainFileName		= "";
+		mDataPath			= "";
+		mDataFileName		= "";
+	}
+	ELSE
+	{
+		mMainImage 			= "";
+		mReglamentCode		= "";
+		mTransactionCode	= "";
+		mAdditionalDocId	= "";
+		mDataImage			= "";
+		mMainPath			= "";
+		mMainFileName		= "";
+		mDataPath			= "";
+		mDataFileName		= "";
+
+	}
+}
+ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "MAINIMAGE" && UPPER( ALLTRIM( Имя ) ) == "PATH" )
+{
+	mMainImage			= Значение;
+	ИмяФА				= Значение;
+	ПутьФайла			= "";
+	IF ( AT( ИмяФА, "/" ) > 0 ) 
+	{
+		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "/" ) );
+		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "/" ) + 1 );
+	}
+	IF ( AT( ИмяФА, "\" ) > 0 ) 
+	{
+		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "\" ) );
+		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "\" ) + 1 );
+	}
+	mMainPath		= ПутьФайла;
+	mMainFileName	= ИмяФА;
+}
+ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DOCUMENT" && UPPER( ALLTRIM( Имя ) ) == "REGLAMENTCODE" )
+	mReglamentCode	= Значение;
+ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DOCUMENT" && UPPER( ALLTRIM( Имя ) ) == "TRANSACTIONCODE" )
+	mTransactionCode	= Значение;
+ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DOCUMENT" && UPPER( ALLTRIM( Имя ) ) == "ADDITIONALDOCID" )
+	mAdditionalDocId	= Значение;
+ELSE IF ( ТипТэга == "АТРИБУТ" && UPPER( ALLTRIM( Родитель ) ) == "DATAIMAGE" && UPPER( ALLTRIM( Имя ) ) == "PATH" )
+{
+	mDataImage			= Значение;
+	ИмяФА				= Значение;
+	ПутьФайла			= "";
+	IF ( AT( ИмяФА, "/" ) > 0 ) 
+	{
+		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "/" ) );
+		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "/" ) + 1 );
+	}
+	IF ( AT( ИмяФА, "\" ) > 0 ) 
+	{
+		ПутьФайла	= ЛЕВСИМВ( ИмяФА, AT( ИмяФА, "\" ) );
+		ИмяФА		= ПОДСТРОКА( ИмяФА, AT( ИмяФА, "\" ) + 1 );
+	}
+	mDataPath		= ПутьФайла;
+	mDataFileName	= ИмяФА;
+}

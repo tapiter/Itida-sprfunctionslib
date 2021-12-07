@@ -14,6 +14,6 @@
 				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
 					RETURN ТЕКСТ_СВЕРНУТО;}ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn ) AS Номенклатура, 															 packs AS КоличествоМест, 															 (SELECT ed FROM sprres WHERE code = spec.nn) AS ЕдиницаИзмерения, 															 1 AS Коэффициент, 															 kolp * koef_e AS Количество, 															 cena * koef_c AS Цена, 															 summa AS Сумма,															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,															 sumnds AS СуммаНДС, 															 declar AS НомерГТД,
 															 koef_c * dbo.fn_calcsklad_cena(spec.nn, '''+TTOC(ПоступлениеТоваровУслуг.date)+''',
-															 				'''+ПоступлениеТоваровУслуг.sklad+''',	''' + Учет + ''') AS ЦенаВРознице
+															 				'''+ПоступлениеТоваровУслуг.sklad+''',	''' + Учет + ''') AS ЦенаВРознице,
 															 koef_c * kolp * dbo.fn_calcsklad_cena(spec.nn, '''+TTOC(ПоступлениеТоваровУслуг.date)+''',
 																			'''+ПоступлениеТоваровУслуг.sklad+''',	''' + Учет + ''') AS СуммаВРознице												FROM spec001 spec WHERE ic= ' + ПоступлениеТоваровУслуг.identity_column + ' AND nn&lt;&gt;'''' '</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;

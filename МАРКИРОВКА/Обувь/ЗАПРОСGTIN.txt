@@ -1,1 +1,160 @@
-СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );МАРКИРОВКАИНН			= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "' )" ); Ответ					= "";IF ( ПУСТО( МАРКИРОВКАИНН ) ){	СООБЩЕНИЕ( "В параметрах модуля Маркировка не задан ИНН организации." )	RETURN "";}IF ( !МАРКИРОВКА.ПОЛУЧИТЬGTIN( ПРЕДПРИЯТИЕ ) ) RETURN false;// АвторизуемсяМАРКИРОВКАТОКЕН			=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN "";//------ Читаем документы из локальной таблицыДОБАВИТЬКОНТЕКСТ( "SELECT guid, ic FROM " + ИМЯТАБЛИЦЫ, "СписокДокументов" );IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 ){	СООБЩЕНИЕ( "Не было отмечено ни одного документа в списке." );	RETURN "";}СИСТЕМНОЕСООБЩЕНИЕ( "Пожалуйста, подождите. Отправка запросов на генерацию GTIN в ГИС Маркировка" );СписокОтправленныхРанее	= "";ИНДЕКС					= 0;try{	ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )	{		ТНВЭД				= ЗАПРОС( "SELECT tnved FROM mark_gtin WHERE identity_column = " + СписокДокументов.ic );				// Дял табака отдельный сервер маркировки		IF ( ВСПИСКЕ( ТНВЭД, "2402", "2403" ) )			АдресСервера 	= ЕСЛИ( ТестовыйКонтур, "https://ismotp.crptech.ru", "https://markirovka.crpt.ru" );		ELSE			АдресСервера 	= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );		ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );		Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );				ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT brand, gender, model, productgroup, productname, age, releasemethod 						   FROM mark_gtin_spec WHERE ic= " + СписокДокументов.ic + " AND gtin = ''", "СписокСтрок" );				// Проходим по сгруппированным строкам документа и отправляем запрос в ГИС МТ		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )		{			// Возможно, что для нашей комбинации уже есть GTIN. Тогда, используем его			markCondition	= "	gender= '" + STDF( СписокСтрок.gender ) + "' AND								brand = '" + STDF( СписокСтрок.brand ) + "' AND releasemethod= '" + STDF( СписокСтрок.releasemethod ) + "' AND								model = '" + STDF( СписокСтрок.model ) + "' AND productgroup= '" + STDF( СписокСтрок.productgroup ) + "' AND								age   = '" + STDF( СписокСтрок.age ) + "' AND productname = '" + STDF( СписокСтрок.productname ) + "'";			infoCondition	= "	ent = '" + STDF( ПРЕДПРИЯТИЕ ) + "' AND tnved= '" + STDF( ТНВЭД ) + "' AND " + markCondition;									  			ЗАПРОС( "IF NOT EXISTS( SELECT * FROM mark_gtininfo WHERE  " + infoCondition + " )					INSERT INTO mark_gtininfo ( ent, guid, gtin, tnved, gender, releasemethod, productgroup, model, age, productname, brand ) 					VALUES ( '" + STDF( ПРЕДПРИЯТИЕ ) + "', '', '', '" + STDF( ТНВЭД ) + "', 							 '" + STDF( СписокСтрок.gender ) + "', '" + STDF( СписокСтрок.releasemethod ) + "', '" + STDF( СписокСтрок.productgroup ) + "',							 '" + STDF( СписокСтрок.model ) + "', '" + STDF( СписокСтрок.age ) + "', '" + STDF( СписокСтрок.productname ) + "',							 '" + STDF( СписокСтрок.brand ) + "' )" );			gtin			= ЗАПРОС( "SELECT gtin FROM mark_gtininfo WHERE " + infoCondition );			IF ( !ПУСТО( gtin ) )			{				ЗАПРОС( "UPDATE mark_gtin_spec SET gtin = '" + STDF( gtin ) + "' WHERE ic = " + СписокДокументов.ic + " AND " + markCondition );			}			ELSE			{				// Иначе запрашиваем новый GTIN				IF ( !ВСПИСКЕ( ТНВЭД, "2402", "2403" ) )					Документ		= "{""trade_participant_inn"": """ + МАРКИРОВКАИНН + """, ""products_list"": [{ " +										ДАННЫЕ_JSON( "release_method", СписокСтрок.releasemethod ) + "," +										ДАННЫЕ_JSON( "tnved_code_2", ЛЕВСИМВ( ТНВЭД, 2 ) ) + "," +										ДАННЫЕ_JSON( "brand", СписокСтрок.brand ) + "," +										ДАННЫЕ_JSON( "name", СписокСтрок.productname ) + "," +										ДАННЫЕ_JSON( "product_gender", СписокСтрок.gender ) + "," +										ДАННЫЕ_JSON( "consumer_age", СписокСтрок.age ) + "," +										ДАННЫЕ_JSON( "model", СписокСтрок.model ) + "}]}";				ELSE					Документ		= "{""trade_participant_inn"": """ + МАРКИРОВКАИНН + """, ""products_list"": [{ " +										ДАННЫЕ_JSON( "tnved_code_4", ТНВЭД ) + "," +										ДАННЫЕ_JSON( "brand", СписокСтрок.brand ) + "," +										ДАННЫЕ_JSON( "name", СписокСтрок.productname ) + "," +										ДАННЫЕ_JSON( "product_group", СписокСтрок.productgroup ) + "}]}";				Подпись				= ПЕРЕКОДИРОВАТЬ( ШИФРОВАНИЕ( СЕРТИФИКАТ, ПЕРЕКОДИРОВАТЬ( Документ, "ANSI", "UTF-8" ), 1, true, false, _МАРКИРОВКА_ХРАНИЛИЩЕСЕРТИФИКАТОВ ), "", "BASE64" );				Документ		 	= "{""product_document"":""" + ПЕРЕКОДИРОВАТЬ( Документ, "", "BASE64" ) + """,									  ""document_format"": ""MANUAL"", ""type"": ""OST_DESCRIPTION"", ""signature"":""" + Подпись + """}";				Заголовки[ 0 ]		= "Content-Type: application/json";				Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;				Ответ				= HTTPPOST( Соединение, "/api/v3/lk/documents/create?pg=" + ГРУППАМАРКИРОВКИ, Документ, "Заголовки" );				IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );							// В ответе просто ИД документа - GUID				ЗАПРОС( "UPDATE mark_gtininfo SET guid = '" + STDF( Ответ ) + "' WHERE " + infoCondition + ";" );				SIMPLEGUID[ ИНДЕКС ]= Ответ;				SIMPLEID[ ИНДЕКС ]	= СписокДокументов.ic;				ИНДЕКС++;			}						ПРОПУСТИТЬ( 1, "СписокСтрок"  );		}		ЗАПРОС( "UPDATE mark_gtin SET status = 1, note= 'Документ успешно отправлен в ГИС МТ' WHERE status <> 3 AND identity_column = " + СписокДокументов.ic );		ОЖИДАНИЕ( 500 );		ПРОПУСТИТЬ( 1, "СписокДокументов" );	}	УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );		// Ожидаем небольшое время, давая ГИС МТ обработать документы	ОЖИДАНИЕ( 2000 );	// Проходим по массиву отправленных документов и проверяем их статус на наличие ошибок.	СОшибками				= 0;	FOR ( НомерВМассиве = 0; НомерВМассиве < ИНДЕКС; НомерВМассиве++ )	{		Заголовки[ 0 ]		= "Content-Type: application/json";		Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;		IF ( !ВСПИСКЕ( ТНВЭД, "2402", "2403" ) )			Ответ			= HTTPGET( Соединение, "/api/v3/facade/doc/" + SIMPLEGUID[ НомерВМассиве ] + "/body?limit=10000", "Заголовки" );		ELSE			Ответ			= HTTPGET( Соединение, "/api/v3/facade/doc/" + SIMPLEGUID[ НомерВМассиве ] + "/body?limit=10000", "Заголовки" );		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );		// Извлекаем из полуенного документа информацию о списке товаров		ЗАГРУЗИТЬJSON( "ДокументИнфо", ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" ) );		СтатусДокумента		= ЗНАЧЕНИЕПОЛЯ( "ДокументИнфо", "status", "" );		IF ( СтатусДокумента == "CHECKED_OK" )		{			МАРКИРОВКА.ОБРАБОТАТЬДОКУМЕНТGTIN( ПРЕДПРИЯТИЕ, Ответ );		}		ELSE IF ( СтатусДокумента == "CHECKED_NOT_OK" OR СтатусДокумента == "PROCESSING_ERROR" )		{			// Иначе, выводим сообщение об ошибке и статус 2			ЗАГРУЗИТЬJSON( "Ошибка", ЗНАЧЕНИЕПОЛЯ( "ДокументИнфо", "errors", "" ), "error_message" );			ТекстОшибки		= ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_message", "" );			ЗАПРОС( "UPDATE mark_gtin SET status = 2, note= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + SIMPLEID[ НомерВМассиве ] );			ЗАПРОС( "UPDATE mark_gtininfo SET guid = '' WHERE guid = '" + SIMPLEGUID[ НомерВМассиве ] + "' AND gtin = ''" );			СОшибками++;		}		УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );	}		Слово					= ЕСЛИ( ИНДЕКС % 20 == 1, "документ", ЕСЛИ( ИНДЕКС % 20 < 5, "документа", "документов" ) );	СловоОтправка			= ЕСЛИ( ИНДЕКС % 20 == 1, "Отправлен", "Отправлено" );	СООБЩЕНИЕ( "Отправка документов успешно завершена." + 		ЕСЛИ( ИНДЕКС > 0, CHR( 13 ) + СловоОтправка + " " + НомерВМассиве + " " + Слово + "." + CHR( 13 ) + ЕСЛИ( СОшибками > 0, "Из них " + СОшибками + " не были приняты ГИС МТ.", "" ), "" ) );}catch ( ТекстСообщения ){	HTTPCLOSE( Соединение );	СИСТЕМНОЕСООБЩЕНИЕ( );	СООБЩЕНИЕ( ТекстСообщения );	RETURN "";}HTTPCLOSE( Соединение );СИСТЕМНОЕСООБЩЕНИЕ( );RETURN "ok";
+
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );
+МАРКИРОВКАИНН			= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "' )" ); 
+Ответ					= "";
+
+IF ( ПУСТО( МАРКИРОВКАИНН ) )
+{
+	СООБЩЕНИЕ( "В параметрах модуля Маркировка не задан ИНН организации." )
+	RETURN "";
+}
+
+IF ( !МАРКИРОВКА.ПОЛУЧИТЬGTIN( ПРЕДПРИЯТИЕ ) ) RETURN false;
+
+// Авторизуемся
+МАРКИРОВКАТОКЕН			=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );
+IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN "";
+
+//------ Читаем документы из локальной таблицы
+ДОБАВИТЬКОНТЕКСТ( "SELECT guid, ic FROM " + ИМЯТАБЛИЦЫ, "СписокДокументов" );
+IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 )
+{
+	СООБЩЕНИЕ( "Не было отмечено ни одного документа в списке." );
+	RETURN "";
+}
+СИСТЕМНОЕСООБЩЕНИЕ( "Пожалуйста, подождите. Отправка запросов на генерацию GTIN в ГИС Маркировка" );
+СписокОтправленныхРанее	= "";
+ИНДЕКС					= 0;
+try
+{
+	ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
+	{
+		ТНВЭД				= ЗАПРОС( "SELECT tnved FROM mark_gtin WHERE identity_column = " + СписокДокументов.ic );
+		
+		// Дял табака отдельный сервер маркировки
+		IF ( ВСПИСКЕ( ТНВЭД, "2402", "2403" ) )
+			АдресСервера 	= ЕСЛИ( ТестовыйКонтур, "https://ismotp.crptech.ru", "https://markirovka.crpt.ru" );
+		ELSE
+			АдресСервера 	= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );
+
+		ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+		Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT brand, gender, model, productgroup, productname, age, releasemethod 
+						   FROM mark_gtin_spec WHERE ic= " + СписокДокументов.ic + " AND gtin = ''", "СписокСтрок" );
+		
+		// Проходим по сгруппированным строкам документа и отправляем запрос в ГИС МТ
+		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+		{
+			// Возможно, что для нашей комбинации уже есть GTIN. Тогда, используем его
+			markCondition	= "	gender= '" + STDF( СписокСтрок.gender ) + "' AND
+								brand = '" + STDF( СписокСтрок.brand ) + "' AND releasemethod= '" + STDF( СписокСтрок.releasemethod ) + "' AND
+								model = '" + STDF( СписокСтрок.model ) + "' AND productgroup= '" + STDF( СписокСтрок.productgroup ) + "' AND
+								age   = '" + STDF( СписокСтрок.age ) + "' AND productname = '" + STDF( СписокСтрок.productname ) + "'";
+			infoCondition	= "	ent = '" + STDF( ПРЕДПРИЯТИЕ ) + "' AND tnved= '" + STDF( ТНВЭД ) + "' AND " + markCondition;
+									  
+			ЗАПРОС( "IF NOT EXISTS( SELECT * FROM mark_gtininfo WHERE  " + infoCondition + " )
+					INSERT INTO mark_gtininfo ( ent, guid, gtin, tnved, gender, releasemethod, productgroup, model, age, productname, brand ) 
+					VALUES ( '" + STDF( ПРЕДПРИЯТИЕ ) + "', '', '', '" + STDF( ТНВЭД ) + "', 
+							 '" + STDF( СписокСтрок.gender ) + "', '" + STDF( СписокСтрок.releasemethod ) + "', '" + STDF( СписокСтрок.productgroup ) + "',
+							 '" + STDF( СписокСтрок.model ) + "', '" + STDF( СписокСтрок.age ) + "', '" + STDF( СписокСтрок.productname ) + "',
+							 '" + STDF( СписокСтрок.brand ) + "' )" );
+			gtin			= ЗАПРОС( "SELECT gtin FROM mark_gtininfo WHERE " + infoCondition );
+			IF ( !ПУСТО( gtin ) )
+			{
+				ЗАПРОС( "UPDATE mark_gtin_spec SET gtin = '" + STDF( gtin ) + "' WHERE ic = " + СписокДокументов.ic + " AND " + markCondition );
+			}
+			ELSE
+			{
+				// Иначе запрашиваем новый GTIN
+				IF ( !ВСПИСКЕ( ТНВЭД, "2402", "2403" ) )
+					Документ		= "{""trade_participant_inn"": """ + МАРКИРОВКАИНН + """, ""products_list"": [{ " +
+										ДАННЫЕ_JSON( "release_method", СписокСтрок.releasemethod ) + "," +
+										ДАННЫЕ_JSON( "tnved_code_2", ЛЕВСИМВ( ТНВЭД, 2 ) ) + "," +
+										ДАННЫЕ_JSON( "brand", СписокСтрок.brand ) + "," +
+										ДАННЫЕ_JSON( "name", СписокСтрок.productname ) + "," +
+										ДАННЫЕ_JSON( "product_gender", СписокСтрок.gender ) + "," +
+										ДАННЫЕ_JSON( "consumer_age", СписокСтрок.age ) + "," +
+										ДАННЫЕ_JSON( "model", СписокСтрок.model ) + "}]}";
+				ELSE
+					Документ		= "{""trade_participant_inn"": """ + МАРКИРОВКАИНН + """, ""products_list"": [{ " +
+										ДАННЫЕ_JSON( "tnved_code_4", ТНВЭД ) + "," +
+										ДАННЫЕ_JSON( "brand", СписокСтрок.brand ) + "," +
+										ДАННЫЕ_JSON( "name", СписокСтрок.productname ) + "," +
+										ДАННЫЕ_JSON( "product_group", СписокСтрок.productgroup ) + "}]}";
+
+				Подпись				= ПЕРЕКОДИРОВАТЬ( ШИФРОВАНИЕ( СЕРТИФИКАТ, ПЕРЕКОДИРОВАТЬ( Документ, "ANSI", "UTF-8" ), 1, true, false, _МАРКИРОВКА_ХРАНИЛИЩЕСЕРТИФИКАТОВ ), "", "BASE64" );
+				Документ		 	= "{""product_document"":""" + ПЕРЕКОДИРОВАТЬ( Документ, "", "BASE64" ) + """,
+									  ""document_format"": ""MANUAL"", ""type"": ""OST_DESCRIPTION"", ""signature"":""" + Подпись + """}";
+
+				Заголовки[ 0 ]		= "Content-Type: application/json";
+				Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;
+				Ответ				= HTTPPOST( Соединение, "/api/v3/lk/documents/create?pg=" + ГРУППАМАРКИРОВКИ, Документ, "Заголовки" );
+				IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+			
+				// В ответе просто ИД документа - GUID
+				ЗАПРОС( "UPDATE mark_gtininfo SET guid = '" + STDF( Ответ ) + "' WHERE " + infoCondition + ";" );
+				SIMPLEGUID[ ИНДЕКС ]= Ответ;
+				SIMPLEID[ ИНДЕКС ]	= СписокДокументов.ic;
+				ИНДЕКС++;
+			}
+			
+			ПРОПУСТИТЬ( 1, "СписокСтрок"  );
+		}
+		ЗАПРОС( "UPDATE mark_gtin SET status = 1, note= 'Документ успешно отправлен в ГИС МТ' WHERE status <> 3 AND identity_column = " + СписокДокументов.ic );
+		ОЖИДАНИЕ( 500 );
+		ПРОПУСТИТЬ( 1, "СписокДокументов" );
+	}
+	УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );
+	
+	// Ожидаем небольшое время, давая ГИС МТ обработать документы
+	ОЖИДАНИЕ( 2000 );
+	// Проходим по массиву отправленных документов и проверяем их статус на наличие ошибок.
+	СОшибками				= 0;
+	FOR ( НомерВМассиве = 0; НомерВМассиве < ИНДЕКС; НомерВМассиве++ )
+	{
+		Заголовки[ 0 ]		= "Content-Type: application/json";
+		Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;
+		IF ( !ВСПИСКЕ( ТНВЭД, "2402", "2403" ) )
+			Ответ			= HTTPGET( Соединение, "/api/v3/facade/doc/" + SIMPLEGUID[ НомерВМассиве ] + "/body?limit=10000", "Заголовки" );
+		ELSE
+			Ответ			= HTTPGET( Соединение, "/api/v3/facade/doc/" + SIMPLEGUID[ НомерВМассиве ] + "/body?limit=10000", "Заголовки" );
+
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+
+		// Извлекаем из полуенного документа информацию о списке товаров
+		ЗАГРУЗИТЬJSON( "ДокументИнфо", ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" ) );
+		СтатусДокумента		= ЗНАЧЕНИЕПОЛЯ( "ДокументИнфо", "status", "" );
+		IF ( СтатусДокумента == "CHECKED_OK" )
+		{
+			МАРКИРОВКА.ОБРАБОТАТЬДОКУМЕНТGTIN( ПРЕДПРИЯТИЕ, Ответ );
+		}
+		ELSE IF ( СтатусДокумента == "CHECKED_NOT_OK" OR СтатусДокумента == "PROCESSING_ERROR" )
+		{
+			// Иначе, выводим сообщение об ошибке и статус 2
+			ЗАГРУЗИТЬJSON( "Ошибка", ЗНАЧЕНИЕПОЛЯ( "ДокументИнфо", "errors", "" ), "error_message" );
+			ТекстОшибки		= ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_message", "" );
+			ЗАПРОС( "UPDATE mark_gtin SET status = 2, note= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + SIMPLEID[ НомерВМассиве ] );
+			ЗАПРОС( "UPDATE mark_gtininfo SET guid = '' WHERE guid = '" + SIMPLEGUID[ НомерВМассиве ] + "' AND gtin = ''" );
+			СОшибками++;
+		}
+		УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );
+	}	
+	Слово					= ЕСЛИ( ИНДЕКС % 20 == 1, "документ", ЕСЛИ( ИНДЕКС % 20 < 5, "документа", "документов" ) );
+	СловоОтправка			= ЕСЛИ( ИНДЕКС % 20 == 1, "Отправлен", "Отправлено" );
+	СООБЩЕНИЕ( "Отправка документов успешно завершена." + 
+		ЕСЛИ( ИНДЕКС > 0, CHR( 13 ) + СловоОтправка + " " + НомерВМассиве + " " + Слово + "." + CHR( 13 ) + ЕСЛИ( СОшибками > 0, "Из них " + СОшибками + " не были приняты ГИС МТ.", "" ), "" ) );
+}
+catch ( ТекстСообщения )
+{
+	HTTPCLOSE( Соединение );
+	СИСТЕМНОЕСООБЩЕНИЕ( );
+	СООБЩЕНИЕ( ТекстСообщения );
+	RETURN "";
+}
+HTTPCLOSE( Соединение );
+СИСТЕМНОЕСООБЩЕНИЕ( );
+RETURN "ok";

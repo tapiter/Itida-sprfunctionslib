@@ -1,1 +1,2 @@
-RETURN true;
+
+RETURN true;

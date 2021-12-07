@@ -1,1 +1,145 @@
-ДОБАВИТЬКОНТЕКСТ( "LOCAL: Номер text, Дата datetime, ПродавецНаименование text, ПродавецИНН text, ПродавецКПП text, ПродавецАдрес text, 						  ПродавецСчет text, ПродавецБанк text, ПродавецЭДОИД text, ПолучательНаименование text, ПолучательИНН text, 						  ПолучательКПП text, ПолучательЭДОИД text, Грузополучатель text, ГрузополучательКПП text, Сумма float, СуммаБезНДС float", "Документ" );ДОБАВИТЬКОНТЕКСТ( "LOCAL: НомерСтроки int, НаименованиеТовара text, Единица text, ОКЕИ text, Налог float, Количество float, 						  Сумма float, СуммаБезНДС float, ШтрихКод text ", "СтрокиДокумента" );ДОБАВИТЬКОНТЕКСТ( "LOCAL: НомерСтроки int, Марка text", "Марки" );ВЫБРАТЬКОНТЕКСТ( "" );Состояние				= "";ТекущийОбъект			= "";ТекущаяСумма			= "";Номер 					= "";Дата 					= {};ПродавецНаименование 	= "";ПродавецИНН 			= "";ПродавецКПП 			= "";ПродавецАдрес 			= "";ПродавецСчет 			= "";ПродавецБанк 			= "";ПродавецЭДОИД			= "";Грузополучатель			= "";ГрузополучательКПП		= "";ПолучательНаименование 	= "";ПолучательИНН 			= "";ПолучательКПП 			= "";ПолучательЭДОИД			= "";Сумма 					= 0.00;СуммаБезНДС				= 0.00;СуммаУвеличения 		= 0.00;СуммаУменьшения			= 0.00;СуммаБезНДСУвеличения 	= 0.00;СуммаБезНДСУменьшения	= 0.00;НомерСтроки 			= 0;НаименованиеТовара 		= "";Единица 				= "";ОКЕИ 					= "";Налог					= 0.00;Количество 				= 0.00;Сумма 					= 0.00;СуммаБезНДС				= 0.00;ШтрихКод 				= "";Файл					= ФАЙЛОТКРЫТЬ( ИмяФайла );IF ( Файл < 0 ) {	СООБЩЕНИЕ( "Не удалось открыть файл '" + ИмяФайла + "' для загрузки данных." );	RETURN "";}СодержимоеФайла			= ФАЙЛПРОЧИТАТЬ( Файл, "S", ФАЙЛРАЗМЕР( Файл ) );ФАЙЛЗАКРЫТЬ( Файл );IF ( ATC( СодержимоеФайла, "DP_TOVTORG" ) > 0 )	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговТорг12" );ELSE IF ( "ON_KORSCHFDOPPR" $ СодержимоеФайла )	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговКУПД" );ELSE IF ( "DP_REZRUISP" $ СодержимоеФайла )	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговАКТ" );ELSE IF ( "ON_SCHET" $ СодержимоеФайла )	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговСЧЕТ" );ELSE	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэгов" );Продавец				= ЗАПРОС( "SELECT code FROM sprclient WHERE ediid <> '' AND ediid = '" + STDF( ПродавецЭДОИД ) + "'								   UNION SELECT code FROM sprclient WHERE inn = '" + STDF( ПродавецИНН ) + "' AND kpp = '" + STDF( ПродавецКПП ) + "'								   UNION SELECT code FROM sprclient WHERE inn = '" + STDF( ПродавецИНН ) + "' AND kpp = ''								   UNION SELECT code FROM sprclient WHERE name = '" + STDF( ПродавецНаименование ) + "' AND inn = ''" );Фирма					= ЗАПРОС( "SELECT code FROM sprfirm WHERE ediid <> '' AND ediid = '" + STDF( ПолучательЭДОИД ) + "'								   UNION SELECT code FROM sprfirm WHERE inn = '" + STDF( ПолучательИНН ) + "' AND kpp = '" + STDF( ПолучательКПП ) + "'								   UNION SELECT code FROM sprfirm WHERE inn = '" + STDF( ПолучательИНН ) + "' AND kpp = ''								   UNION SELECT code FROM sprfirm WHERE name = '" + STDF( ПолучательНаименование ) + "' AND inn = ''" );	// Создаем временную таблицу для сбора товаровИмяВременнойТаблицы		= "##" + УНИКАЛЬНОЕИМЯ( );ЗАПРОС( "CREATE TABLE " + ИмяВременнойТаблицы + "( npp varchar( 10 ), name varchar( 250 ), vendorware varchar( 250 ), ed varchar( 20 ), barcode varchar( 250 ), kolp float, cena float, summa float, sumnds float,												   sumwonds float, cenawonds float, vendor varchar( 250 ), vendorname varchar( 250 ), vendorinn varchar( 250 ), vendorkpp varchar( 250 ), vendorrs varchar( 250 ), 												   vendorbik varchar( 250 ), vendoraddress varchar( 250 ), sklad varchar( 250 ), skladaddress varchar( 250 ), code char( 10 ), vendorndok varchar( 250 ), vendordate datetime, 												   identity_column int IDENTITY( 1, 1 ) )" );ВЫБРАТЬКОНТЕКСТ( "СтрокиДокумента" );ПЕРЕЙТИВНАЧАЛО( "СтрокиДокумента" );ПОКА( !КОНЕЦКОНТЕКСТА( "СтрокиДокумента" ) ){	Цена			= ЕСЛИ( ROUND( Количество, 3 ) == 0, 0, Сумма / Количество );	ЦенаБезНДС		= ЕСЛИ( ROUND( Количество, 3 ) == 0, 0, СуммаБезНДС / Количество );	СуммаНДС		= Сумма - СуммаБезНДС;	ЗАПРОС( "INSERT INTO " + ИмяВременнойТаблицы + "( npp, name, vendorware, ed, kolp, cena, summa, sumnds, sumwonds, cenawonds, barcode )			 VALUES ( '" + STDF( НомерСтроки ) + "', '" + STDF( НаименованиеТовара ) + "', '', '" + STDF( Единица ) + "', " + 						   STR( Количество, 20, 8 ) + ", " + STR( Цена, 20, 8 ) + ", " + STR( Сумма, 20, 8 ) + ", " + STR( СуммаНДС, 20, 8 ) + ", " +						   STR( СуммаБезНДС, 20, 8 ) + ", " + STR( ЦенаБезНДС, 20, 8 ) + ", '" + STDF( ШтрихКод ) + "' )" );									   	ПРОПУСТИТЬ( 1, "СтрокиДокумента" );}// Для определения склада используем следующий алгоритм// Сначала ищем название склада без пробелов в строке Грузополучатель.ВЫБРАТЬКОНТЕКСТ( "Документ" );ПЕРЕЙТИВНАЧАЛО( "Документ" );Склад 				= ЗАПРОС( "SELECT code FROM sprskl WHERE CHARINDEX( REPLACE( RTRIM( name ), ' ', '' ), '" + STDF( STRTRAN( Грузополучатель, " " , "" ) ) + "' ) > 0" );// Если склад не нашелся, то ищем его по КППIF ( ПУСТО( Склад ) && !ПУСТО( ГрузополучательКПП ) ) 	Склад 			= ЗАПРОС( "SELECT code FROM sprskl WHERE kpp= '" + STDF( ГрузополучательКПП ) + "' )" );// Если склад так и не нашелся, то ищем его по наличию в поле грузополучатель в шапке эксель-документа обоих ключевых словIF ( ПУСТО( Склад ) ) {	Склад 			= ЗАПРОС( "DECLARE @address varchar( 250 );							   SELECT @address= '" + STDF( Грузополучатель ) + "';							   SELECT code 							   FROM sprskl 							   WHERE CHARINDEX( SUBSTRING( ex_code, 1, CHARINDEX( ' ', RTRIM( ex_code ) ) ), @address ) > 0 AND									 CHARINDEX( LTRIM( RTRIM( SUBSTRING( ex_code, CHARINDEX( ' ', RTRIM( ex_code ) ), 50 ) ) ), 									 SUBSTRING( @address, CHARINDEX( SUBSTRING( ex_code, 1, CHARINDEX( ' ', RTRIM( ex_code ) ) ), @address ) + LEN( SUBSTRING( ex_code, 1, CHARINDEX( ' ', RTRIM( ex_code ) ) ) ), 250 ) ) > 0" );}// Записываем найденных поставщика и склад__SQL{	UPDATE temp 	SET vendor			= '[[STDF( Продавец )]]',		vendorName		= '[[STDF( ПродавецНаименование )]]',		vendorAddress	= '[[STDF( ПродавецАдрес )]]',		vendorINN		= '[[STDF( ПродавецИНН )]]',		vendorKPP		= '[[STDF( ПродавецКПП )]]',		vendorRS		= '[[STDF( ПродавецСчет )]]',		vendorBIK		= '[[STDF( ПродавецБанк )]]',		sklad			= '[[STDF( Склад )]]',		skladaddress	= '[[STDF( Грузополучатель )]]',		vendorndok		= '[[STDF( Номер )]]',		vendordate		= '[[DTOC( Дата )]]',		code			= ''	FROM [[ИмяВременнойТаблицы]] temp}// Пытаемся по ШК найти товар__SQL{	UPDATE temp	SET code		= ISNULL( ( SELECT TOP 1 nn FROM sprnnbc WHERE bc = temp.barcode ), '' )	FROM [[ИмяВременнойТаблицы]] temp 	WHERE code = '' AND barcode <> '';}RETURN ИмяВременнойТаблицы;
+
+ДОБАВИТЬКОНТЕКСТ( "LOCAL: Номер text, Дата datetime, ПродавецНаименование text, ПродавецИНН text, ПродавецКПП text, ПродавецАдрес text, 
+						  ПродавецСчет text, ПродавецБанк text, ПродавецЭДОИД text, ПолучательНаименование text, ПолучательИНН text, 
+						  ПолучательКПП text, ПолучательЭДОИД text, Грузополучатель text, ГрузополучательКПП text, Сумма float, СуммаБезНДС float", "Документ" );
+ДОБАВИТЬКОНТЕКСТ( "LOCAL: НомерСтроки int, НаименованиеТовара text, Единица text, ОКЕИ text, Налог float, Количество float, 
+						  Сумма float, СуммаБезНДС float, ШтрихКод text ", "СтрокиДокумента" );
+ДОБАВИТЬКОНТЕКСТ( "LOCAL: НомерСтроки int, Марка text", "Марки" );
+ВЫБРАТЬКОНТЕКСТ( "" );
+
+Состояние				= "";
+ТекущийОбъект			= "";
+ТекущаяСумма			= "";
+Номер 					= "";
+Дата 					= {};
+ПродавецНаименование 	= "";
+ПродавецИНН 			= "";
+ПродавецКПП 			= "";
+ПродавецАдрес 			= "";
+ПродавецСчет 			= "";
+ПродавецБанк 			= "";
+ПродавецЭДОИД			= "";
+Грузополучатель			= "";
+ГрузополучательКПП		= "";
+ПолучательНаименование 	= "";
+ПолучательИНН 			= "";
+ПолучательКПП 			= "";
+ПолучательЭДОИД			= "";
+Сумма 					= 0.00;
+СуммаБезНДС				= 0.00;
+СуммаУвеличения 		= 0.00;
+СуммаУменьшения			= 0.00;
+СуммаБезНДСУвеличения 	= 0.00;
+СуммаБезНДСУменьшения	= 0.00;
+
+НомерСтроки 			= 0;
+НаименованиеТовара 		= "";
+Единица 				= "";
+ОКЕИ 					= "";
+Налог					= 0.00;
+Количество 				= 0.00;
+Сумма 					= 0.00;
+СуммаБезНДС				= 0.00;
+ШтрихКод 				= "";
+
+Файл					= ФАЙЛОТКРЫТЬ( ИмяФайла );
+IF ( Файл < 0 ) 
+{
+	СООБЩЕНИЕ( "Не удалось открыть файл '" + ИмяФайла + "' для загрузки данных." );
+	RETURN "";
+}
+СодержимоеФайла			= ФАЙЛПРОЧИТАТЬ( Файл, "S", ФАЙЛРАЗМЕР( Файл ) );
+ФАЙЛЗАКРЫТЬ( Файл );
+IF ( ATC( СодержимоеФайла, "DP_TOVTORG" ) > 0 )
+	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговТорг12" );
+ELSE IF ( "ON_KORSCHFDOPPR" $ СодержимоеФайла )
+	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговКУПД" );
+ELSE IF ( "DP_REZRUISP" $ СодержимоеФайла )
+	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговАКТ" );
+ELSE IF ( "ON_SCHET" $ СодержимоеФайла )
+	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэговСЧЕТ" );
+ELSE
+	РАЗОБРАТЬ_XML( СодержимоеФайла, "Сервис.ЭДОXMLРазборТэгов" );
+
+
+Продавец				= ЗАПРОС( "SELECT code FROM sprclient WHERE ediid <> '' AND ediid = '" + STDF( ПродавецЭДОИД ) + "'
+								   UNION SELECT code FROM sprclient WHERE inn = '" + STDF( ПродавецИНН ) + "' AND kpp = '" + STDF( ПродавецКПП ) + "'
+								   UNION SELECT code FROM sprclient WHERE inn = '" + STDF( ПродавецИНН ) + "' AND kpp = ''
+								   UNION SELECT code FROM sprclient WHERE name = '" + STDF( ПродавецНаименование ) + "' AND inn = ''" );
+
+Фирма					= ЗАПРОС( "SELECT code FROM sprfirm WHERE ediid <> '' AND ediid = '" + STDF( ПолучательЭДОИД ) + "'
+								   UNION SELECT code FROM sprfirm WHERE inn = '" + STDF( ПолучательИНН ) + "' AND kpp = '" + STDF( ПолучательКПП ) + "'
+								   UNION SELECT code FROM sprfirm WHERE inn = '" + STDF( ПолучательИНН ) + "' AND kpp = ''
+								   UNION SELECT code FROM sprfirm WHERE name = '" + STDF( ПолучательНаименование ) + "' AND inn = ''" );
+	
+// Создаем временную таблицу для сбора товаров
+ИмяВременнойТаблицы		= "##" + УНИКАЛЬНОЕИМЯ( );
+ЗАПРОС( "CREATE TABLE " + ИмяВременнойТаблицы + "( npp varchar( 10 ), name varchar( 250 ), vendorware varchar( 250 ), ed varchar( 20 ), barcode varchar( 250 ), kolp float, cena float, summa float, sumnds float,
+												   sumwonds float, cenawonds float, vendor varchar( 250 ), vendorname varchar( 250 ), vendorinn varchar( 250 ), vendorkpp varchar( 250 ), vendorrs varchar( 250 ), 
+												   vendorbik varchar( 250 ), vendoraddress varchar( 250 ), sklad varchar( 250 ), skladaddress varchar( 250 ), code char( 10 ), vendorndok varchar( 250 ), vendordate datetime, 
+												   identity_column int IDENTITY( 1, 1 ) )" );
+ВЫБРАТЬКОНТЕКСТ( "СтрокиДокумента" );
+ПЕРЕЙТИВНАЧАЛО( "СтрокиДокумента" );
+ПОКА( !КОНЕЦКОНТЕКСТА( "СтрокиДокумента" ) )
+{
+	Цена			= ЕСЛИ( ROUND( Количество, 3 ) == 0, 0, Сумма / Количество );
+	ЦенаБезНДС		= ЕСЛИ( ROUND( Количество, 3 ) == 0, 0, СуммаБезНДС / Количество );
+	СуммаНДС		= Сумма - СуммаБезНДС;
+	ЗАПРОС( "INSERT INTO " + ИмяВременнойТаблицы + "( npp, name, vendorware, ed, kolp, cena, summa, sumnds, sumwonds, cenawonds, barcode )
+			 VALUES ( '" + STDF( НомерСтроки ) + "', '" + STDF( НаименованиеТовара ) + "', '', '" + STDF( Единица ) + "', " + 
+						   STR( Количество, 20, 8 ) + ", " + STR( Цена, 20, 8 ) + ", " + STR( Сумма, 20, 8 ) + ", " + STR( СуммаНДС, 20, 8 ) + ", " +
+						   STR( СуммаБезНДС, 20, 8 ) + ", " + STR( ЦенаБезНДС, 20, 8 ) + ", '" + STDF( ШтрихКод ) + "' )" );
+									   
+	ПРОПУСТИТЬ( 1, "СтрокиДокумента" );
+}
+
+// Для определения склада используем следующий алгоритм
+// Сначала ищем название склада без пробелов в строке Грузополучатель.
+ВЫБРАТЬКОНТЕКСТ( "Документ" );
+ПЕРЕЙТИВНАЧАЛО( "Документ" );
+Склад 				= ЗАПРОС( "SELECT code FROM sprskl WHERE CHARINDEX( REPLACE( RTRIM( name ), ' ', '' ), '" + STDF( STRTRAN( Грузополучатель, " " , "" ) ) + "' ) > 0" );
+// Если склад не нашелся, то ищем его по КПП
+IF ( ПУСТО( Склад ) && !ПУСТО( ГрузополучательКПП ) ) 
+	Склад 			= ЗАПРОС( "SELECT code FROM sprskl WHERE kpp= '" + STDF( ГрузополучательКПП ) + "' )" );
+
+// Если склад так и не нашелся, то ищем его по наличию в поле грузополучатель в шапке эксель-документа обоих ключевых слов
+IF ( ПУСТО( Склад ) ) 
+{
+	Склад 			= ЗАПРОС( "DECLARE @address varchar( 250 );
+							   SELECT @address= '" + STDF( Грузополучатель ) + "';
+							   SELECT code 
+							   FROM sprskl 
+							   WHERE CHARINDEX( SUBSTRING( ex_code, 1, CHARINDEX( ' ', RTRIM( ex_code ) ) ), @address ) > 0 AND
+									 CHARINDEX( LTRIM( RTRIM( SUBSTRING( ex_code, CHARINDEX( ' ', RTRIM( ex_code ) ), 50 ) ) ), 
+									 SUBSTRING( @address, CHARINDEX( SUBSTRING( ex_code, 1, CHARINDEX( ' ', RTRIM( ex_code ) ) ), @address ) + LEN( SUBSTRING( ex_code, 1, CHARINDEX( ' ', RTRIM( ex_code ) ) ) ), 250 ) ) > 0" );
+}
+
+// Записываем найденных поставщика и склад
+__SQL
+{
+	UPDATE temp 
+	SET vendor			= '[[STDF( Продавец )]]',
+		vendorName		= '[[STDF( ПродавецНаименование )]]',
+		vendorAddress	= '[[STDF( ПродавецАдрес )]]',
+		vendorINN		= '[[STDF( ПродавецИНН )]]',
+		vendorKPP		= '[[STDF( ПродавецКПП )]]',
+		vendorRS		= '[[STDF( ПродавецСчет )]]',
+		vendorBIK		= '[[STDF( ПродавецБанк )]]',
+		sklad			= '[[STDF( Склад )]]',
+		skladaddress	= '[[STDF( Грузополучатель )]]',
+		vendorndok		= '[[STDF( Номер )]]',
+		vendordate		= '[[DTOC( Дата )]]',
+		code			= ''
+	FROM [[ИмяВременнойТаблицы]] temp
+}
+
+// Пытаемся по ШК найти товар
+__SQL
+{
+	UPDATE temp
+	SET code		= ISNULL( ( SELECT TOP 1 nn FROM sprnnbc WHERE bc = temp.barcode ), '' )
+	FROM [[ИмяВременнойТаблицы]] temp 
+	WHERE code = '' AND barcode <> '';
+}
+
+RETURN ИмяВременнойТаблицы;

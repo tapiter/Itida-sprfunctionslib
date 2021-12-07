@@ -36,7 +36,9 @@ IF ( !ПУСТО( НастройкиККТ ) )
 
 try
 {
-	IF ( fptr.ShowProperties(fptr.LIBFPTR_GUI_PARENT_NATIVE, 0 ) == 0 )
+	//IF ( fptr.ShowProperties(fptr.LIBFPTR_GUI_PARENT_QT, _ДЕСКРИПТОРОКНА ) == 0 )
+	//IF ( fptr.ShowProperties(fptr.LIBFPTR_GUI_PARENT_NATIVE, 0) == 0 )
+	IF ( fptr.ShowProperties(fptr.LIBFPTR_GUI_PARENT_NATIVE, ПЕРЕМЕННАЯ("HWND", 0) ) == 0 )
 	{
 		НастройкиККТ = fptr.getSettings();
 		//перезапишем параметр с настройками ККТ
@@ -53,7 +55,7 @@ catch()
 	_ОШИБКАОТКРЫТИЯДРАЙВЕРА = true;
 }
 
-IF (_ОШИБКАОТКРЫТИЯДРАЙВЕРА == true)
+IF ( _ОШИБКАОТКРЫТИЯДРАЙВЕРА )
 {
 	СООБЩЕНИЕ("Не удалось открыть окно настроек драйвера");
 	///*

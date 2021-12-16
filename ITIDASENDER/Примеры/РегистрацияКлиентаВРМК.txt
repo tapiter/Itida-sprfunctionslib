@@ -1,0 +1,104 @@
+//КоличествоБонусов = 50;
+Результат = true;
+СписокЗапрашиваемыхПараметров = "'РЕГКЛ_ИмяКлиента','РЕГКЛ_НомерТелефона','РЕГКЛ_ДатаРождения'";
+Сервис.РМККоманда( "ЗАПРОСПАРАМЕТРОВ", СписокЗапрашиваемыхПараметров );
+
+IF ( _РЕЗУЛЬТАТВВОДАПАРАМЕТРОВ )
+{
+	
+	IF (ПУСТО(РЕГКЛ_ИмяКлиента))
+	{
+		СООБЩЕНИЕ("Не заполнено имя клиента");		
+		THROW;
+	}
+	IF (ПУСТО(РЕГКЛ_НомерТелефона))
+	{
+		СООБЩЕНИЕ("Не заполнен телефон клиента");		
+		THROW;
+	}
+	IF (ПУСТО(РЕГКЛ_ДатаРождения))
+	{
+		СООБЩЕНИЕ("Не заполнена дата рождения клиента");		
+		THROW;
+	}
+	
+	try
+	{
+		//создаем карту
+		НомерКарты		= STDF( РЕГКЛ_НомерТелефона, 30 );		
+		СуммаБонусов = СТРОКА( КоличествоБонусов, 16, 2 );
+		
+		__SQL( )
+		{
+			DECLARE @ctext varchar( 250 ), @card_type varchar( 10 ), @bonus varchar( 10 ), @counter varchar( 10 ), @nominal float, @cardkind int;
+			DECLARE @discount varchar( 10 ), @str_date datetime, @end_date datetime, @cardgroup varchar( 10 ), @bonus_start int, @bonus_end int, @bonus_date_start datetime, @bonus_date_end datetime;
+			IF NOT EXISTS( SELECT * FROM sprmcard WHERE cardn = '[[ НомерКарты ]]' )
+			BEGIN
+				SELECT @ctext = '', @card_type= '1', @bonus= '', @counter= '', @nominal= 0, @cardkind= 0,
+					   @discount= '', @str_date= '', @end_date= '', @cardgroup= '';
+				SELECT @bonus= code FROM sprbonus WHERE bonusalias = 'БОНУС';
+				SELECT @bonus_start = activatedays FROM sprbonus WHERE bonusalias = 'БОНУС';
+				SELECT @bonus_end = expiredays FROM sprbonus WHERE bonusalias = 'БОНУС';
+				SELECT @bonus_date_start = DATEADD(day, @bonus_start, GETDATE() );
+				SELECT @bonus_date_end = DATEADD(day, @bonus_end + @bonus_start, GETDATE() );
+				
+				INSERT INTO sprmcard ( name, cardn, note, str_date, end_date, discount, parent, saldo, 
+									   ctext, card_type, bonus, counter, nominal, cardkind, cardgroup )
+				VALUES ( '[[ НомерКарты ]]', '[[ НомерКарты ]]', 'Карта зарегистрирована на кассе',
+						 @str_date, @end_date, @discount, '', '', @ctext, 
+						 @card_type, @bonus, @counter, @nominal, @cardkind, @cardgroup );
+						 
+				EXEC sp_bonuscharge '[[ НомерКарты ]]', 'БОНУС', '[[ СуммаБонусов ]]', 1, DEFAULT, @bonus_date_start, @bonus_date_end;
+			END
+		}
+		SQLERROR
+		{
+			СООБЩЕНИЕ( _ERRORDESCRIPTION );
+			THROW;
+		}
+		
+		//создаем клиента
+		КлиентИмя						= STDF( СЖАТЬПРОБЕЛЫ( РЕГКЛ_ИмяКлиента ));
+		//КлиентДатаРождения				= DTOC(РЕГКЛ_ДатаРождения, 7, ".") + " 00:00:00.000";		
+		КлиентДатаРождения				= РЕГКЛ_ДатаРождения;
+		КлиентТелефон					= STDF( СЖАТЬПРОБЕЛЫ( РЕГКЛ_НомерТелефона ) );
+		КлиентСМС						= "1";
+		КлиентРеклама					= "1";
+		
+		__SQL( )
+		{
+			IF NOT EXISTS( SELECT * FROM sprmclient WHERE ex_code = '[[ КлиентТелефон ]]' )
+				INSERT INTO sprmclient ( ex_code, name, ctext, telefon, adress, email, sex, birthdate, parent, f_sms, f_adv ) 
+							VALUES ( '[[ КлиентТелефон ]]','[[ КлиентИмя ]]', '', '[[ КлиентТелефон ]]', '',
+									 '', '', '[[ КлиентДатаРождения ]]', '', [[ КлиентСМС ]], [[ КлиентРеклама ]] );
+
+			UPDATE sprmclient 
+			SET card 	= (SELECT code FROM sprmcard WHERE cardn= '[[ НомерКарты ]]' AND cardn <> '' ),
+				cardn	= '[[ НомерКарты ]]' 
+			WHERE ex_code= '[[ КлиентТелефон ]]';
+			UPDATE sprmcard 
+			SET client = ( SELECT code FROM sprmclient WHERE ex_code= '[[ КлиентТелефон ]]' ) WHERE cardn = '[[ НомерКарты ]]';
+		}
+		SQLERROR
+		{
+			СООБЩЕНИЕ( _ERRORDESCRIPTION );
+			THROW;
+		}
+		
+		ДнейДОАктивации = VAL(ЗАПРОС("SELECT activatedays FROM sprbonus WHERE bonusalias = 'БОНУС'"));
+		ДнейДОСгорания = VAL(ЗАПРОС("SELECT expiredays FROM sprbonus WHERE bonusalias = 'БОНУС'"));
+		ДАТААКТАВАЦИИ = ДОБАВИТЬДНИ(Дата(),ДнейДОАктивации);
+		ДАТАСГОРАНИЯ = ДОБАВИТЬДНИ(ДАТА(), ДнейДОСгорания + ДнейДОАктивации);
+		//отправим смс о начислении
+		ТекстСообщения = "Начислено " + КоличествоБонусов + " бонусов! Срок действия до " + DTOC(ДАТАСГОРАНИЯ,0,".") + ". Спасибо за покупку!";
+		СООБЩЕНИЕ(ТекстСообщения, "Начисление бонусов");
+		ITIDASENDER.СМСАЭРО_ОТПРАВКАСМС("+" + РЕГКЛ_НомерТелефона, ТекстСообщения);
+	}
+	catch( )
+	{
+		Результат	= false;
+	}		
+}
+
+IF (!Результат)
+	СООБЩЕНИЕ("Ошибка регистрации клиента", "Ошибка");

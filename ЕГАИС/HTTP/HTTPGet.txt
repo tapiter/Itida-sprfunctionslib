@@ -1,1 +1,14 @@
-// Отправляем серверу переданный запросТекстОшибки	= "";HTTPRequest	= "GET " + СЖАТЬПРОБЕЛЫ( mURL ) + " HTTP/1.1" + CHR( 13 ) + CHR( 10 ) + 			  "Host: " + HTTPHost + CHR( 13 ) + CHR( 10 ) + 			  "User-Agent: itida/4.3.0" + CHR( 13 ) + CHR( 10 ) + 			  "Accept: */*"  + CHR( 13 ) + CHR( 10 ) + CHR( 13 ) + CHR( 10 );			  IF ( !СОКЕТПЕРЕДАТЬ( HTTPConnection, HTTPRequest ) ) {	ТекстОшибки		= _ERRORDESCRIPTION;	RETURN "";}RETURN ЕГАИС.HTTPServerResponse( @ТекстОшибки );
+// Отправляем серверу переданный запрос
+ТекстОшибки	= "";
+HTTPRequest	= "GET " + СЖАТЬПРОБЕЛЫ( mURL ) + " HTTP/1.1" + CHR( 13 ) + CHR( 10 ) + 
+			  "Host: " + HTTPHost + CHR( 13 ) + CHR( 10 ) + 
+			  "User-Agent: itida/4.3.0" + CHR( 13 ) + CHR( 10 ) + 
+			  "Accept: */*"  + CHR( 13 ) + CHR( 10 ) + CHR( 13 ) + CHR( 10 );
+			  
+IF ( !СОКЕТПЕРЕДАТЬ( HTTPConnection, HTTPRequest ) ) 
+{
+	ТекстОшибки		= _ERRORDESCRIPTION;
+	RETURN "";
+}
+
+RETURN ЕГАИС.HTTPServerResponse( @ТекстОшибки );

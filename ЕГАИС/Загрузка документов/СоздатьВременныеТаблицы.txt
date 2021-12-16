@@ -1,1 +1,109 @@
-// Функция создает временные таблицы, в которых будет накапливаться инфорамция из прочитанных файлов ЕГАИС// Всего 8 таблиц// 1. Контрагенты. В этой таблице будут собраны контрагенты, представленные как производители/импортеры, поставщики, грузоотправители. Идентификация по egaisid// 2. Товары. В этой таблице будут собраны поставляемые товары. Идентификация по alcocode// 3. Накладные. В этой таблице будет информация о накладных. Служит ля предварительной загрузки информации о накланой из файла, для последующего переноса в таблицу строк накладной. Содержит номер, дату и поставщика// 4. Строки накладных. В этой таблице будет информация о строках накладных. Идентификация по egaisid. Если egaisid не заполнен, то по номеру, дате и отправителю (поставщику)// 5. Справки Б. В этой таблице будет информация о справках Б, которые необходимо будет связать с накладными. Идентификация по egaisid. Для связи с накладной по номеру, дате и отправителю (поставщику)// 6. Строки Справки Б. В этой таблице будет информация о соответствии строк накладной и ИД справок Б. Идентификация по egaisid и wbr_identity.// 7. Ответы о доставке. В этой таблице будет информация о полученных подтверждениях / отказах о доставке актов. Идентификация по egaisid. У накладной устанавливается статус акта, указанный в ответе// 8. Исходные файлы. В этой таблице будут собраны загружаемые файлы, для того, чтобы потом перенести их в приложениях к документам (spec000_img). Идентификация по egaisid. Если egaisid не заполнен, то по номеру, дате и отправителю (поставщику)PUBLIC _РЕЗУЛЬТАТУДАЛЕНИЯ;_РЕЗУЛЬТАТУДАЛЕНИЯ			= true;_ERRORCODE					= 0;ErrorMessage				= "Ошибка создания временных таблиц для сбора данных." + CHR( 13 );ЕГАИСТаблицаКонтрагентов		= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаТоваров				= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаИмпортеров			= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаНакладных			= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаСтрокНакладных		= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаСправокБ			= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаСтрокСправокБ		= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаОтветов				= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаФайлов				= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаРасходных			= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаИнвентаризаций		= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаСтрокИнвентаризаций	= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаСправокАБ			= "##" + УНИКАЛЬНОЕИМЯ( );ЕГАИСТаблицаМарок				= "##" + УНИКАЛЬНОЕИМЯ( );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаКонтрагентов + " ( code char( 7 ) DEFAULT '', oref_INN varchar( 50 ), oref_KPP varchar( 50 ), oref_ClientRegId varchar( 50 ), oref_FullName varchar( 300 ), oref_ShortName varchar( 250 ), 													     oref_Country varchar( 250 ), oref_Index varchar( 50 ), oref_RegionCode varchar( 50 ), oref_area varchar( 50 ), oref_city varchar( 250 ), 													     oref_place varchar( 250 ), oref_street varchar( 250 ), oref_house varchar( 250 ), oref_building varchar( 250 ), oref_liter varchar( 50 ), oref_description varchar( 8000 ),														 oref_fl int, oref_ul int, oref_ts int, oref_fo int, oref_tsnum varchar( 50 ), oref_versionwb varchar( 20 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаТоваров + " ( nn char( 10 ) DEFAULT '', pref_Type varchar( 20 ), pref_FullName varchar( 300 ), pref_ShortName varchar( 250 ), pref_AlcCode varchar( 250 ), pref_UnitType varchar( 50 ),												    pref_Capacity float, pref_AlcVolume float, pref_ProductVCode varchar( 20 ), oref_ClientRegId varchar( 50 ), importer char( 7 ), producer char( 7 ), 													identity_column int IDENTITY( 1, 1 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаИмпортеров + " ( pref_AlcCode varchar( 250 ), oref_ClientRegId varchar( 50 ), importer char( 7 ), identity_column int IDENTITY( 1, 1 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаНакладных + " ( wb_NUMBER varchar( 50 ), wb_Date datetime, wb_Identity varchar( 250 ), oref_ClientRegId varchar( 250 ), wb_UnitType varchar( 20 ), wb_ChangeOwnership varchar( 50 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСтрокНакладных + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, wb_NUMBER varchar( 50 ), wb_Date datetime, wb_header_Identity varchar( 250 ),oref_ClientRegId varchar( 250 ), pref_BRegId varchar( 250 ), pref_F2RegId varchar( 250 ), pref_RegId varchar( 250 ), wb_FARegId varchar( 50 ),														   wb_UnitType varchar( 20 ), wb_Quantity float, wb_Price float, pref_AlcCode varchar( 70 ), wb_Identity varchar( 50 ), url varchar( 250 ), EGAISID VARCHAR( 250 ), nn char( 10 ), client char( 7 ), barcode2 varchar( 70 ), egaisver varchar( 250 ), wb_ChangeOwnership varchar( 50 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаМарок + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, EGAISID VARCHAR( 250 ), ce_f2regid varchar( 50 ), rst_inform2regid varchar( 50 ), wb_NUMBER varchar( 50 ), wb_Date datetime, wb_header_Identity varchar( 250 ), wb_Identity varchar( 50 ), oref_ClientRegId varchar( 250 ), ce_MarkInfo varchar( 50 ), ce_boxnumber varchar( 150 ), ce_amc varchar( 512 ), url varchar( 250 ) ) " );														 ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСправокБ + " ( wbr_WBNumber varchar( 50 ), wbr_WBDate datetime, wbr_Identity varchar( 250 ), oref_ClientRegId varchar( 250 ), wbr_WBRegId varchar( 250 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСтрокСправокБ + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, wbr_WBNumber varchar( 50 ), wbr_WBDate datetime, wbr_header_Identity varchar( 250 ), oref_ClientRegId varchar( 250 ), wbr_WBRegId varchar( 250 ), wbr_InformBRegId varchar( 250 ), wbr_InformF2RegId varchar( 250 ), wbr_Identity varchar( 50 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаОтветов + " ( tc_RegID varchar( 50 ), tc_Conclusion varchar( 250 ), tc_Comments varchar( 250 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаФайлов + " ( url varchar( 250 ), url_text varchar( max ), replyid varchar( 50 ), tc_RegID varchar( 50 ), wb_NUMBER varchar( 50 ), wb_Date datetime, oref_ClientRegId varchar( 250 ), wbr_WBRegId varchar( 250 ), EGAISID varchar( 250 ), identity_column int IDENTITY( 1, 1 ) ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаИнвентаризаций + " ( rst_RestsDate varchar( 50 ), replyid varchar( 50 ), ns_ReplyRestsShop_v2 int ) " );ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСтрокИнвентаризаций + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, replyid varchar( 50 ), pref_AlcCode varchar( 70 ), rst_Quantity float, 																rst_InformARegId varchar( 50 ), rst_InformBRegId varchar( 50 ), rst_InformF1RegId varchar( 50 ), rst_InformF2RegId varchar( 50 ), nn char( 10 ), identity_column int IDENTITY( 1, 1 ) ) " );// Для обработки наших отправленных расходных наклданыхЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаРасходных + " ( tc_RegID varchar( 50 ), wbr_WBRegId varchar( 250 ), wa_Identity varchar( 50 ), wa_WBRegId varchar( 50 ), wa_IsAccept varchar( 50 ), wbr_EGAISFixNumber varchar( 50 ), wbr_EGAISFixDate varchar( 50 ), tc_OpertaionResult varchar( 50 ),  ) " );// Для обработки данных об ИД справок А и Б в ответ на акт поставноки на балансЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСправокАБ + " ( aint_identity varchar( 50 ), aint_InformARegId varchar( 50 ), aint_BRegId varchar( 50 ), aint_Position varchar( 50 ) ) " );IF ( _ERRORCODE < 0 ){	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION, "Ошибка", 16 );	RETURN false;}// ЕГАИСТаблицаКонтрагентов запоняется из файлов наклданых и файлов справок Б// ЕГАИСТаблицаТоваров заполняется из файлов накладных// ЕГАИСТаблицаНакладных заполняется из файлов накладных, затем инфорам// ЕГАИСТаблицаСтрокНакладных заполняется из файлов накладных// ЕГАИСТаблицаСправокБ заполняется из файлов справок Б// ЕГАИСТаблицаСтрокСправокБ заполняется из файлов справок Б// ЕГАИСТаблицаОтветов заполняется из файлов ответов// ЕГАИСТаблицаФайлов заполняется из всех файлов// Для чтения данных из XML файлов необходимо сформировать контексты, на основе созданных таблицДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаКонтрагентов, "ЛокальныеКонтрагенты" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаТоваров, "ЛокальныеТовары" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаИмпортеров, "ЛокальныеИмпортеры" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаНакладных, "ЛокальныеНакладные" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСтрокНакладных, "ЛокальныеСтроки" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаМарок, "ЛокальныеМарки" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСправокБ, "ЛокальныеСправки" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСтрокСправокБ, "ЛокальныеСтрокСправки" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаОтветов, "ЛокальныеОтветы" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаФайлов, "ЛокальныеФайлы" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаРасходных, "ЛокальныеИДРасходныхНакладных" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаИнвентаризаций, "ЛокальныеИнвентаризации" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСтрокИнвентаризаций, "ЛокальныеСтрокиИнвентаризаций" );ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСправокАБ, "ЛокальныеИДСправокАБ" );ЕГАИСКоличествоСозданныхТоваров			= 0;ЕГАИСКоличествоСозданныхКонтрагентов	= 0;ЕГАИСКоличествоСозданныхНакладных		= 0;ЕГАИСКоличествоСозданныхИнвентаризаций	= 0;ЕГАИСКоличествоИзвещений				= 0;ЕГАИСКоличествоОтправленныхЗапросов		= 0;IF ( _ERRORCODE < 0 ){	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION, "Ошибка", 16 );	RETURN false;}RETURN true;
+// Функция создает временные таблицы, в которых будет накапливаться инфорамция из прочитанных файлов ЕГАИС
+// Всего 8 таблиц
+// 1. Контрагенты. В этой таблице будут собраны контрагенты, представленные как производители/импортеры, поставщики, грузоотправители. Идентификация по egaisid
+// 2. Товары. В этой таблице будут собраны поставляемые товары. Идентификация по alcocode
+// 3. Накладные. В этой таблице будет информация о накладных. Служит ля предварительной загрузки информации о накланой из файла, для последующего переноса в таблицу строк накладной. Содержит номер, дату и поставщика
+// 4. Строки накладных. В этой таблице будет информация о строках накладных. Идентификация по egaisid. Если egaisid не заполнен, то по номеру, дате и отправителю (поставщику)
+// 5. Справки Б. В этой таблице будет информация о справках Б, которые необходимо будет связать с накладными. Идентификация по egaisid. Для связи с накладной по номеру, дате и отправителю (поставщику)
+// 6. Строки Справки Б. В этой таблице будет информация о соответствии строк накладной и ИД справок Б. Идентификация по egaisid и wbr_identity.
+// 7. Ответы о доставке. В этой таблице будет информация о полученных подтверждениях / отказах о доставке актов. Идентификация по egaisid. У накладной устанавливается статус акта, указанный в ответе
+// 8. Исходные файлы. В этой таблице будут собраны загружаемые файлы, для того, чтобы потом перенести их в приложениях к документам (spec000_img). Идентификация по egaisid. Если egaisid не заполнен, то по номеру, дате и отправителю (поставщику)
+
+PUBLIC _РЕЗУЛЬТАТУДАЛЕНИЯ;
+_РЕЗУЛЬТАТУДАЛЕНИЯ			= true;
+
+_ERRORCODE					= 0;
+ErrorMessage				= "Ошибка создания временных таблиц для сбора данных." + CHR( 13 );
+
+ЕГАИСТаблицаКонтрагентов		= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаТоваров				= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаИмпортеров			= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаНакладных			= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаСтрокНакладных		= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаСправокБ			= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаСтрокСправокБ		= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаОтветов				= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаФайлов				= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаРасходных			= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаИнвентаризаций		= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаСтрокИнвентаризаций	= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаСправокАБ			= "##" + УНИКАЛЬНОЕИМЯ( );
+ЕГАИСТаблицаМарок				= "##" + УНИКАЛЬНОЕИМЯ( );
+
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаКонтрагентов + " ( code char( 7 ) DEFAULT '', oref_INN varchar( 50 ), oref_KPP varchar( 50 ), oref_ClientRegId varchar( 50 ), oref_FullName varchar( 300 ), oref_ShortName varchar( 250 ), 
+													     oref_Country varchar( 250 ), oref_Index varchar( 50 ), oref_RegionCode varchar( 50 ), oref_area varchar( 50 ), oref_city varchar( 250 ), 
+													     oref_place varchar( 250 ), oref_street varchar( 250 ), oref_house varchar( 250 ), oref_building varchar( 250 ), oref_liter varchar( 50 ), oref_description varchar( 8000 ),
+														 oref_fl int, oref_ul int, oref_ts int, oref_fo int, oref_tsnum varchar( 50 ), oref_versionwb varchar( 20 ) ) " );
+
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаТоваров + " ( nn char( 10 ) DEFAULT '', pref_Type varchar( 20 ), pref_FullName varchar( 300 ), pref_ShortName varchar( 250 ), pref_AlcCode varchar( 250 ), pref_UnitType varchar( 50 ),
+												    pref_Capacity float, pref_AlcVolume float, pref_ProductVCode varchar( 20 ), oref_ClientRegId varchar( 50 ), importer char( 7 ), producer char( 7 ), 
+													identity_column int IDENTITY( 1, 1 ) ) " );
+
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаИмпортеров + " ( pref_AlcCode varchar( 250 ), oref_ClientRegId varchar( 50 ), importer char( 7 ), identity_column int IDENTITY( 1, 1 ) ) " );
+
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаНакладных + " ( wb_NUMBER varchar( 50 ), wb_Date datetime, wb_Identity varchar( 250 ), oref_ClientRegId varchar( 250 ), wb_UnitType varchar( 20 ), wb_ChangeOwnership varchar( 50 ) ) " );
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСтрокНакладных + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, wb_NUMBER varchar( 50 ), wb_Date datetime, wb_header_Identity varchar( 250 ),oref_ClientRegId varchar( 250 ), pref_BRegId varchar( 250 ), pref_F2RegId varchar( 250 ), pref_RegId varchar( 250 ), wb_FARegId varchar( 50 ),
+														   wb_UnitType varchar( 20 ), wb_Quantity float, wb_Price float, pref_AlcCode varchar( 70 ), wb_Identity varchar( 50 ), url varchar( 250 ), EGAISID VARCHAR( 250 ), nn char( 10 ), client char( 7 ), barcode2 varchar( 70 ), egaisver varchar( 250 ), wb_ChangeOwnership varchar( 50 ) ) " );
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаМарок + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, EGAISID VARCHAR( 250 ), ce_f2regid varchar( 50 ), rst_inform2regid varchar( 50 ), wb_NUMBER varchar( 50 ), wb_Date datetime, wb_header_Identity varchar( 250 ), wb_Identity varchar( 50 ), oref_ClientRegId varchar( 250 ), ce_MarkInfo varchar( 50 ), ce_boxnumber varchar( 150 ), ce_amc varchar( 512 ), url varchar( 250 ) ) " );
+														 
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСправокБ + " ( wbr_WBNumber varchar( 50 ), wbr_WBDate datetime, wbr_Identity varchar( 250 ), oref_ClientRegId varchar( 250 ), wbr_WBRegId varchar( 250 ) ) " );
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСтрокСправокБ + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, wbr_WBNumber varchar( 50 ), wbr_WBDate datetime, wbr_header_Identity varchar( 250 ), oref_ClientRegId varchar( 250 ), wbr_WBRegId varchar( 250 ), wbr_InformBRegId varchar( 250 ), wbr_InformF2RegId varchar( 250 ), wbr_Identity varchar( 50 ) ) " );
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаОтветов + " ( tc_RegID varchar( 50 ), tc_Conclusion varchar( 250 ), tc_Comments varchar( 250 ) ) " );
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаФайлов + " ( url varchar( 250 ), url_text varchar( max ), replyid varchar( 50 ), tc_RegID varchar( 50 ), wb_NUMBER varchar( 50 ), wb_Date datetime, oref_ClientRegId varchar( 250 ), wbr_WBRegId varchar( 250 ), EGAISID varchar( 250 ), identity_column int IDENTITY( 1, 1 ) ) " );
+
+
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаИнвентаризаций + " ( rst_RestsDate varchar( 50 ), replyid varchar( 50 ), ns_ReplyRestsShop_v2 int ) " );
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСтрокИнвентаризаций + " ( code char( 3 ) DEFAULT '', ic int DEFAULT 0, replyid varchar( 50 ), pref_AlcCode varchar( 70 ), rst_Quantity float, 
+																rst_InformARegId varchar( 50 ), rst_InformBRegId varchar( 50 ), rst_InformF1RegId varchar( 50 ), rst_InformF2RegId varchar( 50 ), nn char( 10 ), identity_column int IDENTITY( 1, 1 ) ) " );
+
+// Для обработки наших отправленных расходных наклданых
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаРасходных + " ( tc_RegID varchar( 50 ), wbr_WBRegId varchar( 250 ), wa_Identity varchar( 50 ), wa_WBRegId varchar( 50 ), wa_IsAccept varchar( 50 ), wbr_EGAISFixNumber varchar( 50 ), wbr_EGAISFixDate varchar( 50 ), tc_OpertaionResult varchar( 50 ),  ) " );
+
+// Для обработки данных об ИД справок А и Б в ответ на акт поставноки на баланс
+ЗАПРОС( "CREATE TABLE " + ЕГАИСТаблицаСправокАБ + " ( aint_identity varchar( 50 ), aint_InformARegId varchar( 50 ), aint_BRegId varchar( 50 ), aint_Position varchar( 50 ) ) " );
+
+IF ( _ERRORCODE < 0 )
+{
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION, "Ошибка", 16 );
+	RETURN false;
+}
+
+// ЕГАИСТаблицаКонтрагентов запоняется из файлов наклданых и файлов справок Б
+// ЕГАИСТаблицаТоваров заполняется из файлов накладных
+// ЕГАИСТаблицаНакладных заполняется из файлов накладных, затем инфорам
+// ЕГАИСТаблицаСтрокНакладных заполняется из файлов накладных
+// ЕГАИСТаблицаСправокБ заполняется из файлов справок Б
+// ЕГАИСТаблицаСтрокСправокБ заполняется из файлов справок Б
+// ЕГАИСТаблицаОтветов заполняется из файлов ответов
+// ЕГАИСТаблицаФайлов заполняется из всех файлов
+
+// Для чтения данных из XML файлов необходимо сформировать контексты, на основе созданных таблиц
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаКонтрагентов, "ЛокальныеКонтрагенты" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаТоваров, "ЛокальныеТовары" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаИмпортеров, "ЛокальныеИмпортеры" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаНакладных, "ЛокальныеНакладные" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСтрокНакладных, "ЛокальныеСтроки" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаМарок, "ЛокальныеМарки" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСправокБ, "ЛокальныеСправки" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСтрокСправокБ, "ЛокальныеСтрокСправки" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаОтветов, "ЛокальныеОтветы" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаФайлов, "ЛокальныеФайлы" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаРасходных, "ЛокальныеИДРасходныхНакладных" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаИнвентаризаций, "ЛокальныеИнвентаризации" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСтрокИнвентаризаций, "ЛокальныеСтрокиИнвентаризаций" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ЕГАИСТаблицаСправокАБ, "ЛокальныеИДСправокАБ" );
+
+ЕГАИСКоличествоСозданныхТоваров			= 0;
+ЕГАИСКоличествоСозданныхКонтрагентов	= 0;
+ЕГАИСКоличествоСозданныхНакладных		= 0;
+ЕГАИСКоличествоСозданныхИнвентаризаций	= 0;
+ЕГАИСКоличествоИзвещений				= 0;
+ЕГАИСКоличествоОтправленныхЗапросов		= 0;
+
+IF ( _ERRORCODE < 0 )
+{
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION, "Ошибка", 16 );
+	RETURN false;
+}
+
+RETURN true;

@@ -1,1 +1,50 @@
-IF ( ПУСТО( МАРКА ) ) RETURN "";МАРКА					= СЖАТЬПРОБЕЛЫ( UPPER( МАРКА ) );FOR ( i = 1; i <= 26; i ++ ){	result[ i ] 		= 0;	presult[ i ] 		= 0;}multi36[ 1 ]			= 6;multi36[ 2 ]			= 3;МАРКА					= ПОДСТРОКА( МАРКА, 8, 12 );ДЛИНАМАРКИ				= ДЛИНА( МАРКА );FOR ( i = 1; i <= ДЛИНАМАРКИ; i++ ){	// Умножаем длинное число на 36	FOR ( jx = 1; jx <= 25; jx ++ )		presult[ jx ] = presult[ jx ] + INT( multi36[ 1 ] * result[ jx ] );	FOR ( jx = 1; jx <= 25; jx ++ )		presult[ jx + 1 ] = presult[ jx + 1 ] + INT( multi36[ 2 ] * result[ jx ] );	 	FOR ( ix = 1; ix <= 25; ix ++ )	{		presult[ ix + 1 ]	= presult[ ix + 1 ] + INT( presult[ ix ] / 10 );		presult[ ix ]		= INT( presult[ ix ] % 10 );	}		FOR ( i1 = 1; i1 <= 26; i1++ )	{		result[ i1 ]		= presult[ i1 ];		presult[ i1 ] 		= 0;	}	 	symbol					= UPPER( ПОДСТРОКА( МАРКА, i, 1 ) );	digit					= IIF( ASC( symbol ) > 57, -7, 0 ) + ASC( symbol ) - 48;	FOR ( ix = 1; ix <= 25; ix ++ )	{		result[ ix ] 		= result[ ix ] + INT( ЕСЛИ( ix > 2, 0, ЕСЛИ( ix == 1, digit % 10, digit / 10 ) ) );		result[ ix + 1 ] 	= result[ ix + 1 ] + INT( result[ ix ] / 10 );		result[ ix ] 		= INT( result[ ix ] % 10 );	}}RETURN  CHR( result[ 19 ] + 48 ) + CHR( result[ 18 ] + 48 ) + CHR( result[ 17 ] + 48 ) + CHR( result[ 16 ] + 48 ) + CHR( result[ 15 ] + 48 ) + CHR( result[ 14 ] + 48 ) + CHR( result[ 13 ] + 48 ) +	    CHR( result[ 12 ] + 48 ) + CHR( result[ 11 ] + 48 ) + CHR( result[ 10 ] + 48 ) + CHR( result[ 9  ] + 48 ) + CHR( result[ 8  ] + 48 ) + CHR( result[ 7  ] + 48 ) + CHR( result[ 6  ] + 48 ) +	    CHR( result[ 5  ] + 48 ) + CHR( result[ 4  ] + 48 ) + CHR( result[ 3  ] + 48 ) + CHR( result[ 2  ] + 48 ) + CHR( result[ 1  ] + 48 );
+
+IF ( ПУСТО( МАРКА ) ) RETURN "";
+
+МАРКА					= СЖАТЬПРОБЕЛЫ( UPPER( МАРКА ) );
+
+FOR ( i = 1; i <= 26; i ++ )
+{
+	result[ i ] 		= 0;
+	presult[ i ] 		= 0;
+}
+
+multi36[ 1 ]			= 6;
+multi36[ 2 ]			= 3;
+МАРКА					= ПОДСТРОКА( МАРКА, 8, 12 );
+ДЛИНАМАРКИ				= ДЛИНА( МАРКА );
+FOR ( i = 1; i <= ДЛИНАМАРКИ; i++ )
+{
+	// Умножаем длинное число на 36
+	FOR ( jx = 1; jx <= 25; jx ++ )
+		presult[ jx ] = presult[ jx ] + INT( multi36[ 1 ] * result[ jx ] );
+
+	FOR ( jx = 1; jx <= 25; jx ++ )
+		presult[ jx + 1 ] = presult[ jx + 1 ] + INT( multi36[ 2 ] * result[ jx ] );
+	 
+	FOR ( ix = 1; ix <= 25; ix ++ )
+	{
+		presult[ ix + 1 ]	= presult[ ix + 1 ] + INT( presult[ ix ] / 10 );
+		presult[ ix ]		= INT( presult[ ix ] % 10 );
+	}
+	
+	FOR ( i1 = 1; i1 <= 26; i1++ )
+	{
+		result[ i1 ]		= presult[ i1 ];
+		presult[ i1 ] 		= 0;
+	}
+	 
+	symbol					= UPPER( ПОДСТРОКА( МАРКА, i, 1 ) );
+	digit					= IIF( ASC( symbol ) > 57, -7, 0 ) + ASC( symbol ) - 48;
+
+	FOR ( ix = 1; ix <= 25; ix ++ )
+	{
+		result[ ix ] 		= result[ ix ] + INT( ЕСЛИ( ix > 2, 0, ЕСЛИ( ix == 1, digit % 10, digit / 10 ) ) );
+		result[ ix + 1 ] 	= result[ ix + 1 ] + INT( result[ ix ] / 10 );
+		result[ ix ] 		= INT( result[ ix ] % 10 );
+	}
+}
+
+RETURN  CHR( result[ 19 ] + 48 ) + CHR( result[ 18 ] + 48 ) + CHR( result[ 17 ] + 48 ) + CHR( result[ 16 ] + 48 ) + CHR( result[ 15 ] + 48 ) + CHR( result[ 14 ] + 48 ) + CHR( result[ 13 ] + 48 ) +
+	    CHR( result[ 12 ] + 48 ) + CHR( result[ 11 ] + 48 ) + CHR( result[ 10 ] + 48 ) + CHR( result[ 9  ] + 48 ) + CHR( result[ 8  ] + 48 ) + CHR( result[ 7  ] + 48 ) + CHR( result[ 6  ] + 48 ) +
+	    CHR( result[ 5  ] + 48 ) + CHR( result[ 4  ] + 48 ) + CHR( result[ 3  ] + 48 ) + CHR( result[ 2  ] + 48 ) + CHR( result[ 1  ] + 48 );

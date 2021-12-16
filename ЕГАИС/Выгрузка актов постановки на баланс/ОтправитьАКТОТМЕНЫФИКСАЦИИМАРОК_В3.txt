@@ -1,1 +1,94 @@
-ЕГАИСИД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );ДОБАВИТЬКОНТЕКСТ( "SELECT spr043.ndok, spr043.date, spr043.note					FROM spr043 spr043					WHERE spr043.identity_column = " + ИДДокумента, "ДокументИнфо" );НомерДокумента				= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.ndok );ПримечаниеКДокументу		= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.note );ТекстАкта		= "<?xml version=""1.0"" encoding=""UTF-8""?>	<ns:Documents Version=""1.0""		xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""		xmlns:ns= ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""		xmlns:pref=""http://fsrar.ru/WEGAIS/ProductRef_v2""		xmlns:awr=""http://fsrar.ru/WEGAIS/ActUnFixBarCode""		xmlns:ce=""http://fsrar.ru/WEGAIS/CommonV3"">		<ns:Owner>			<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>		</ns:Owner>		<ns:Document>			<ns:ActUnFixBarCode>			<awr:Identity>" + ИДДокумента + "</awr:Identity>			<awr:Header>				<awr:Number>" + НомерДокумента + "</awr:Number>				<awr:ActDate>" + DTOC( ДокументИнфо.date, 7,  "-" ) + "</awr:ActDate>				<awr:Note>" + ПримечаниеКДокументу + "</awr:Note>			</awr:Header>			<awr:Content>";УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );// Выбираем строки накладной для передачи в ЕГАИСДОБАВИТЬКОНТЕКСТ( "SELECT spec.informBID, spec.identity_column				   FROM spec043 spec				   WHERE spec.ic = " + ИДДокумента + " 				   ORDER BY dbo.fn_chartoint( npp ) ", "СписокСтрок" );WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) ){	ТекстАкта	+= "					<awr:Position>						<awr:Identity>" + STR( НОМЕРСТРОКИ( "СписокСтрок" ) + 1 ) + "</awr:Identity>						<awr:Inform2RegId>" + СписокСтрок.informBID + "</awr:Inform2RegId>";	// Теперь выводим акцизные марки	ДОБАВИТЬКОНТЕКСТ( "SELECT barcode FROM barcodes WHERE code = '043' AND spec_ic = " + СписокСтрок.identity_column, "СписокМарок" );	IF ( КОЛИЧЕСТВОСТРОК( "СписокМарок" ) > 0 )	{		ТекстАкта	+= "						<awr:MarkInfo>";		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокМарок" ) )		{			ТекстАкта	+= "							<ce:amc>" + ЕГАИС.ЗаменитьСимволы( СписокМарок.barcode ) + "</ce:amc> ";			ПРОПУСТИТЬ( 1,  "СписокМарок" );		}		УДАЛИТЬКОНТЕКСТ( "СписокМарок" );		ТекстАкта	+= "						</awr:MarkInfo>"	}	ТекстАкта	+= "					</awr:Position>";	ПРОПУСТИТЬ( 1, "СписокСтрок" );}УДАЛИТЬКОНТЕКСТ( "СписокСтрок" ); ТекстАкта		+="				</awr:Content>			</ns:ActUnFixBarCode>		</ns:Document>	</ns:Documents>";				// Отправляем получившийся текст на серверОтветСервера = "";IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/ActUnFixBarCode", ПЕРЕКОДИРОВАТЬ( ТекстАкта, "ANSI", "UTF-8" ), @ОтветСервера, "ActUnFixBarCode.xml" ) ) RETURN false; ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url SET FMTONLY OFF", "АктUrl" );ЗАГРУЗИТЬ( "АктUrl", "XMLSTRING", ОтветСервера, "url" );	// Если все благополучно отправлено, то сохраняем информацию в документеЗАПРОС( "UPDATE spr043 SET egaisstatus = 2, egaisreplyid= '" + STDF( АктUrl.url ) + "', egaiscomment= '' WHERE identity_column = " + ИДДокумента );ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 				   VALUES ( '043', " + ИДДокумента + ", 0, 'АктКвитанцияУТМ.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );УДАЛИТЬКОНТЕКСТ( "АктUrl" );ЕГАИС.ДобавитьЗапрос( 6, "043", ИДДокумента, ТекстАкта, ОтветСервера );RETURN true;
+
+ЕГАИСИД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT spr043.ndok, spr043.date, spr043.note
+					FROM spr043 spr043
+					WHERE spr043.identity_column = " + ИДДокумента, "ДокументИнфо" );
+
+НомерДокумента				= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.ndok );
+ПримечаниеКДокументу		= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.note );
+
+ТекстАкта		= 
+"<?xml version=""1.0"" encoding=""UTF-8""?>
+	<ns:Documents Version=""1.0""
+		xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
+		xmlns:ns= ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""
+		xmlns:pref=""http://fsrar.ru/WEGAIS/ProductRef_v2""
+		xmlns:awr=""http://fsrar.ru/WEGAIS/ActUnFixBarCode""
+		xmlns:ce=""http://fsrar.ru/WEGAIS/CommonV3"">
+		<ns:Owner>
+			<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>
+		</ns:Owner>
+		<ns:Document>
+			<ns:ActUnFixBarCode>
+			<awr:Identity>" + ИДДокумента + "</awr:Identity>
+			<awr:Header>
+				<awr:Number>" + НомерДокумента + "</awr:Number>
+				<awr:ActDate>" + DTOC( ДокументИнфо.date, 7,  "-" ) + "</awr:ActDate>
+				<awr:Note>" + ПримечаниеКДокументу + "</awr:Note>
+			</awr:Header>
+			<awr:Content>
+";
+УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );
+
+// Выбираем строки накладной для передачи в ЕГАИС
+ДОБАВИТЬКОНТЕКСТ( "SELECT spec.informBID, spec.identity_column
+				   FROM spec043 spec
+				   WHERE spec.ic = " + ИДДокумента + " 
+				   ORDER BY dbo.fn_chartoint( npp ) ", "СписокСтрок" );
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+{
+	ТекстАкта	+= 
+"
+					<awr:Position>
+						<awr:Identity>" + STR( НОМЕРСТРОКИ( "СписокСтрок" ) + 1 ) + "</awr:Identity>
+						<awr:Inform2RegId>" + СписокСтрок.informBID + "</awr:Inform2RegId>
+";
+
+	// Теперь выводим акцизные марки
+	ДОБАВИТЬКОНТЕКСТ( "SELECT barcode FROM barcodes WHERE code = '043' AND spec_ic = " + СписокСтрок.identity_column, "СписокМарок" );
+	IF ( КОЛИЧЕСТВОСТРОК( "СписокМарок" ) > 0 )
+	{
+		ТекстАкта	+= 
+"						<awr:MarkInfo>
+";
+		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокМарок" ) )
+		{
+			ТекстАкта	+= 
+"							<ce:amc>" + ЕГАИС.ЗаменитьСимволы( СписокМарок.barcode ) + "</ce:amc> 
+";
+			ПРОПУСТИТЬ( 1,  "СписокМарок" );
+		}
+		УДАЛИТЬКОНТЕКСТ( "СписокМарок" );
+		ТекстАкта	+= 
+"						</awr:MarkInfo>
+"
+	}
+	ТекстАкта	+= 
+"					</awr:Position>
+";
+	ПРОПУСТИТЬ( 1, "СписокСтрок" );
+}
+УДАЛИТЬКОНТЕКСТ( "СписокСтрок" ); 
+
+ТекстАкта		+=
+"				</awr:Content>
+			</ns:ActUnFixBarCode>
+		</ns:Document>
+	</ns:Documents>";
+				
+// Отправляем получившийся текст на сервер
+ОтветСервера = "";
+IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/ActUnFixBarCode", ПЕРЕКОДИРОВАТЬ( ТекстАкта, "ANSI", "UTF-8" ), @ОтветСервера, "ActUnFixBarCode.xml" ) ) RETURN false; 
+
+ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url SET FMTONLY OFF", "АктUrl" );
+ЗАГРУЗИТЬ( "АктUrl", "XMLSTRING", ОтветСервера, "url" );	
+
+// Если все благополучно отправлено, то сохраняем информацию в документе
+ЗАПРОС( "UPDATE spr043 SET egaisstatus = 2, egaisreplyid= '" + STDF( АктUrl.url ) + "', egaiscomment= '' WHERE identity_column = " + ИДДокумента );
+ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 
+				   VALUES ( '043', " + ИДДокумента + ", 0, 'АктКвитанцияУТМ.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );
+УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );
+УДАЛИТЬКОНТЕКСТ( "АктUrl" );
+ЕГАИС.ДобавитьЗапрос( 6, "043", ИДДокумента, ТекстАкта, ОтветСервера );
+
+RETURN true;

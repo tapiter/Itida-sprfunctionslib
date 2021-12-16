@@ -1,1 +1,48 @@
-ЕГАИСИД		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );ДОБАВИТЬКОНТЕКСТ( "SELECT spr002.ndok, spr002.date, spr002.egaisid, spr002.egaisactnote, spr002.egaisactreply					FROM spr002 spr002					WHERE spr002.identity_column = " + ИДДокумента, "ДокументИнфо" );IF ( !ПУСТО( ДокументИнфо.egaisid ) ){	IF ( ДокументИнфо.egaisactreply < 1 OR ДокументИнфо.egaisactreply > 2 )	{		СООБЩЕНИЕ( "Для расходной накладной № " + ДокументИнфо.ndok + " от " + DTOC( ДокументИнфо.date ) + " не указан тип ответа на акт. Ответ не был отправлен." );		RETURN false;	}	КомментарийКАкту	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisactnote );	ИДДокументаВЕГАИС	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisid );	ТипОтвета			= ЕСЛИ( ДокументИнфо.egaisactreply == 1, "Accepted", "Rejected" );	АктТекст	= "<?xml version=""1.0"" encoding=""UTF-8""?> <ns:Documents Version=""1.0"" 	xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" 	xmlns:ns= ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01"" 	xmlns:wt= ""http://fsrar.ru/WEGAIS/ConfirmTicket""> 	<ns:Owner> 		<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>	</ns:Owner> 	<ns:Document> 		<ns:ConfirmTicket> 			<wt:Header> 				<wt:IsConfirm>" + ТипОтвета + "</wt:IsConfirm> 				<wt:TicketNumber>0001</wt:TicketNumber> 				<wt:TicketDate>" + DTOC( ДАТА( ), 7, "-" ) + "</wt:TicketDate> 				<wt:WBRegId>" + ИДДокументаВЕГАИС + "</wt:WBRegId> 				<wt:Note>" + КомментарийКАкту + "</wt:Note> 			</wt:Header> 		</ns:ConfirmTicket> 	</ns:Document> </ns:Documents>";					// Отправляем получившийся текст на сервер	ОтветСервера = "";	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/WayBillTicket", ПЕРЕКОДИРОВАТЬ( АктТекст, "ANSI", "UTF-8" ), @ОтветСервера, "TTNConfirmTicket1.xml" ) ) RETURN false; 	// Если все благополучно отправлено, то сохраняем информацию в документе	ЗАПРОС( "UPDATE spr002 SET egaisstatus = 5 WHERE identity_column = " + ИДДокумента );	ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 					   VALUES ( '002', " + ИДДокумента + ", 0, 'ОтветНаАктПолучателя.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );	УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );	ЕГАИС.ДобавитьЗапрос( 5, "002", ИДДокумента, АктТекст, ОтветСервера );}RETURN true;
+ЕГАИСИД		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );
+
+ДОБАВИТЬКОНТЕКСТ( "SELECT spr002.ndok, spr002.date, spr002.egaisid, spr002.egaisactnote, spr002.egaisactreply
+					FROM spr002 spr002
+					WHERE spr002.identity_column = " + ИДДокумента, "ДокументИнфо" );
+IF ( !ПУСТО( ДокументИнфо.egaisid ) )
+{
+	IF ( ДокументИнфо.egaisactreply < 1 OR ДокументИнфо.egaisactreply > 2 )
+	{
+		СООБЩЕНИЕ( "Для расходной накладной № " + ДокументИнфо.ndok + " от " + DTOC( ДокументИнфо.date ) + " не указан тип ответа на акт. Ответ не был отправлен." );
+		RETURN false;
+	}
+	КомментарийКАкту	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisactnote );
+	ИДДокументаВЕГАИС	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisid );
+	ТипОтвета			= ЕСЛИ( ДокументИнфо.egaisactreply == 1, "Accepted", "Rejected" );
+	АктТекст	= "<?xml version=""1.0"" encoding=""UTF-8""?> 
+<ns:Documents Version=""1.0"" 
+	xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" 
+	xmlns:ns= ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01"" 
+	xmlns:wt= ""http://fsrar.ru/WEGAIS/ConfirmTicket""> 
+	<ns:Owner> 
+		<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>
+	</ns:Owner> 
+	<ns:Document> 
+		<ns:ConfirmTicket> 
+			<wt:Header> 
+				<wt:IsConfirm>" + ТипОтвета + "</wt:IsConfirm> 
+				<wt:TicketNumber>0001</wt:TicketNumber> 
+				<wt:TicketDate>" + DTOC( ДАТА( ), 7, "-" ) + "</wt:TicketDate> 
+				<wt:WBRegId>" + ИДДокументаВЕГАИС + "</wt:WBRegId> 
+				<wt:Note>" + КомментарийКАкту + "</wt:Note> 
+			</wt:Header> 
+		</ns:ConfirmTicket> 
+	</ns:Document> 
+</ns:Documents>";
+				
+	// Отправляем получившийся текст на сервер
+	ОтветСервера = "";
+	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/WayBillTicket", ПЕРЕКОДИРОВАТЬ( АктТекст, "ANSI", "UTF-8" ), @ОтветСервера, "TTNConfirmTicket1.xml" ) ) RETURN false; 
+
+	// Если все благополучно отправлено, то сохраняем информацию в документе
+	ЗАПРОС( "UPDATE spr002 SET egaisstatus = 5 WHERE identity_column = " + ИДДокумента );
+	ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 
+					   VALUES ( '002', " + ИДДокумента + ", 0, 'ОтветНаАктПолучателя.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );
+	УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );
+	ЕГАИС.ДобавитьЗапрос( 5, "002", ИДДокумента, АктТекст, ОтветСервера );
+}
+RETURN true;

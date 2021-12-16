@@ -1,1 +1,54 @@
-IF ( ПУСТО( КОДДОКУМЕНТА ) || ПУСТО( ИДДОКУМЕНТА ) ){	КОДДОКУМЕНТА	= "";	ИДДОКУМЕНТА		= 0;}ЕГАИСИД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );ОтветСервера 	= "";ТекстЗапроса	= "<?xml version=""1.0"" encoding=""UTF-8""?><ns:Documents Version=""1.0""xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""xmlns:ns=""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""xmlns:qp=""http://fsrar.ru/WEGAIS/QueryParameters""><ns:Owner><ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID></ns:Owner><ns:Document><ns:QueryRestBCode><qp:Parameters><qp:Parameter><qp:Name>ФОРМА</qp:Name><qp:Value>" + ЕГАИС.ЗаменитьСимволы( ИДСПРАВКИБ ) + "</qp:Value></qp:Parameter></qp:Parameters></ns:QueryRestBCode></ns:Document></ns:Documents>";// Если есть очередь запросов, то доабвляем в нее, иначе, сразу отправляем в УТМIF ( ЗАПРОС( "SELECT CASE WHEN EXISTS( SELECT * FROM egais_queryqueue WHERE ent ='" + СКЛАД + "' AND query_type = 24 AND status = 0 ) THEN 1 ELSE 0 END" ) == 1 ){	// Записываем запросы в очередь для отправик в ЕГАИС	_ERRORDESCRIPTION		= "";	IF ( !ЗАПРОС( "INSERT INTO egais_queryqueue ( ent, query_type, query_param, status, query_date, query_cancelled, query_id, query_text, priority )				   VALUES ( '" + СКЛАД + "', 24, '" + STDF( ИДСПРАВКИБ ) + "', 0, GETDATE( ), 0, '', '" + STDF( ТекстЗапроса ) + "', 0 )" ) )	{		ТекстОшибки			= _ERRORDESCRIPTION;		СООБЩЕНИЕ( "При формировании очереди запросов возникла ошибка: " + ТекстОшибки );		RETURN false;	}	СООБЩЕНИЕ( "Запрос успешно добавлен в очередь запросов в ЕГАИС." );}ELSE{	// Отправляем получившийся текст на сервер	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/QueryRestBCode", ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "ANSI", "UTF-8" ), @ОтветСервера, "QueryRestBCode.xml" ) ) 		RETURN false; 	ЕГАИС.ДобавитьЗапрос( 24, КОДДОКУМЕНТА, ИДДОКУМЕНТА, ТекстЗапроса, ОтветСервера );	СООБЩЕНИЕ( "Запрос успешно отправлен." );}RETURN true;
+
+IF ( ПУСТО( КОДДОКУМЕНТА ) || ПУСТО( ИДДОКУМЕНТА ) )
+{
+	КОДДОКУМЕНТА	= "";
+	ИДДОКУМЕНТА		= 0;
+}
+
+ЕГАИСИД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );
+ОтветСервера 	= "";
+
+ТекстЗапроса	= "<?xml version=""1.0"" encoding=""UTF-8""?>
+<ns:Documents Version=""1.0""
+xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
+xmlns:ns=""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""
+xmlns:qp=""http://fsrar.ru/WEGAIS/QueryParameters"">
+<ns:Owner>
+<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>
+</ns:Owner>
+<ns:Document>
+<ns:QueryRestBCode>
+<qp:Parameters>
+<qp:Parameter>
+<qp:Name>ФОРМА</qp:Name>
+<qp:Value>" + ЕГАИС.ЗаменитьСимволы( ИДСПРАВКИБ ) + "</qp:Value>
+</qp:Parameter>
+</qp:Parameters>
+</ns:QueryRestBCode>
+</ns:Document>
+</ns:Documents>";
+
+// Если есть очередь запросов, то доабвляем в нее, иначе, сразу отправляем в УТМ
+IF ( ЗАПРОС( "SELECT CASE WHEN EXISTS( SELECT * FROM egais_queryqueue WHERE ent ='" + СКЛАД + "' AND query_type = 24 AND status = 0 ) THEN 1 ELSE 0 END" ) == 1 )
+{
+	// Записываем запросы в очередь для отправик в ЕГАИС
+	_ERRORDESCRIPTION		= "";
+	IF ( !ЗАПРОС( "INSERT INTO egais_queryqueue ( ent, query_type, query_param, status, query_date, query_cancelled, query_id, query_text, priority )
+				   VALUES ( '" + СКЛАД + "', 24, '" + STDF( ИДСПРАВКИБ ) + "', 0, GETDATE( ), 0, '', '" + STDF( ТекстЗапроса ) + "', 0 )" ) )
+	{
+		ТекстОшибки			= _ERRORDESCRIPTION;
+		СООБЩЕНИЕ( "При формировании очереди запросов возникла ошибка: " + ТекстОшибки );
+		RETURN false;
+	}
+	СООБЩЕНИЕ( "Запрос успешно добавлен в очередь запросов в ЕГАИС." );
+}
+ELSE
+{
+	// Отправляем получившийся текст на сервер
+	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/QueryRestBCode", ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "ANSI", "UTF-8" ), @ОтветСервера, "QueryRestBCode.xml" ) ) 
+		RETURN false; 
+
+	ЕГАИС.ДобавитьЗапрос( 24, КОДДОКУМЕНТА, ИДДОКУМЕНТА, ТекстЗапроса, ОтветСервера );
+	СООБЩЕНИЕ( "Запрос успешно отправлен." );
+}
+RETURN true;

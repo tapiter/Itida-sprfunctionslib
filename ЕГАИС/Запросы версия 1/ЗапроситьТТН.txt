@@ -1,1 +1,28 @@
-ЕГАИСИД					= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );ОтветСервераНаЗапрос 	= "";	ТекстЗапроса	= "<?xml version=""1.0"" encoding=""UTF-8""?><ns:Documents Version=""1.0""xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""xmlns:ns=""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""xmlns:qp=""http://fsrar.ru/WEGAIS/QueryParameters""><ns:Owner><ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID></ns:Owner><ns:Document><ns:QueryResendDoc><qp:Parameters><qp:Parameter><qp:Name>WBREGID</qp:Name><qp:Value>" + ЕГАИС.ЗаменитьСимволы( ТТНИД ) + "</qp:Value></qp:Parameter></qp:Parameters></ns:QueryResendDoc></ns:Document></ns:Documents>";// Отправляем получившийся текст на серверIF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/QueryResendDoc", ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "ANSI", "UTF-8" ), @ОтветСервераНаЗапрос, "QueryResendDoc.xml" ) ) RETURN false; ЕГАИС.ДобавитьЗапрос( 10, "", 0, ТекстЗапроса, ОтветСервераНаЗапрос );IF ( ПУСТО( БезСообщений ) ) СООБЩЕНИЕ( "Запрос успешно отправлен." );RETURN true;
+ЕГАИСИД					= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );
+ОтветСервераНаЗапрос 	= "";
+	
+ТекстЗапроса	= "<?xml version=""1.0"" encoding=""UTF-8""?>
+<ns:Documents Version=""1.0""
+xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
+xmlns:ns=""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""
+xmlns:qp=""http://fsrar.ru/WEGAIS/QueryParameters"">
+<ns:Owner>
+<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>
+</ns:Owner>
+<ns:Document>
+<ns:QueryResendDoc>
+<qp:Parameters>
+<qp:Parameter>
+<qp:Name>WBREGID</qp:Name>
+<qp:Value>" + ЕГАИС.ЗаменитьСимволы( ТТНИД ) + "</qp:Value>
+</qp:Parameter>
+</qp:Parameters>
+</ns:QueryResendDoc>
+</ns:Document>
+</ns:Documents>";
+
+// Отправляем получившийся текст на сервер
+IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/QueryResendDoc", ПЕРЕКОДИРОВАТЬ( ТекстЗапроса, "ANSI", "UTF-8" ), @ОтветСервераНаЗапрос, "QueryResendDoc.xml" ) ) RETURN false; 
+ЕГАИС.ДобавитьЗапрос( 10, "", 0, ТекстЗапроса, ОтветСервераНаЗапрос );
+IF ( ПУСТО( БезСообщений ) ) СООБЩЕНИЕ( "Запрос успешно отправлен." );
+RETURN true;

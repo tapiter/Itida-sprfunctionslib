@@ -1,1 +1,11 @@
-ДОБАВИТЬКОНТЕКСТ( "SELECT SPACE( 250 ) AS url, SPACE( 250 ) AS sign", "ПодписьУТМ" );ЗАГРУЗИТЬ( "ПодписьУТМ", "XMLSTRING", ПодписьУТМ, "", "", "", "" );	__SQL {	INSERT INTO egais_requestslist ( code, ic, request_type, request_id, request_date, request, signature ) 	VALUES ( '[[КОДДОКУМЕНТА]]', [[ИДДОКУМЕНТА]], [[ТИПЗАПРОСА]], '[[STDF( ПодписьУТМ.url, 250 )]]', GETDATE( ), '[[STDF( ТЕКСТЗАПРОСА )]]', '[[STDF( ПодписьУТМ.sign, 250 )]]' )}УДАЛИТЬКОНТЕКСТ( "ПодписьУТМ" );
+
+ДОБАВИТЬКОНТЕКСТ( "SELECT SPACE( 250 ) AS url, SPACE( 250 ) AS sign", "ПодписьУТМ" );
+ЗАГРУЗИТЬ( "ПодписьУТМ", "XMLSTRING", ПодписьУТМ, "", "", "", "" );	
+
+__SQL 
+{
+	INSERT INTO egais_requestslist ( code, ic, request_type, request_id, request_date, request, signature ) 
+	VALUES ( '[[КОДДОКУМЕНТА]]', [[ИДДОКУМЕНТА]], [[ТИПЗАПРОСА]], '[[STDF( ПодписьУТМ.url, 250 )]]', GETDATE( ), '[[STDF( ТЕКСТЗАПРОСА )]]', '[[STDF( ПодписьУТМ.sign, 250 )]]' )
+}
+
+УДАЛИТЬКОНТЕКСТ( "ПодписьУТМ" );

@@ -1,1 +1,134 @@
-// Прежде всего проверяем наличие загруженных товаров в справочнике по алко коду // Если такой товар уже есть, то если указан параметр Изменять реквизиты товара в соответствии с данными ЕГАИС, то вносим изменения в карточку// Если товара еще нет, то ищем по наименованию и проставляем алко код. Если не находим, то добавляем новую карточку в справочник.// Если в параметрах указано, что нужно ссоздавать новые товары, то ничего не делаемIF ( !СОЗДАВАТЬТОВАРЫ || ПЕРЕМЕННАЯ( "_ЕГАИСНЕСОЗДАВАТЬТОВАРЫ", false ) ) RETURN true;// Читаем сохраненные параметры ЕГАИСИЗМЕНЯТЬТОВАРЫ			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_MODIFYWARES" + СКЛАД + "'" ) ) != 0;ИДПАПКИТОВАРОВ				= ЗАПРОС( "SELECT CONVERT( varchar( 50 ), value ) FROM param_ex WHERE param= 'EGAIS_WAREFOLDER" + СКЛАД + "'" );IF ( !ПУСТО( ИДПАПКИТОВАРОВ ) )	ЕГАИСПАПКАТОВАРОВ		= ЗАПРОС( "SELECT identity_column FROM spectree WHERE uniqueid= '" + ИДПАПКИТОВАРОВ + "'" );ELSE	ЕГАИСПАПКАТОВАРОВ		= ЗАПРОС( "SELECT identity_column FROM spectree WHERE code= dbo.fn_getsuitabletree( '', '_MN', 'SPR','S02') AND folder = 1 AND parent = 0" );ЕГАИСКОДГРУППЫРЕСУРСОВ		= ЗАПРОС( "SELECT ex_field FROM spectree WHERE identity_column = " + ЕГАИСПАПКАТОВАРОВ );ЕГАИСКОДНАЛОГА				= ЗАПРОС( "SELECT value FROM param WHERE param = 'kodn'" );_ERRORCODE					= 0;ErrorMessage 				= "Ошибка загрузки товаров." + CHR( 13 ); КОДНАЛОГА					= ЕГАИСКОДНАЛОГА;ЕДИНИЦАОБЪЕМА				= ЕГАИСЕдиницаЛитры; //"л";ЕДИНИЦАВЕСА					= "";ПРОЦЕНТНАЦЕНКИ				= 0;МИНИМАЛЬНЫЙОСТАТОК			= 0;ЕСТУБЫЛЬ					= "";ЕСТУБЫЛЬХРАН				= "";ЕСТУБЫЛЬЗНАЧ				= 0;ЕСТУБЫЛЬХРАНЗНАЧ			= 0;ГРУППАТОВАРОВ				= ЕГАИСКОДГРУППЫРЕСУРСОВ;ЕДИНИЦАИЗМЕРЕНИЯГРП			= "";IF  ( !ПУСТО( ГРУППАТОВАРОВ ) ){	ДОБАВИТЬКОНТЕКСТ("SELECT kodn, ed_weight, margin_proc, min_, ed, edd_litr, lossrealization, lossstore, lossreal_val, lossstore_val					  FROM sprres_g 																							  		  WHERE code= '" + ГРУППАТОВАРОВ + "'", "ГруппаИнфо" );	IF ( !ПУСТО( ГруппаИнфо.kodn ) )		КОДНАЛОГА			= ГруппаИнфо.kodn;	IF ( !ПУСТО( ГруппаИнфо.ed ) )		ЕДИНИЦАИЗМЕРЕНИЯГРП	= ГруппаИнфо.ed;	IF ( !ПУСТО( ГруппаИнфо.edd_litr ) )		ЕДИНИЦАОБЪЕМА		= ГруппаИнфо.edd_litr;	IF ( !ПУСТО( ГруппаИнфо.ed_weight ) )		ЕДИНИЦАВЕСА			= ГруппаИнфо.ed_weight;	IF ( !ПУСТО( ГруппаИнфо.margin_proc ) )		ПРОЦЕНТНАЦЕНКИ		= ГруппаИнфо.margin_proc	IF ( !ПУСТО( ГруппаИнфо.min_ ) )		МИНИМАЛЬНЫЙОСТАТОК	= ГруппаИнфо.min_;	ЕСТУБЫЛЬ				= ГруппаИнфо.lossrealization;	ЕСТУБЫЛЬХРАН			= ГруппаИнфо.lossstore;	ЕСТУБЫЛЬЗНАЧ			= ГруппаИнфо.lossreal_val;	ЕСТУБЫЛЬХРАНЗНАЧ		= ГруппаИнфо.lossstore_val;}// Добавляем новые карточки в справочник товаровДОБАВИТЬКОНТЕКСТ( "SELECT alcocode, identity_column FROM sprres_egais WHERE code = '' " + ЕСЛИ( !ПУСТО( ИДЗАГРУЗКИ ), "AND loadid = '" + STDF( ИДЗАГРУЗКИ ) + "'", "" ), "НовыеТовары" );IF ( КОЛИЧЕСТВОСТРОК( "НовыеТовары" ) > 2 )	ИНДИКАТОР( "Добавление новых товаров", КОЛИЧЕСТВОСТРОК( "НовыеТовары" ) );	WHILE ( !КОНЕЦКОНТЕКСТА( "НовыеТовары" ) ){	IF ( _ERRORCODE < 0 )	{		ИНДИКАТОР( );		СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );		RETURN false;	}	IF ( КОЛИЧЕСТВОСТРОК( "НовыеТовары" ) > 2 )		ИНДИКАТОР( НОМЕРСТРОКИ( "НовыеТовары" ), НовыеТовары.alcocode );	IF ( ПУСТО( ЕДИНИЦАИЗМЕРЕНИЯГРП ) )		ЕДИНИЦАИЗМЕРЕНИЯ	= ЗАПРОС( "SELECT CASE WHEN packed = 0 OR d_litr = 0 THEN '" + ЕГАИСЕдиницаЛитры + "' ELSE '" + ЕГАИСЕдиницаШтуки + "' END FROM sprres_egais WHERE alcocode= '" + НовыеТовары.alcocode + "'" ); //"шт";	ELSE		ЕДИНИЦАИЗМЕРЕНИЯ	= ЕДИНИЦАИЗМЕРЕНИЯГРП;			// Добвляем новый товар в нужную папку	ИДТовара				= ЗАПРОС( "INSERT INTO sprres ( code, maincode, name, shortname, alcocode, nnvid, d_litr, a_proc, importer, cat, kodn, note, ccgroup, group_, parent,															ed, edd_litr, ed_weight, margin_proc, min_, lossrealization, lossstore, lossreal_val, lossstore_val )									   SELECT '', dbo.fn_getnextmaincode( ), name, CASE WHEN shortname = '' THEN name ELSE shortname END, alcocode, 											  nnvid, d_litr, a_proc, CASE WHEN importer = '' THEN producer ELSE importer END, 											  '001', '" + КОДНАЛОГА + "', 'Товар добавлен автоматически из ЕГАИС', '0000000001', '" + ЕГАИСКОДГРУППЫРЕСУРСОВ + "', " + ЕГАИСПАПКАТОВАРОВ + ", 											  '" + ЕДИНИЦАИЗМЕРЕНИЯ + "', '" + ЕДИНИЦАОБЪЕМА + "', '" + ЕДИНИЦАВЕСА + "', " + STR( ПРОЦЕНТНАЦЕНКИ, 16, 2 ) + ", 											  " + STR( МИНИМАЛЬНЫЙОСТАТОК, 16, 2 ) + ", '" + ЕСТУБЫЛЬ + "', '" + ЕСТУБЫЛЬХРАН	+ "', " + STR( ЕСТУБЫЛЬЗНАЧ, 16 ,2 ) + ", " + STR( ЕСТУБЫЛЬХРАНЗНАЧ, 16, 2 ) + "									   FROM sprres_egais 									   WHERE identity_column = " + STR( НовыеТовары.identity_column ) );									   	НовыйКодТовара			= ЗАПРОС( "SELECT code FROM sprres WHERE identity_column = " + ИДТовара );	// Связываем товар и алкокод	ЗАПРОС( "UPDATE sprres_egais SET code= '" + НовыйКодТовара + "' WHERE identity_column= " + НовыеТовары.identity_column );	// Если в папке указана группа товаров, то переносим доп. единицы измерения и проценты наценки из этой группы в новый товар	IF  ( !ПУСТО( ГРУППАТОВАРОВ ) )	{		ДОБАВИТЬКОНТЕКСТ( "INSERT INTO sprnncen ( nn, clev, margin_proc )						   SELECT sprres.code, mplist.clev, mplist.margin_proc 						   FROM sprres_g_mplist mplist						   INNER JOIN sprres sprres ON sprres.group_ = mplist.code						   WHERE sprres.identity_column = " + ИДТовара + " AND								 NOT EXISTS( SELECT * FROM sprnncen WHERE nn= sprres.code AND clev= mplist.clev )", "ПроцентыНаценки" );		УДАЛИТЬКОНТЕКСТ( "ПроцентыНаценки" );		ДОБАВИТЬКОНТЕКСТ( "INSERT INTO sprres_ed ( code, maincode, koef, koef_c, ed, f_main, barcode, onekoef )						   SELECT sprres.code, sprres.maincode, sprres_g_edlist.koef, sprres_g_edlist.koef_c, sprres_g_edlist.ed, sprres_g_edlist.f_main, sprres_g_edlist.barcode, sprres_g_edlist.onekoef 																   FROM sprres_g_edlist sprres_g_edlist						   INNER JOIN sprres sprres ON sprres.group_ = sprres_g_edlist.code						   WHERE sprres.identity_column = " + ИДТовара, "ДопЕдиницы" );		УДАЛИТЬКОНТЕКСТ( "ДопЕдиницы" );	}	ЕГАИСКоличествоСозданныхТоваров++;	ВЫБРАТЬКОНТЕКСТ( "НовыеТовары" );	ПРОПУСТИТЬ( 1, "НовыеТовары" );}УДАЛИТЬКОНТЕКСТ( "НовыеТовары" );ИНДИКАТОР( );IF ( _ERRORCODE < 0 ){	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );	RETURN false;}RETURN true;
+// Прежде всего проверяем наличие загруженных товаров в справочнике по алко коду 
+// Если такой товар уже есть, то если указан параметр Изменять реквизиты товара в соответствии с данными ЕГАИС, то вносим изменения в карточку
+// Если товара еще нет, то ищем по наименованию и проставляем алко код. Если не находим, то добавляем новую карточку в справочник.
+
+// Если в параметрах указано, что нужно ссоздавать новые товары, то ничего не делаем
+IF ( !СОЗДАВАТЬТОВАРЫ || ПЕРЕМЕННАЯ( "_ЕГАИСНЕСОЗДАВАТЬТОВАРЫ", false ) ) RETURN true;
+
+// Читаем сохраненные параметры 
+ЕГАИСИЗМЕНЯТЬТОВАРЫ			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_MODIFYWARES" + СКЛАД + "'" ) ) != 0;
+ИДПАПКИТОВАРОВ				= ЗАПРОС( "SELECT CONVERT( varchar( 50 ), value ) FROM param_ex WHERE param= 'EGAIS_WAREFOLDER" + СКЛАД + "'" );
+
+IF ( !ПУСТО( ИДПАПКИТОВАРОВ ) )
+	ЕГАИСПАПКАТОВАРОВ		= ЗАПРОС( "SELECT identity_column FROM spectree WHERE uniqueid= '" + ИДПАПКИТОВАРОВ + "'" );
+ELSE
+	ЕГАИСПАПКАТОВАРОВ		= ЗАПРОС( "SELECT identity_column FROM spectree WHERE code= dbo.fn_getsuitabletree( '', '_MN', 'SPR','S02') AND folder = 1 AND parent = 0" );
+
+
+ЕГАИСКОДГРУППЫРЕСУРСОВ		= ЗАПРОС( "SELECT ex_field FROM spectree WHERE identity_column = " + ЕГАИСПАПКАТОВАРОВ );
+ЕГАИСКОДНАЛОГА				= ЗАПРОС( "SELECT value FROM param WHERE param = 'kodn'" );
+
+_ERRORCODE					= 0;
+ErrorMessage 				= "Ошибка загрузки товаров." + CHR( 13 ); 
+
+КОДНАЛОГА					= ЕГАИСКОДНАЛОГА;
+ЕДИНИЦАОБЪЕМА				= ЕГАИСЕдиницаЛитры; //"л";
+ЕДИНИЦАВЕСА					= "";
+ПРОЦЕНТНАЦЕНКИ				= 0;
+МИНИМАЛЬНЫЙОСТАТОК			= 0;
+ЕСТУБЫЛЬ					= "";
+ЕСТУБЫЛЬХРАН				= "";
+ЕСТУБЫЛЬЗНАЧ				= 0;
+ЕСТУБЫЛЬХРАНЗНАЧ			= 0;
+ГРУППАТОВАРОВ				= ЕГАИСКОДГРУППЫРЕСУРСОВ;
+ЕДИНИЦАИЗМЕРЕНИЯГРП			= "";
+
+IF  ( !ПУСТО( ГРУППАТОВАРОВ ) )
+{
+	ДОБАВИТЬКОНТЕКСТ("SELECT kodn, ed_weight, margin_proc, min_, ed, edd_litr, lossrealization, lossstore, lossreal_val, lossstore_val
+					  FROM sprres_g 																				
+			  		  WHERE code= '" + ГРУППАТОВАРОВ + "'", "ГруппаИнфо" );
+	IF ( !ПУСТО( ГруппаИнфо.kodn ) )
+		КОДНАЛОГА			= ГруппаИнфо.kodn;
+
+	IF ( !ПУСТО( ГруппаИнфо.ed ) )
+		ЕДИНИЦАИЗМЕРЕНИЯГРП	= ГруппаИнфо.ed;
+
+	IF ( !ПУСТО( ГруппаИнфо.edd_litr ) )
+		ЕДИНИЦАОБЪЕМА		= ГруппаИнфо.edd_litr;
+
+	IF ( !ПУСТО( ГруппаИнфо.ed_weight ) )
+		ЕДИНИЦАВЕСА			= ГруппаИнфо.ed_weight;
+
+	IF ( !ПУСТО( ГруппаИнфо.margin_proc ) )
+		ПРОЦЕНТНАЦЕНКИ		= ГруппаИнфо.margin_proc
+
+	IF ( !ПУСТО( ГруппаИнфо.min_ ) )
+		МИНИМАЛЬНЫЙОСТАТОК	= ГруппаИнфо.min_;
+
+	ЕСТУБЫЛЬ				= ГруппаИнфо.lossrealization;
+	ЕСТУБЫЛЬХРАН			= ГруппаИнфо.lossstore;
+	ЕСТУБЫЛЬЗНАЧ			= ГруппаИнфо.lossreal_val;
+	ЕСТУБЫЛЬХРАНЗНАЧ		= ГруппаИнфо.lossstore_val;
+}
+
+// Добавляем новые карточки в справочник товаров
+ДОБАВИТЬКОНТЕКСТ( "SELECT alcocode, identity_column FROM sprres_egais WHERE code = '' " + ЕСЛИ( !ПУСТО( ИДЗАГРУЗКИ ), "AND loadid = '" + STDF( ИДЗАГРУЗКИ ) + "'", "" ), "НовыеТовары" );
+IF ( КОЛИЧЕСТВОСТРОК( "НовыеТовары" ) > 2 )
+	ИНДИКАТОР( "Добавление новых товаров", КОЛИЧЕСТВОСТРОК( "НовыеТовары" ) );
+	
+WHILE ( !КОНЕЦКОНТЕКСТА( "НовыеТовары" ) )
+{
+	IF ( _ERRORCODE < 0 )
+	{
+		ИНДИКАТОР( );
+		СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+		RETURN false;
+	}
+
+	IF ( КОЛИЧЕСТВОСТРОК( "НовыеТовары" ) > 2 )
+		ИНДИКАТОР( НОМЕРСТРОКИ( "НовыеТовары" ), НовыеТовары.alcocode );
+
+	IF ( ПУСТО( ЕДИНИЦАИЗМЕРЕНИЯГРП ) )
+		ЕДИНИЦАИЗМЕРЕНИЯ	= ЗАПРОС( "SELECT CASE WHEN packed = 0 OR d_litr = 0 THEN '" + ЕГАИСЕдиницаЛитры + "' ELSE '" + ЕГАИСЕдиницаШтуки + "' END FROM sprres_egais WHERE alcocode= '" + НовыеТовары.alcocode + "'" ); //"шт";
+	ELSE
+		ЕДИНИЦАИЗМЕРЕНИЯ	= ЕДИНИЦАИЗМЕРЕНИЯГРП;
+		
+	// Добвляем новый товар в нужную папку
+	ИДТовара				= ЗАПРОС( "INSERT INTO sprres ( code, maincode, name, shortname, alcocode, nnvid, d_litr, a_proc, importer, cat, kodn, note, ccgroup, group_, parent,
+															ed, edd_litr, ed_weight, margin_proc, min_, lossrealization, lossstore, lossreal_val, lossstore_val )
+									   SELECT '', dbo.fn_getnextmaincode( ), name, CASE WHEN shortname = '' THEN name ELSE shortname END, alcocode, 
+											  nnvid, d_litr, a_proc, CASE WHEN importer = '' THEN producer ELSE importer END, 
+											  '001', '" + КОДНАЛОГА + "', 'Товар добавлен автоматически из ЕГАИС', '0000000001', '" + ЕГАИСКОДГРУППЫРЕСУРСОВ + "', " + ЕГАИСПАПКАТОВАРОВ + ", 
+											  '" + ЕДИНИЦАИЗМЕРЕНИЯ + "', '" + ЕДИНИЦАОБЪЕМА + "', '" + ЕДИНИЦАВЕСА + "', " + STR( ПРОЦЕНТНАЦЕНКИ, 16, 2 ) + ", 
+											  " + STR( МИНИМАЛЬНЫЙОСТАТОК, 16, 2 ) + ", '" + ЕСТУБЫЛЬ + "', '" + ЕСТУБЫЛЬХРАН	+ "', " + STR( ЕСТУБЫЛЬЗНАЧ, 16 ,2 ) + ", " + STR( ЕСТУБЫЛЬХРАНЗНАЧ, 16, 2 ) + "
+									   FROM sprres_egais 
+									   WHERE identity_column = " + STR( НовыеТовары.identity_column ) );
+									   
+	НовыйКодТовара			= ЗАПРОС( "SELECT code FROM sprres WHERE identity_column = " + ИДТовара );
+	// Связываем товар и алкокод
+	ЗАПРОС( "UPDATE sprres_egais SET code= '" + НовыйКодТовара + "' WHERE identity_column= " + НовыеТовары.identity_column );
+
+	// Если в папке указана группа товаров, то переносим доп. единицы измерения и проценты наценки из этой группы в новый товар
+	IF  ( !ПУСТО( ГРУППАТОВАРОВ ) )
+	{
+		ДОБАВИТЬКОНТЕКСТ( "INSERT INTO sprnncen ( nn, clev, margin_proc )
+						   SELECT sprres.code, mplist.clev, mplist.margin_proc 
+						   FROM sprres_g_mplist mplist
+						   INNER JOIN sprres sprres ON sprres.group_ = mplist.code
+						   WHERE sprres.identity_column = " + ИДТовара + " AND
+								 NOT EXISTS( SELECT * FROM sprnncen WHERE nn= sprres.code AND clev= mplist.clev )", "ПроцентыНаценки" );
+		УДАЛИТЬКОНТЕКСТ( "ПроцентыНаценки" );
+
+		ДОБАВИТЬКОНТЕКСТ( "INSERT INTO sprres_ed ( code, maincode, koef, koef_c, ed, f_main, barcode, onekoef )
+						   SELECT sprres.code, sprres.maincode, sprres_g_edlist.koef, sprres_g_edlist.koef_c, sprres_g_edlist.ed, sprres_g_edlist.f_main, sprres_g_edlist.barcode, sprres_g_edlist.onekoef 										
+						   FROM sprres_g_edlist sprres_g_edlist
+						   INNER JOIN sprres sprres ON sprres.group_ = sprres_g_edlist.code
+						   WHERE sprres.identity_column = " + ИДТовара, "ДопЕдиницы" );
+		УДАЛИТЬКОНТЕКСТ( "ДопЕдиницы" );
+	}
+	ЕГАИСКоличествоСозданныхТоваров++;
+
+	ВЫБРАТЬКОНТЕКСТ( "НовыеТовары" );
+	ПРОПУСТИТЬ( 1, "НовыеТовары" );
+}
+УДАЛИТЬКОНТЕКСТ( "НовыеТовары" );
+ИНДИКАТОР( );
+
+IF ( _ERRORCODE < 0 )
+{
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+	RETURN false;
+}
+
+RETURN true;

@@ -1,1 +1,18 @@
-// Если не указаны параметры, то используем сохраненные ранее значенияIF ( ПУСТО( IPАдрес ) )	IPАдрес	= HTTPHostIP;IF ( ПУСТО( IPАдрес ) )	RETURN false;IF ( ПУСТО( Порт ) )	Порт	= HTTPPort;IF ( ПУСТО( Порт ) )	Порт	= 80;IF ( ТИП( "Порт" ) != "I" )	Порт	= VAL( Порт );// Сохраняем на будущее поле загоовка HostHTTPHostIP		= IPАдрес;HTTPPort		= Порт;HTTPHost		= HTTPHostIP + ":" + HTTPPort;HTTPConnection	= СОКЕТСОЕДИНИТЬ( HTTPHostIP, HTTPPort, ВестиЖурнал );RETURN HTTPConnection >= 0;
+// Если не указаны параметры, то используем сохраненные ранее значения
+IF ( ПУСТО( IPАдрес ) )	IPАдрес	= HTTPHostIP;
+IF ( ПУСТО( IPАдрес ) )	RETURN false;
+
+IF ( ПУСТО( Порт ) )	Порт	= HTTPPort;
+IF ( ПУСТО( Порт ) )	Порт	= 80;
+
+
+IF ( ТИП( "Порт" ) != "I" )
+	Порт	= VAL( Порт );
+
+// Сохраняем на будущее поле загоовка Host
+HTTPHostIP		= IPАдрес;
+HTTPPort		= Порт;
+HTTPHost		= HTTPHostIP + ":" + HTTPPort;
+
+HTTPConnection	= СОКЕТСОЕДИНИТЬ( HTTPHostIP, HTTPPort, ВестиЖурнал );
+RETURN HTTPConnection >= 0;

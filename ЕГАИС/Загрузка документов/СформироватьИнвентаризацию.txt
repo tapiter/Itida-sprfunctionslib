@@ -1,1 +1,189 @@
-// Формируем список моделей учета, в которых должен участвовать новый документ.// Список берем из раздела занчения по умолчанию для моделей учета точки зрения_ERRORCODE			= 0;ErrorMessage		= "Ошибка создания документа. " + CHR( 13 );// Определяем параметры документа по умолчаниюФИРМАДОКУМЕНТА		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_FIRM" + СКЛАД + "'" );СКЛАДДОКУМЕНТА		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_SKLAD" + СКЛАД + "'" );АВТОРДОКУМЕНТА		= ЗАПРОС( "SELECT SUSER_SNAME( )" );ВАЛЮТАДОКУМЕНТА		= ЗАПРОС( "SELECT value FROM param WHERE param = 'CUR'" );ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );УЧЕТПОУМОЛЧАНИЮ		= ЗАПРОС( "SELECT dbo.fn_getdefaultaccount( dbo.fn_getdefaultviewpoint( ) )" );ЕГАИСКОДНАЛОГА		= ЗАПРОС( "SELECT value FROM param WHERE param = 'kodn'" );ДАТАДОКУМЕНТА		= CTOD( LEFT( STRTRAN( ЕГАИСДАТАДОКУМЕНТА, "T", " " ), 19 ), 7 )	IF ( ПУСТО( ФИРМАДОКУМЕНТА ) )	ФИРМАДОКУМЕНТА	= ЗАПРОС( "SELECT value_ FROM userprop WHERE user_= SUSER_SNAME( ) AND prop_ = 'FIRMCODE'" );IF ( ПУСТО( СКЛАДДОКУМЕНТА ) )	СКЛАДДОКУМЕНТА	= ЗАПРОС( "SELECT value_ FROM userprop WHERE user_= SUSER_SNAME( ) AND prop_ = 'SKLCODE'" );ДОБАВИТЬКОНТЕКСТ( "SELECT account_ 				   FROM specviewpoints_def 				   WHERE objcode = '045' and objtype='DOC' AND account_ <> '' AND code= dbo.fn_getdefaultviewpoint( )", "МоделиУчета" );СписокУчетов					= "";WHILE ( !КонецКонтекста( "МоделиУчета" ) ){	СписокУчетов				+= МоделиУчета.account_;	Пропустить( 1, "МоделиУчета" );}СписокУчетов					= ALLTRIM( СписокУчетов );ИДДокумента						= ЗАПРОС( "EXECUTE sp_insertdoc '045', '', '" + TTOC( ДАТАДОКУМЕНТА ) + "', '', '" + ФИРМАДОКУМЕНТА + "', 																'" + АВТОРДОКУМЕНТА + "', '" + ВАЛЮТАДОКУМЕНТА + "', '', 																'" + СписокУчетов + "', '" + ТОЧКАЗРЕНИЯ + "', 0, '" + УЧЕТПОУМОЛЧАНИЮ + "'", "ident" );	IF ( _ERRORCODE < 0 ){	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );	RETURN false;}// Для ускорения поиска формируем временную таблицу со всеми справками и признаком наличия марокИМЯТАБЛИЦЫСПРАВОК	= "##" + УНИКАЛЬНОЕИМЯ( );ЗАПРОС( "SELECT MAX( CONVERT( int, bcexists ) ) AS bcexists, 				CASE WHEN CHARINDEX( '/', informb ) > 0 THEN SUBSTRING( informb, CHARINDEX( '/', informb ) + 1, 50 ) ELSE informb END AS informb		 INTO " + ИМЯТАБЛИЦЫСПРАВОК + "		 FROM egais_marks 		 GROUP BY informb" );ЗАПРОС( "CREATE INDEX " + ИМЯТАБЛИЦЫСПРАВОК + "_informb ON " + ИМЯТАБЛИЦЫСПРАВОК + "(informb)" );// Документ создаем в транзакцииIF ( !ЗАПРОС( "BEGIN TRANSACTION" ) ) { 	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );	RETURN false;}НомерПоПорядку			= 1;IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( РЕГИСТРЕГАИС ) ) <> 'ОПТОВЫЙ' )	ВыражениеBCExists	= "0";ELSE	ВыражениеBCExists	= " ISNULL( ( SELECT bcexists FROM " + ИМЯТАБЛИЦЫСПРАВОК + " WHERE informb = temp.rst_InformBRegId ), 0 )";try {	СИСТЕМНОЕСООБЩЕНИЕ( "Формирование списка загруженных остатков продукции." );	// Заполняем спецификацию документа. 	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT nn, alcocode, SUM( kolp ) AS kolp, packed, bcexists FROM							( SELECT temp.nn, temp.pref_AlcCode AS alcocode, SUM( temp.rst_Quantity ) AS kolp, 									CASE WHEN ( egais.packed = -1 AND egais.d_litr = 0 ) OR egais.packed = 0 THEN 0 ELSE 1 END AS packed,									" + ВыражениеBCExists + " AS bcexists					   FROM " + ЕГАИСТаблицаСтрокИнвентаризаций + " temp					   INNER JOIN sprres_egais egais ON temp.pref_AlcCode = egais.alcocode					   WHERE replyid = '" + STDF( ЕГАИСREPLYID ) + "'					   GROUP BY temp.nn, temp.pref_AlcCode, CASE WHEN ( egais.packed = -1 AND egais.d_litr = 0 ) OR egais.packed = 0 THEN 0 ELSE 1 END, temp.rst_InformARegId, temp.rst_InformBRegId ) AS data					   GROUP BY nn, alcocode, packed, bcexists", "СписокСтрок" ) ) THROW 1; 	СИСТЕМНОЕСООБЩЕНИЕ( );	ИНДИКАТОР( "Загрузка остатков алкокодов", КОЛИЧЕСТВОСТРОК( "СписокСтрок" ) );		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )	{		ИНДИКАТОР( НОМЕРСТРОКИ( "СписокСтрок" ), "Алкокод: " + СписокСтрок.alcocode );		IF ( !ДОБАВИТЬКОНТЕКСТ(			   "INSERT INTO spec045 ( ic, nn, alcocode, ed, koef_e, koef_c, kodn, nnname, kolp, bcexists ) 				SELECT																													" + ИДДокумента + ", '" + СписокСтрок.nn + "', sprres_egais.alcocode, " +  						ЕСЛИ( СписокСтрок.packed == 1, "'" + ЕГАИСЕДИНИЦАШТУКИ + "', CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' THEN 1 ELSE 						CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' AND ISNULL( ( SELECT TOP 1 koef FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 0 ) = 0 THEN 						CASE WHEN " + СписокСтрок.packed + " = 0 OR sprnn.d_litr = 0 THEN 1 ELSE sprnn.d_litr END							 ELSE ISNULL( ( SELECT TOP 1 koef FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 1 ) END END,						CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' THEN 1 ELSE 						CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' AND ISNULL( ( SELECT TOP 1 koef FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 0 ) = 0 THEN 						CASE WHEN " + СписокСтрок.packed + " <> 0 AND sprnn.d_litr <> 0 THEN 1 / sprnn.d_litr ELSE 1 END							 ELSE ISNULL( ( SELECT TOP 1 koef_c FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 1 ) END END, ",						"'дал',						 CASE WHEN sprnn.ed = 'дал' THEN 1 ELSE CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' THEN 10  ELSE ISNULL( ISNULL( ( SELECT TOP 1 koef   FROM sprres_ed WHERE code = sprnn.nn AND ed = 'дал' ), ISNULL( ( SELECT CASE WHEN koef_ = 0 THEN 1 ELSE 1 / koef_ END FROM spredn_f WHERE code = 'дал' AND code_d = sprnn.ed ), 10 / CASE WHEN sprnn.d_litr <> 0 THEN sprnn.d_litr ELSE 10 END ) ), 1 ) END END,						 CASE WHEN sprnn.ed = 'дал' THEN 1 ELSE CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' THEN 0.1 ELSE ISNULL( ISNULL( ( SELECT TOP 1 koef_c FROM sprres_ed WHERE code = sprnn.nn AND ed = 'дал' ), ISNULL( ( SELECT CASE WHEN koef_ = 0 THEN 1 ELSE koef_     END FROM spredn_f WHERE code = 'дал' AND code_d = sprnn.ed ), CASE WHEN sprnn.d_litr <> 0 THEN sprnn.d_litr ELSE 10 END / 10 ) ), 1 ) END END, " ) + "						 						ISNULL( sprnn.kodn, '' ), ISNULL( dbo.fn_fullnnname( sprnn.nn ), '' ), " + STR( СписокСтрок.kolp, 16, 4 ) + ", " + STR( СписокСтрок.bcexists ) + "				FROM sprres_egais sprres_egais 				LEFT OUTER JOIN sprnn sprnn ON sprres_egais.code = sprnn.nn				WHERE sprres_egais.alcocode = '" + СписокСтрок.alcocode + "'", "Спецификация" ) ) THROW 1;				 		// Заполняем номера партий (справки Б)		IF ( !ДОБАВИТЬКОНТЕКСТ(			   "INSERT INTO barcodes2 ( code, ic, spec_ic, nn, barcode, date, sklad, kolp ) 				SELECT																													'045', " + ИДДокумента + ", " + Спецификация.ident + ", '" + СписокСтрок.nn + "', RTRIM( temp.rst_InformARegId ) + '/' + temp.rst_InformBRegId, 						'" + TTOC( ДАТАДОКУМЕНТА ) + "', '" + СКЛАДДОКУМЕНТА + "', rst_Quantity				FROM " + ЕГАИСТаблицаСтрокИнвентаризаций + " temp				WHERE temp.pref_AlcCode = '" + STDF( СписокСтрок.alcocode ) + "' AND replyid = '" + STDF( ЕГАИСREPLYID ) + "' AND ( temp.rst_InformARegId <> '' OR temp.rst_InformBRegId <> '' ) AND 					  " + ВыражениеBCExists + " = " + STR( СписокСтрок.bcexists ), "НомераПартий" ) ) THROW 2;						УДАЛИТЬКОНТЕКСТ( "НомераПартий" );		УДАЛИТЬКОНТЕКСТ( "Спецификация" );		НомерПоПорядку++;		ПРОПУСТИТЬ( 1, "СписокСтрок" );	}	УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );		ЕГАИСКоличествоСозданныхИнвентаризаций++;			//------- Достаем р/с и филиал	IF ( !ДОБАВИТЬКОНТЕКСТ(		   "SELECT ISNULL( ( SELECT rs FROM sprrsfirm  WHERE firm = '" + ФИРМАДОКУМЕНТА + "' AND fmain= 1 ), '') AS rs, 				   ISNULL( ( SELECT branch FROM sprskl WHERE code = '" + СКЛАДДОКУМЕНТА + "'), '') AS branch ", "ОрганизацияИнфо" ) ) THROW 3;				   	РасчетныйСчет 	= ОрганизацияИнфо.rs;	Филиал			= ОрганизацияИнфо.branch;	УДАЛИТЬКОНТЕКСТ( "ОрганизацияИнфо" );	// Устанваливаем обязательные поля нового документа	ЗАПРОС( 			"UPDATE spr045 SET				firm   			= '" + ФИРМАДОКУМЕНТА + "',				rs	   			= '" + РасчетныйСчет + "',				sklad   		= '" + СКЛАДДОКУМЕНТА + "',				egaisreg   		= '" + РЕГИСТРЕГАИС + "',				branch  		= '" + Филиал + "',				cur     		= '" + ВАЛЮТАДОКУМЕНТА + "',				cur_rate		= 1,				proc_   		= 0,				taccess			= '',				caccess			= '',				note			= 'Создан в ответ на запрос остатков в ЕГАИС',				egaisreplyid	= '" + STDF( ЕГАИСREPLYID ) + "'			 WHERE identity_column = " + ИДДокумента );	ЗАПРОС( 			"UPDATE spr000 SET				f_singlennline	= 1			 WHERE code = '045' AND ic = " + ИДДокумента );			 	// Инвентаризации по розничному регистру сразу делаем проведенными. 	// Они не влияют на регистры, поэтому, просто проставляем признак.	IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( РЕГИСТРЕГАИС ) ) <> 'ОПТОВЫЙ' )		ЗАПРОС( 				"UPDATE accountlist SET					transacted	= 1				 WHERE code = '045' AND ic = " + ИДДокумента );	// Добавляем исходныые файлы в приложения документа	IF ( !ДОБАВИТЬКОНТЕКСТ(		   "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 			SELECT																												'045', " + ИДДокумента + ", 0, RTRIM( temp.url ) + '.txt', CONVERT( varbinary( max ), temp.url_text )			FROM " + ЕГАИСТаблицаФайлов + " temp			WHERE replyid = '" + STDF( ЕГАИСREPLYID )+ "'			ORDER BY identity_column", "ПриложенияКДокументу" ) ) THROW 5;	УДАЛИТЬКОНТЕКСТ( "ПриложенияКДокументу" );	ЕГАИС.ВыполнитьСкриптПроверкиПередЗаписью( "045", ИДДокумента );}catch ( НомерЗапроса ){	ЗАПРОС( "IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION" );	ЗАПРОС( "DROP TABLE " + ИМЯТАБЛИЦЫСПРАВОК );	СИСТЕМНОЕСООБЩЕНИЕ( );	ИНДИКАТОР( );		СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );	RETURN false;}ЗАПРОС( "COMMIT TRANSACTION" );ЗАПРОС( "DROP TABLE " + ИМЯТАБЛИЦЫСПРАВОК );ИНДИКАТОР( );RETURN true;
+// Формируем список моделей учета, в которых должен участвовать новый документ.
+// Список берем из раздела занчения по умолчанию для моделей учета точки зрения
+
+_ERRORCODE			= 0;
+ErrorMessage		= "Ошибка создания документа. " + CHR( 13 );
+// Определяем параметры документа по умолчанию
+ФИРМАДОКУМЕНТА		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_FIRM" + СКЛАД + "'" );
+СКЛАДДОКУМЕНТА		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_SKLAD" + СКЛАД + "'" );
+АВТОРДОКУМЕНТА		= ЗАПРОС( "SELECT SUSER_SNAME( )" );
+ВАЛЮТАДОКУМЕНТА		= ЗАПРОС( "SELECT value FROM param WHERE param = 'CUR'" );
+ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
+УЧЕТПОУМОЛЧАНИЮ		= ЗАПРОС( "SELECT dbo.fn_getdefaultaccount( dbo.fn_getdefaultviewpoint( ) )" );
+ЕГАИСКОДНАЛОГА		= ЗАПРОС( "SELECT value FROM param WHERE param = 'kodn'" );
+ДАТАДОКУМЕНТА		= CTOD( LEFT( STRTRAN( ЕГАИСДАТАДОКУМЕНТА, "T", " " ), 19 ), 7 )
+	
+IF ( ПУСТО( ФИРМАДОКУМЕНТА ) )
+	ФИРМАДОКУМЕНТА	= ЗАПРОС( "SELECT value_ FROM userprop WHERE user_= SUSER_SNAME( ) AND prop_ = 'FIRMCODE'" );
+IF ( ПУСТО( СКЛАДДОКУМЕНТА ) )
+	СКЛАДДОКУМЕНТА	= ЗАПРОС( "SELECT value_ FROM userprop WHERE user_= SUSER_SNAME( ) AND prop_ = 'SKLCODE'" );
+
+ДОБАВИТЬКОНТЕКСТ( "SELECT account_ 
+				   FROM specviewpoints_def 
+				   WHERE objcode = '045' and objtype='DOC' AND account_ <> '' AND code= dbo.fn_getdefaultviewpoint( )", "МоделиУчета" );
+
+СписокУчетов					= "";
+WHILE ( !КонецКонтекста( "МоделиУчета" ) )
+{
+	СписокУчетов				+= МоделиУчета.account_;
+	Пропустить( 1, "МоделиУчета" );
+}
+СписокУчетов					= ALLTRIM( СписокУчетов );
+
+ИДДокумента						= ЗАПРОС( "EXECUTE sp_insertdoc '045', '', '" + TTOC( ДАТАДОКУМЕНТА ) + "', '', '" + ФИРМАДОКУМЕНТА + "', 
+																'" + АВТОРДОКУМЕНТА + "', '" + ВАЛЮТАДОКУМЕНТА + "', '', 
+																'" + СписокУчетов + "', '" + ТОЧКАЗРЕНИЯ + "', 0, '" + УЧЕТПОУМОЛЧАНИЮ + "'", "ident" );
+	
+IF ( _ERRORCODE < 0 )
+{
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+	RETURN false;
+}
+
+// Для ускорения поиска формируем временную таблицу со всеми справками и признаком наличия марок
+ИМЯТАБЛИЦЫСПРАВОК	= "##" + УНИКАЛЬНОЕИМЯ( );
+ЗАПРОС( "SELECT MAX( CONVERT( int, bcexists ) ) AS bcexists, 
+				CASE WHEN CHARINDEX( '/', informb ) > 0 THEN SUBSTRING( informb, CHARINDEX( '/', informb ) + 1, 50 ) ELSE informb END AS informb
+		 INTO " + ИМЯТАБЛИЦЫСПРАВОК + "
+		 FROM egais_marks 
+		 GROUP BY informb" );
+ЗАПРОС( "CREATE INDEX " + ИМЯТАБЛИЦЫСПРАВОК + "_informb ON " + ИМЯТАБЛИЦЫСПРАВОК + "(informb)" );
+
+// Документ создаем в транзакции
+IF ( !ЗАПРОС( "BEGIN TRANSACTION" ) ) 
+{ 
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+	RETURN false;
+}
+
+НомерПоПорядку			= 1;
+IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( РЕГИСТРЕГАИС ) ) <> 'ОПТОВЫЙ' )
+	ВыражениеBCExists	= "0";
+ELSE
+	ВыражениеBCExists	= " ISNULL( ( SELECT bcexists FROM " + ИМЯТАБЛИЦЫСПРАВОК + " WHERE informb = temp.rst_InformBRegId ), 0 )";
+
+try 
+{
+	СИСТЕМНОЕСООБЩЕНИЕ( "Формирование списка загруженных остатков продукции." );
+	// Заполняем спецификацию документа. 
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT nn, alcocode, SUM( kolp ) AS kolp, packed, bcexists FROM
+							( SELECT temp.nn, temp.pref_AlcCode AS alcocode, SUM( temp.rst_Quantity ) AS kolp, 
+									CASE WHEN ( egais.packed = -1 AND egais.d_litr = 0 ) OR egais.packed = 0 THEN 0 ELSE 1 END AS packed,
+									" + ВыражениеBCExists + " AS bcexists
+					   FROM " + ЕГАИСТаблицаСтрокИнвентаризаций + " temp
+					   INNER JOIN sprres_egais egais ON temp.pref_AlcCode = egais.alcocode
+					   WHERE replyid = '" + STDF( ЕГАИСREPLYID ) + "'
+					   GROUP BY temp.nn, temp.pref_AlcCode, CASE WHEN ( egais.packed = -1 AND egais.d_litr = 0 ) OR egais.packed = 0 THEN 0 ELSE 1 END, temp.rst_InformARegId, temp.rst_InformBRegId ) AS data
+					   GROUP BY nn, alcocode, packed, bcexists", "СписокСтрок" ) ) THROW 1; 
+
+	СИСТЕМНОЕСООБЩЕНИЕ( );
+	ИНДИКАТОР( "Загрузка остатков алкокодов", КОЛИЧЕСТВОСТРОК( "СписокСтрок" ) );
+	
+	WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+	{
+		ИНДИКАТОР( НОМЕРСТРОКИ( "СписокСтрок" ), "Алкокод: " + СписокСтрок.alcocode );
+		IF ( !ДОБАВИТЬКОНТЕКСТ(
+			   "INSERT INTO spec045 ( ic, nn, alcocode, ed, koef_e, koef_c, kodn, nnname, kolp, bcexists ) 
+				SELECT																							
+						" + ИДДокумента + ", '" + СписокСтрок.nn + "', sprres_egais.alcocode, " +  
+						ЕСЛИ( СписокСтрок.packed == 1, "'" + ЕГАИСЕДИНИЦАШТУКИ + "', CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' THEN 1 ELSE 
+						CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' AND ISNULL( ( SELECT TOP 1 koef FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 0 ) = 0 THEN 
+						CASE WHEN " + СписокСтрок.packed + " = 0 OR sprnn.d_litr = 0 THEN 1 ELSE sprnn.d_litr END
+							 ELSE ISNULL( ( SELECT TOP 1 koef FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 1 ) END END,
+						CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' THEN 1 ELSE 
+						CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' AND ISNULL( ( SELECT TOP 1 koef FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 0 ) = 0 THEN 
+						CASE WHEN " + СписокСтрок.packed + " <> 0 AND sprnn.d_litr <> 0 THEN 1 / sprnn.d_litr ELSE 1 END
+							 ELSE ISNULL( ( SELECT TOP 1 koef_c FROM sprres_ed WHERE code = sprnn.nn AND ed = '" + ЕГАИСЕДИНИЦАШТУКИ + "' ), 1 ) END END, ",
+						"'дал',
+						 CASE WHEN sprnn.ed = 'дал' THEN 1 ELSE CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' THEN 10  ELSE ISNULL( ISNULL( ( SELECT TOP 1 koef   FROM sprres_ed WHERE code = sprnn.nn AND ed = 'дал' ), ISNULL( ( SELECT CASE WHEN koef_ = 0 THEN 1 ELSE 1 / koef_ END FROM spredn_f WHERE code = 'дал' AND code_d = sprnn.ed ), 10 / CASE WHEN sprnn.d_litr <> 0 THEN sprnn.d_litr ELSE 10 END ) ), 1 ) END END,
+						 CASE WHEN sprnn.ed = 'дал' THEN 1 ELSE CASE WHEN sprnn.ed = '" + ЕГАИСЕДИНИЦАЛИТРЫ + "' THEN 0.1 ELSE ISNULL( ISNULL( ( SELECT TOP 1 koef_c FROM sprres_ed WHERE code = sprnn.nn AND ed = 'дал' ), ISNULL( ( SELECT CASE WHEN koef_ = 0 THEN 1 ELSE koef_     END FROM spredn_f WHERE code = 'дал' AND code_d = sprnn.ed ), CASE WHEN sprnn.d_litr <> 0 THEN sprnn.d_litr ELSE 10 END / 10 ) ), 1 ) END END, " ) + "
+						 
+						ISNULL( sprnn.kodn, '' ), ISNULL( dbo.fn_fullnnname( sprnn.nn ), '' ), " + STR( СписокСтрок.kolp, 16, 4 ) + ", " + STR( СписокСтрок.bcexists ) + "
+				FROM sprres_egais sprres_egais 
+				LEFT OUTER JOIN sprnn sprnn ON sprres_egais.code = sprnn.nn
+				WHERE sprres_egais.alcocode = '" + СписокСтрок.alcocode + "'", "Спецификация" ) ) THROW 1;
+				 
+		// Заполняем номера партий (справки Б)
+		IF ( !ДОБАВИТЬКОНТЕКСТ(
+			   "INSERT INTO barcodes2 ( code, ic, spec_ic, nn, barcode, date, sklad, kolp ) 
+				SELECT																							
+						'045', " + ИДДокумента + ", " + Спецификация.ident + ", '" + СписокСтрок.nn + "', RTRIM( temp.rst_InformARegId ) + '/' + temp.rst_InformBRegId, 
+						'" + TTOC( ДАТАДОКУМЕНТА ) + "', '" + СКЛАДДОКУМЕНТА + "', rst_Quantity
+				FROM " + ЕГАИСТаблицаСтрокИнвентаризаций + " temp
+				WHERE temp.pref_AlcCode = '" + STDF( СписокСтрок.alcocode ) + "' AND replyid = '" + STDF( ЕГАИСREPLYID ) + "' AND ( temp.rst_InformARegId <> '' OR temp.rst_InformBRegId <> '' ) AND 
+					  " + ВыражениеBCExists + " = " + STR( СписокСтрок.bcexists ), "НомераПартий" ) ) THROW 2;
+				
+		УДАЛИТЬКОНТЕКСТ( "НомераПартий" );
+		УДАЛИТЬКОНТЕКСТ( "Спецификация" );
+
+		НомерПоПорядку++;
+		ПРОПУСТИТЬ( 1, "СписокСтрок" );
+	}
+	УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );
+	
+	ЕГАИСКоличествоСозданныхИнвентаризаций++;
+		
+	//------- Достаем р/с и филиал
+	IF ( !ДОБАВИТЬКОНТЕКСТ(
+		   "SELECT ISNULL( ( SELECT rs FROM sprrsfirm  WHERE firm = '" + ФИРМАДОКУМЕНТА + "' AND fmain= 1 ), '') AS rs, 
+				   ISNULL( ( SELECT branch FROM sprskl WHERE code = '" + СКЛАДДОКУМЕНТА + "'), '') AS branch ", "ОрганизацияИнфо" ) ) THROW 3;
+				   
+	РасчетныйСчет 	= ОрганизацияИнфо.rs;
+	Филиал			= ОрганизацияИнфо.branch;
+	УДАЛИТЬКОНТЕКСТ( "ОрганизацияИнфо" );
+
+	// Устанваливаем обязательные поля нового документа
+	ЗАПРОС( 
+			"UPDATE spr045 SET
+				firm   			= '" + ФИРМАДОКУМЕНТА + "',
+				rs	   			= '" + РасчетныйСчет + "',
+				sklad   		= '" + СКЛАДДОКУМЕНТА + "',
+				egaisreg   		= '" + РЕГИСТРЕГАИС + "',
+				branch  		= '" + Филиал + "',
+				cur     		= '" + ВАЛЮТАДОКУМЕНТА + "',
+				cur_rate		= 1,
+				proc_   		= 0,
+				taccess			= '',
+				caccess			= '',
+				note			= 'Создан в ответ на запрос остатков в ЕГАИС',
+				egaisreplyid	= '" + STDF( ЕГАИСREPLYID ) + "'
+			 WHERE identity_column = " + ИДДокумента );
+	ЗАПРОС( 
+			"UPDATE spr000 SET
+				f_singlennline	= 1
+			 WHERE code = '045' AND ic = " + ИДДокумента );
+			 
+	// Инвентаризации по розничному регистру сразу делаем проведенными. 
+	// Они не влияют на регистры, поэтому, просто проставляем признак.
+	IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( РЕГИСТРЕГАИС ) ) <> 'ОПТОВЫЙ' )
+		ЗАПРОС( 
+				"UPDATE accountlist SET
+					transacted	= 1
+				 WHERE code = '045' AND ic = " + ИДДокумента );
+
+	// Добавляем исходныые файлы в приложения документа
+	IF ( !ДОБАВИТЬКОНТЕКСТ(
+		   "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 
+			SELECT																							
+					'045', " + ИДДокумента + ", 0, RTRIM( temp.url ) + '.txt', CONVERT( varbinary( max ), temp.url_text )
+			FROM " + ЕГАИСТаблицаФайлов + " temp
+			WHERE replyid = '" + STDF( ЕГАИСREPLYID )+ "'
+			ORDER BY identity_column", "ПриложенияКДокументу" ) ) THROW 5;
+	УДАЛИТЬКОНТЕКСТ( "ПриложенияКДокументу" );
+	ЕГАИС.ВыполнитьСкриптПроверкиПередЗаписью( "045", ИДДокумента );
+}
+catch ( НомерЗапроса )
+{
+	ЗАПРОС( "IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION" );
+	ЗАПРОС( "DROP TABLE " + ИМЯТАБЛИЦЫСПРАВОК );
+	СИСТЕМНОЕСООБЩЕНИЕ( );
+	ИНДИКАТОР( );
+	
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+	RETURN false;
+}
+
+ЗАПРОС( "COMMIT TRANSACTION" );
+ЗАПРОС( "DROP TABLE " + ИМЯТАБЛИЦЫСПРАВОК );
+ИНДИКАТОР( );
+RETURN true;

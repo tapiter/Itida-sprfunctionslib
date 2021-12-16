@@ -1,1 +1,106 @@
-// Передаем внутреннее перемещение в ЕГАИС в формате 2// Проверок никаких нет, т.к. никакая доп. информация не передается. только товар и его количество. ЕГАИСИД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );ДОБАВИТЬКОНТЕКСТ( "SELECT spr019.ndok, spr019.date, NEWID( ) AS wb_Identity					FROM spr019 spr019					WHERE spr019.identity_column = " + ИДДокумента, "ДокументИнфо" );ТекстНакладной		= "<?xml version=""1.0"" encoding=""UTF-8""?><ns:Documents Version=""1.0""           xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""           xmlns:ns=  ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""		   xmlns:c=""http://fsrar.ru/WEGAIS/Common""		   xmlns:pref=""http://fsrar.ru/WEGAIS/ProductRef_v2""		   xmlns:tts=""http://fsrar.ru/WEGAIS/TransferToShop"">	<ns:Owner>		<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>	</ns:Owner>	<ns:Document>		<ns:TransferToShop>			<tts:Identity>" + ДокументИнфо.wb_Identity + "</tts:Identity>			<tts:Header>				<tts:TransferNumber>" + ДокументИнфо.ndok + "</tts:TransferNumber>				<tts:TransferDate>" + DTOC( ДокументИнфо.date, 7, "-" ) + "</tts:TransferDate>			</tts:Header>			<tts:Content>";// Выбираем строки накладной для передачи в ЕГАИС// Если в накладной не указан алкокод, то берем последний алкокод из такой же партии по приходуДОБАВИТЬКОНТЕКСТ( "SELECT spec.nn, barcodes.kolp, barcodes.barcode, sprnn.maincode, spec.nnname,						  CASE WHEN spec.alcocode <> '' THEN spec.alcocode ELSE							ISNULL( ( SELECT TOP 1 spec000.alcocode FROM spec000 spec000									INNER JOIN barcodes2 barcodes2 ON barcodes2.spec_ic = spec000.identity_column									WHERE barcodes2.barcode = barcodes.barcode AND barcodes2.code IN ( '001', '045', '043' ) AND spec000.nn = spec.nn AND spec000.alcocode <> ''									ORDER BY spec000.identity_column DESC ), sprnn.alcocode ) END AS alcocode				   FROM spec019 spec				   LEFT OUTER JOIN sprnn sprnn ON sprnn.nn = spec.nn				   INNER JOIN barcodes2 barcodes ON spec.identity_column = barcodes.spec_ic AND barcodes.code = '019' AND barcodes.ic = spec.ic				   LEFT OUTER JOIN spec001 spec001 ON spec001.informb = barcodes.barcode				   WHERE spec.ic = " + ИДДокумента + " AND ISNULL( spec001.bcexists, 0 ) = 0				   ORDER BY spec.identity_column", "СписокСтрок" );WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) ){	СправкаА		= ЕГАИС.ЗаменитьСимволы( ALLTRIM( ПОЛУЧИТЬСЛОВО( "/" + СписокСтрок.barcode, "/" ) ) );	СправкаБ		= ЕГАИС.ЗаменитьСимволы( ALLTRIM( ПОЛУЧИТЬСЛОВО( "/" + СписокСтрок.barcode, "/", "/", 2 ) ) );	// Если не удалось определить алкокод, то выходим	IF ( ПУСТО ( СписокСтрок.alcocode ) )	{		ТекстСообщения	= "В накладной № " + ДокументИнфо.ndok + " от " + DTOC( ДокументИнфо.date ) + " найдены ошибки."; 		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )		{			IF ( ПУСТО ( СписокСтрок.alcocode ) )			{				ТекстТовара		= "Товар: " + СписокСтрок.maincode + " " + СписокСтрок.nnname + " не указан алкокод.";				// Если такого текста еще не было в сообщении, то добавляем				IF ( AT( ТекстСообщения, ТекстТовара ) == 0 )					ТекстСообщения	+= CHR( 13 ) + ТекстТовара;			}			ПРОПУСТИТЬ( 1, "СписокСтрок" );		}		УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );		УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );				СООБЩЕНИЕ( ТекстСообщения + CHR( 13 ) + "Документ не был отправлен в ЕГАИС" );		RETURN false;	}		ТекстНакладной	+= "					<tts:Position>						<tts:Identity>" + STR( НОМЕРСТРОКИ( "СписокСтрок" ) + 1 ) + "</tts:Identity>						<tts:ProductCode>" + СписокСтрок.alcocode + "</tts:ProductCode>						<tts:Quantity>" + STR( СписокСтрок.kolp, 16, 3 ) + "</tts:Quantity>						<tts:InformF2>							<pref:F2RegId>" + СправкаБ + "</pref:F2RegId>						</tts:InformF2>					</tts:Position>";	ПРОПУСТИТЬ( 1, "СписокСтрок" );}УДАЛИТЬКОНТЕКСТ( "СписокСтрок" ); ТекстНакладной		+="			</tts:Content>		</ns:TransferToShop>	</ns:Document></ns:Documents>";// Отправляем получившийся текст на серверОтветСервера = "";IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/TransferToShop", ПЕРЕКОДИРОВАТЬ( ТекстНакладной, "ANSI", "UTF-8" ), @ОтветСервера, "TransferToShop.xml" ) ) RETURN false; ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url SET FMTONLY OFF", "ТТНUrl" );ЗАГРУЗИТЬ( "ТТНUrl", "XMLSTRING", ОтветСервера, "url" );	// Если все благополучно отправлено, то сохраняем информацию в документеЗАПРОС( "UPDATE spr019 SET egaisstatus = 2, egaisreplyid = '" + ТТНUrl.url + "', egaiscomment= '' WHERE identity_column = " + ИДДокумента );ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 				   VALUES ( '019', " + ИДДокумента + ", 0, 'КвитанцияУТМ.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );УДАЛИТЬКОНТЕКСТ( "ТТНUrl" );ЕГАИС.ДобавитьЗапрос( 14, "019", ИДДокумента, ТекстНакладной, ОтветСервера );УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );RETURN true;
+// Передаем внутреннее перемещение в ЕГАИС в формате 2
+// Проверок никаких нет, т.к. никакая доп. информация не передается. только товар и его количество. 
+ЕГАИСИД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );
+ДОБАВИТЬКОНТЕКСТ( "SELECT spr019.ndok, spr019.date, NEWID( ) AS wb_Identity
+					FROM spr019 spr019
+					WHERE spr019.identity_column = " + ИДДокумента, "ДокументИнфо" );
+
+ТекстНакладной		= 
+"<?xml version=""1.0"" encoding=""UTF-8""?>
+<ns:Documents Version=""1.0""
+           xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance""
+           xmlns:ns=  ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""
+		   xmlns:c=""http://fsrar.ru/WEGAIS/Common""
+		   xmlns:pref=""http://fsrar.ru/WEGAIS/ProductRef_v2""
+		   xmlns:tts=""http://fsrar.ru/WEGAIS/TransferToShop"">
+	<ns:Owner>
+		<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>
+	</ns:Owner>
+	<ns:Document>
+		<ns:TransferToShop>
+			<tts:Identity>" + ДокументИнфо.wb_Identity + "</tts:Identity>
+			<tts:Header>
+				<tts:TransferNumber>" + ДокументИнфо.ndok + "</tts:TransferNumber>
+				<tts:TransferDate>" + DTOC( ДокументИнфо.date, 7, "-" ) + "</tts:TransferDate>
+			</tts:Header>
+			<tts:Content>
+";
+// Выбираем строки накладной для передачи в ЕГАИС
+// Если в накладной не указан алкокод, то берем последний алкокод из такой же партии по приходу
+ДОБАВИТЬКОНТЕКСТ( "SELECT spec.nn, barcodes.kolp, barcodes.barcode, sprnn.maincode, spec.nnname,
+						  CASE WHEN spec.alcocode <> '' THEN spec.alcocode ELSE
+							ISNULL( ( SELECT TOP 1 spec000.alcocode FROM spec000 spec000
+									INNER JOIN barcodes2 barcodes2 ON barcodes2.spec_ic = spec000.identity_column
+									WHERE barcodes2.barcode = barcodes.barcode AND barcodes2.code IN ( '001', '045', '043' ) AND spec000.nn = spec.nn AND spec000.alcocode <> ''
+									ORDER BY spec000.identity_column DESC ), sprnn.alcocode ) END AS alcocode
+				   FROM spec019 spec
+				   LEFT OUTER JOIN sprnn sprnn ON sprnn.nn = spec.nn
+				   INNER JOIN barcodes2 barcodes ON spec.identity_column = barcodes.spec_ic AND barcodes.code = '019' AND barcodes.ic = spec.ic
+				   LEFT OUTER JOIN spec001 spec001 ON spec001.informb = barcodes.barcode
+				   WHERE spec.ic = " + ИДДокумента + " AND ISNULL( spec001.bcexists, 0 ) = 0
+				   ORDER BY spec.identity_column", "СписокСтрок" );
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+{
+	СправкаА		= ЕГАИС.ЗаменитьСимволы( ALLTRIM( ПОЛУЧИТЬСЛОВО( "/" + СписокСтрок.barcode, "/" ) ) );
+	СправкаБ		= ЕГАИС.ЗаменитьСимволы( ALLTRIM( ПОЛУЧИТЬСЛОВО( "/" + СписокСтрок.barcode, "/", "/", 2 ) ) );
+	// Если не удалось определить алкокод, то выходим
+	IF ( ПУСТО ( СписокСтрок.alcocode ) )
+	{
+		ТекстСообщения	= "В накладной № " + ДокументИнфо.ndok + " от " + DTOC( ДокументИнфо.date ) + " найдены ошибки."; 
+		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+		{
+			IF ( ПУСТО ( СписокСтрок.alcocode ) )
+			{
+				ТекстТовара		= "Товар: " + СписокСтрок.maincode + " " + СписокСтрок.nnname + " не указан алкокод.";
+				// Если такого текста еще не было в сообщении, то добавляем
+				IF ( AT( ТекстСообщения, ТекстТовара ) == 0 )
+					ТекстСообщения	+= CHR( 13 ) + ТекстТовара;
+			}
+			ПРОПУСТИТЬ( 1, "СписокСтрок" );
+		}
+		УДАЛИТЬКОНТЕКСТ( "СписокСтрок" );
+		УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );
+		
+		СООБЩЕНИЕ( ТекстСообщения + CHR( 13 ) + "Документ не был отправлен в ЕГАИС" );
+		RETURN false;
+	}
+	
+	ТекстНакладной	+= 
+"
+					<tts:Position>
+						<tts:Identity>" + STR( НОМЕРСТРОКИ( "СписокСтрок" ) + 1 ) + "</tts:Identity>
+						<tts:ProductCode>" + СписокСтрок.alcocode + "</tts:ProductCode>
+						<tts:Quantity>" + STR( СписокСтрок.kolp, 16, 3 ) + "</tts:Quantity>
+						<tts:InformF2>
+							<pref:F2RegId>" + СправкаБ + "</pref:F2RegId>
+						</tts:InformF2>
+					</tts:Position>
+";
+	ПРОПУСТИТЬ( 1, "СписокСтрок" );
+}
+УДАЛИТЬКОНТЕКСТ( "СписокСтрок" ); 
+
+ТекстНакладной		+=
+"			</tts:Content>
+		</ns:TransferToShop>
+	</ns:Document>
+</ns:Documents>";
+
+// Отправляем получившийся текст на сервер
+ОтветСервера = "";
+IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/TransferToShop", ПЕРЕКОДИРОВАТЬ( ТекстНакладной, "ANSI", "UTF-8" ), @ОтветСервера, "TransferToShop.xml" ) ) RETURN false; 
+
+ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url SET FMTONLY OFF", "ТТНUrl" );
+ЗАГРУЗИТЬ( "ТТНUrl", "XMLSTRING", ОтветСервера, "url" );	
+
+// Если все благополучно отправлено, то сохраняем информацию в документе
+ЗАПРОС( "UPDATE spr019 SET egaisstatus = 2, egaisreplyid = '" + ТТНUrl.url + "', egaiscomment= '' WHERE identity_column = " + ИДДокумента );
+ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 
+				   VALUES ( '019', " + ИДДокумента + ", 0, 'КвитанцияУТМ.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );
+УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );
+УДАЛИТЬКОНТЕКСТ( "ТТНUrl" );
+ЕГАИС.ДобавитьЗапрос( 14, "019", ИДДокумента, ТекстНакладной, ОтветСервера );
+
+УДАЛИТЬКОНТЕКСТ( "ДокументИнфо" );
+
+RETURN true;

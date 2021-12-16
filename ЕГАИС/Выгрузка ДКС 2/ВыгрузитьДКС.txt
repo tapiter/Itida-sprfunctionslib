@@ -1,1 +1,69 @@
-// Формируем список документов для отправкиДОБАВИТЬКОНТЕКСТ( "SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 0 )				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 0 )				   UNION SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus_v3 = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 1 )				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus_v3 = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 1 )", "СписокДокументов" );ТекстСообщения2		= "";WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) ){	ТекстСообщения2	+= ЕСЛИ( СписокДокументов.code == '008', 'ДКС ', 'ВТ ' ) + СписокДокументов.ndok + " от " + DTOC( СписокДокументов.date ) + CHR( 13 );	ПРОПУСТИТЬ( 1, "СписокДокументов" );}УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );IF ( !ПУСТО( ТекстСообщения2 ) )	СООБЩЕНИЕ( "Следующие документы уже были отправлены в ЕГАИС и ответ из ЕГАИС еще не был получен." + CHR( 13 ) + "Для отправки этих документов измените их статус вручную." + CHR( 13 ) + ТекстСообщения2, "Отправка документов", 4 );// Формируем список документов для отправкиДОБАВИТЬКОНТЕКСТ( "SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 0 )				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 0 )				   UNION SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus_v3 > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 1 )				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus_v3 > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 1 )", "СписокДокументов" );ТекстСообщения		= "";WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) ){	ТекстСообщения	+= ЕСЛИ( СписокДокументов.code == '008', 'ДКС ', 'ВТ ' ) + СписокДокументов.ndok + " от " + DTOC( СписокДокументов.date ) + CHR( 13 );	ПРОПУСТИТЬ( 1, "СписокДокументов" );}УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );IF ( !ПУСТО( ТекстСообщения ) )	IF ( СООБЩЕНИЕ( "Следующие документы уже были отправлены в ЕГАИС. Продолжить? " + CHR( 13 ) + ТекстСообщения, "Отправка документов", 4 ) != 6 ) RETURN false;// Проходим по списку отмеченных документов и отправляем их в ЕГАИСДОБАВИТЬКОНТЕКСТ( "SELECT temp.code, temp.ic, temp.v3 FROM " + ИМЯТАБЛИЦЫ + " temp 				   WHERE CASE WHEN temp.code = '008' THEN (SELECT CASE WHEN temp.v3 = 0 THEN egaisstatus ELSE egaisstatus_v3 END FROM spr008 WHERE identity_column = temp.ic) 													 ELSE (SELECT CASE WHEN temp.v3 = 0 THEN egaisstatus ELSE egaisstatus_v3 END FROM spr046 WHERE identity_column = temp.ic) END <> 2", "СписокДокументов" );IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 ){	IF ( ПУСТО( ТекстСообщения2 ) ) СООБЩЕНИЕ( "Необходимо отметить хотя бы один документ, для отправки.", "Отправка документов" );	RETURN false;}ТекстСообщения			= "";ТекстСообщенияПроМарки	= "";WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) ){	IF ( СписокДокументов.code == "008" AND СписокДокументов.v3 == 0 )	{		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯПИВАИЗДКС_В2( СписокДокументов.ic ) ) RETURN false;	}	ELSE IF ( СписокДокументов.code == "008" AND СписокДокументов.v3 == 1 )	{		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯИЗДКС_В3( СписокДокументов.ic ) ) RETURN false;	}	ELSE IF ( СписокДокументов.code == "046" AND СписокДокументов.v3 == 0 )	{		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯПИВАИЗВТ_В2( СписокДокументов.ic ) ) RETURN false;	}	ELSE IF ( СписокДокументов.code == "046" AND СписокДокументов.v3 == 1 )	{		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯИЗВТ_В3( СписокДокументов.ic ) ) RETURN false;	}		ПРОПУСТИТЬ( 1, "СписокДокументов" );}УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );IF ( !ПУСТО( ТекстСообщения ) ) СООБЩЕНИЕ( "В ДКС/ВТ " +  ТекстСообщения + CHR( 13 ) + "нет позиций для списания." + CHR( 13 ) + "Документ(ы) не был(и) отправлен(ы) в ЕГАИС.", "Отправка ДКС/ВТ в ЕГАИС", 64 );IF ( !ПУСТО( ТекстСообщенияПроМарки ) ) СООБЩЕНИЕ( "Для следующей маркированной продукции " +  ТекстСообщенияПроМарки + CHR( 13 ) + "не удалось определить справки Б." + CHR( 13 ) + "Документ(ы) не были отправлены в ЕГАИС.", "Отправка ДКС/ВТ в ЕГАИС", 64 );RETURN true;
+
+// Формируем список документов для отправки
+ДОБАВИТЬКОНТЕКСТ( "SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 0 )
+				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 0 )
+				   UNION SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus_v3 = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 1 )
+				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus_v3 = 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 1 )", "СписокДокументов" );
+ТекстСообщения2		= "";
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
+{
+	ТекстСообщения2	+= ЕСЛИ( СписокДокументов.code == '008', 'ДКС ', 'ВТ ' ) + СписокДокументов.ndok + " от " + DTOC( СписокДокументов.date ) + CHR( 13 );
+	ПРОПУСТИТЬ( 1, "СписокДокументов" );
+}
+УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );
+IF ( !ПУСТО( ТекстСообщения2 ) )
+	СООБЩЕНИЕ( "Следующие документы уже были отправлены в ЕГАИС и ответ из ЕГАИС еще не был получен." + CHR( 13 ) + "Для отправки этих документов измените их статус вручную." + CHR( 13 ) + ТекстСообщения2, "Отправка документов", 4 );
+
+// Формируем список документов для отправки
+ДОБАВИТЬКОНТЕКСТ( "SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 0 )
+				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 0 )
+				   UNION SELECT '008' AS code, ndok, date FROM spr008 WHERE egaisstatus_v3 > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='008' AND v3= 1 )
+				   UNION SELECT '046' AS code, ndok, date FROM spr046 WHERE egaisstatus_v3 > 2 AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " WHERE code ='046' AND v3= 1 )", "СписокДокументов" );
+ТекстСообщения		= "";
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
+{
+	ТекстСообщения	+= ЕСЛИ( СписокДокументов.code == '008', 'ДКС ', 'ВТ ' ) + СписокДокументов.ndok + " от " + DTOC( СписокДокументов.date ) + CHR( 13 );
+	ПРОПУСТИТЬ( 1, "СписокДокументов" );
+}
+УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );
+IF ( !ПУСТО( ТекстСообщения ) )
+	IF ( СООБЩЕНИЕ( "Следующие документы уже были отправлены в ЕГАИС. Продолжить? " + CHR( 13 ) + ТекстСообщения, "Отправка документов", 4 ) != 6 ) RETURN false;
+
+// Проходим по списку отмеченных документов и отправляем их в ЕГАИС
+ДОБАВИТЬКОНТЕКСТ( "SELECT temp.code, temp.ic, temp.v3 FROM " + ИМЯТАБЛИЦЫ + " temp 
+				   WHERE CASE WHEN temp.code = '008' THEN (SELECT CASE WHEN temp.v3 = 0 THEN egaisstatus ELSE egaisstatus_v3 END FROM spr008 WHERE identity_column = temp.ic) 
+													 ELSE (SELECT CASE WHEN temp.v3 = 0 THEN egaisstatus ELSE egaisstatus_v3 END FROM spr046 WHERE identity_column = temp.ic) END <> 2", "СписокДокументов" );
+IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 )
+{
+	IF ( ПУСТО( ТекстСообщения2 ) ) СООБЩЕНИЕ( "Необходимо отметить хотя бы один документ, для отправки.", "Отправка документов" );
+	RETURN false;
+}
+
+ТекстСообщения			= "";
+ТекстСообщенияПроМарки	= "";
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
+{
+	IF ( СписокДокументов.code == "008" AND СписокДокументов.v3 == 0 )
+	{
+		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯПИВАИЗДКС_В2( СписокДокументов.ic ) ) RETURN false;
+	}
+	ELSE IF ( СписокДокументов.code == "008" AND СписокДокументов.v3 == 1 )
+	{
+		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯИЗДКС_В3( СписокДокументов.ic ) ) RETURN false;
+	}
+	ELSE IF ( СписокДокументов.code == "046" AND СписокДокументов.v3 == 0 )
+	{
+		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯПИВАИЗВТ_В2( СписокДокументов.ic ) ) RETURN false;
+	}
+	ELSE IF ( СписокДокументов.code == "046" AND СписокДокументов.v3 == 1 )
+	{
+		IF ( !ЕГАИС.ОтправитьАКТСПИСАНИЯИЗВТ_В3( СписокДокументов.ic ) ) RETURN false;
+	}
+	
+	ПРОПУСТИТЬ( 1, "СписокДокументов" );
+}
+УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );
+IF ( !ПУСТО( ТекстСообщения ) ) СООБЩЕНИЕ( "В ДКС/ВТ " +  ТекстСообщения + CHR( 13 ) + "нет позиций для списания." + CHR( 13 ) + "Документ(ы) не был(и) отправлен(ы) в ЕГАИС.", "Отправка ДКС/ВТ в ЕГАИС", 64 );
+IF ( !ПУСТО( ТекстСообщенияПроМарки ) ) СООБЩЕНИЕ( "Для следующей маркированной продукции " +  ТекстСообщенияПроМарки + CHR( 13 ) + "не удалось определить справки Б." + CHR( 13 ) + "Документ(ы) не были отправлены в ЕГАИС.", "Отправка ДКС/ВТ в ЕГАИС", 64 );
+
+RETURN true;

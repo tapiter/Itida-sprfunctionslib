@@ -1,1 +1,138 @@
-СИСТЕМНОЕСООБЩЕНИЕ( "Пожалуйста, подождите. Загрузка данных из УТМ." );ЕГАИС.ИнициализироватьОбмен( );IF ( !ЕГАИС.ЗагрузитьСписокДокументов( ) ) {	СИСТЕМНОЕСООБЩЕНИЕ( );	RETURN "";}// Создаем временные таблицы для сбора данныхЕГАИС.СоздатьВременныеТаблицы( );ТекстСкриптаПроверкиДокумента		= ЗАПРОС( "SELECT value FROM param_ex WHERE param='EGAIS_UPLOAD_CHECKDOC'" );// Проходим по полученному списку и последовательно вызываем процедуры создания документовВЫБРАТЬКОНТЕКСТ( "СписокДокументов" );ПЕРЕЙТИВНАЧАЛО( "СписокДокументов" ); IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) > 2 )	ИНДИКАТОР( "Загрузка данных из транспортного модуля", КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) );WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) ){	IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) > 2 )		ИНДИКАТОР( НОМЕРСТРОКИ( "СписокДокументов" ), СписокДокументов.url );	IF ( !ЕГАИС.ЗагрузитьДокумент( СписокДокументов.url ) )	{		ИНДИКАТОР( );		СИСТЕМНОЕСООБЩЕНИЕ( );		RETURN "";	}		ПРОПУСТИТЬ( 1, "СписокДокументов" );}// Контекст СписокДокументов пока не удаляем, т.к. по нему будем удалять файлы из УТМИНДИКАТОР( );// После чтения всех имеющихся на сервере файлов можно формировать контрагентов, товары и документыIF ( !ЕГАИС.СформироватьКонтрагентов( ) ) {	СИСТЕМНОЕСООБЩЕНИЕ( );	RETURN "";}// Необходимо выбрать только уникальные сочетания полей товаров, т.к. при загрузке данные могут повторятьсяВременнаяТаблицаТоваров		= "##" + УНИКАЛЬНОЕИМЯ( );__SQL( ){	SELECT ISNULL( MAX( pref_Type ), '' ) AS pref_Type, ISNULL( MAX( pref_FullName ), '' ) AS pref_FullName, ISNULL( MAX( pref_ShortName ), '' ) AS pref_ShortName, 			pref_AlcCode, ISNULL( MAX( pref_ProductVCode ), '' ) AS pref_ProductVCode, ISNULL( MAX( pref_Capacity ), 0 ) AS pref_Capacity, ISNULL( MAX( oref_ClientRegId ), '' ) AS oref_ClientRegId,			ISNULL( MAX( pref_AlcVolume ), 0 ) AS pref_AlcVolume, ISNULL( MAX( producer ), '' ) AS producer, ISNULL( MAX( importer ), '' ) AS importer, ISNULL( MAX( pref_UnitType ), '' ) AS pref_UnitType	INTO [[ ВременнаяТаблицаТоваров ]]	FROM [[ ЕГАИСТаблицаТоваров  ]]	GROUP BY pref_AlcCode;		 	DELETE FROM [[ ЕГАИСТаблицаТоваров ]];		INSERT INTO [[ ЕГАИСТаблицаТоваров ]] (nn, pref_Type, pref_FullName, pref_ShortName, pref_AlcCode, pref_Capacity, pref_AlcVolume, pref_ProductVCode, oref_ClientRegId, producer, importer, pref_UnitType )	SELECT '', pref_Type, pref_FullName, pref_ShortName, pref_AlcCode, pref_Capacity, pref_AlcVolume, pref_ProductVCode, oref_ClientRegId, producer, importer, pref_UnitType	FROM [[ ВременнаяТаблицаТоваров ]];		DROP TABLE [[ ВременнаяТаблицаТоваров ]];}// Для имеющихся товаров устанавливаем связи__SQL( ){	UPDATE temp SET		 nn		= ISNULL( ( SELECT MAX( code ) FROM sprres_egais WHERE alcocode = temp.pref_AlcCode ), '' )	FROM [[ ЕГАИСТаблицаТоваров ]] temp;	-- Проставляем производителя/импортера в загружнных товарах из справочника контрагентов	UPDATE temp 	SET producer	= sprclient.code	FROM [[ ЕГАИСТаблицаТоваров ]] temp 	INNER JOIN sprclient sprclient ON temp.oref_ClientRegId = sprclient.egaisid AND temp.oref_ClientRegId<>'';	UPDATE temp 	SET importer	= sprclient.code	FROM [[ ЕГАИСТаблицаИмпортеров ]] temp 	INNER JOIN sprclient sprclient ON temp.oref_ClientRegId = sprclient.egaisid AND temp.oref_ClientRegId<>'';		 	UPDATE temp1	SET importer	= temp2.importer	FROM [[ ЕГАИСТаблицаТоваров ]] temp1	INNER JOIN [[ ЕГАИСТаблицаИмпортеров ]] temp2 ON temp1.pref_AlcCode = temp2.pref_AlcCode;}ИДЗагрузки		= ЗАПРОС( "SELECT CONVERT( varchar( 50 ), NEWID( ) )" );// Переносим загруженные товары в sprres_egais// Обновляем ранее загруженные данные// WHERE egais.incomplete = 1; Убрано условие, чтобы информация о товаре обновлялась всегда из ЕГАИС.//		UPDATE egais//		SET		producer		= temp.producer//		FROM sprres_egais egais//		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp //		ON egais.alcocode = temp.pref_AlcCode//		WHERE egais.producer = '';		//		UPDATE egais//		SET		importer		= temp.importer//		FROM sprres_egais egais//		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp //		ON egais.alcocode = temp.pref_AlcCode//		WHERE egais.importer = '';//		UPDATE egais//		SET		loadid			= '[[ИДЗагрузки]]'//		FROM sprres_egais egais//		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp //		ON egais.alcocode = temp.pref_AlcCode;__SQL( ){ 		INSERT INTO sprres_egais ( code, name, shortname, alcocode, nnvid, d_litr, a_proc, producer, importer, packed, loadid ) 		SELECT '', LEFT( pref_FullName, 250 ), pref_ShortName, pref_AlcCode, pref_ProductVCode, pref_Capacity, pref_AlcVolume, producer, importer, 			  CASE WHEN pref_UnitType = '' THEN -1 ELSE CASE WHEN pref_UnitType = 'Unpacked' THEN 0 ELSE 1 END END, '[[ИДЗагрузки]]'		FROM [[ ЕГАИСТаблицаТоваров ]] temp		WHERE NOT EXISTS( SELECT * FROM sprres_egais WHERE alcocode = temp.pref_AlcCode );				UPDATE egais		SET		name			= temp.pref_FullName,				shortname		= temp.pref_ShortName,				nnvid			= temp.pref_ProductVCode,				d_litr			= temp.pref_Capacity,				a_proc			= temp.pref_AlcVolume,				producer		= temp.producer,				importer		= temp.importer,				packed			= CASE WHEN pref_UnitType = '' THEN -1 ELSE CASE WHEN pref_UnitType = 'Unpacked' THEN 0 ELSE 1 END END,				incomplete		= 0,				loadid			= '[[ИДЗагрузки]]'		FROM sprres_egais egais		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp 		ON egais.alcocode = temp.pref_AlcCode;}СИСТЕМНОЕСООБЩЕНИЕ( );RETURN ИДЗагрузки;
+
+СИСТЕМНОЕСООБЩЕНИЕ( "Пожалуйста, подождите. Загрузка данных из УТМ." );
+
+ЕГАИС.ИнициализироватьОбмен( );
+IF ( !ЕГАИС.ЗагрузитьСписокДокументов( ) ) 
+{
+	СИСТЕМНОЕСООБЩЕНИЕ( );
+	RETURN "";
+}
+
+// Создаем временные таблицы для сбора данных
+ЕГАИС.СоздатьВременныеТаблицы( );
+ТекстСкриптаПроверкиДокумента		= ЗАПРОС( "SELECT value FROM param_ex WHERE param='EGAIS_UPLOAD_CHECKDOC'" );
+
+// Проходим по полученному списку и последовательно вызываем процедуры создания документов
+ВЫБРАТЬКОНТЕКСТ( "СписокДокументов" );
+ПЕРЕЙТИВНАЧАЛО( "СписокДокументов" ); 
+IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) > 2 )
+	ИНДИКАТОР( "Загрузка данных из транспортного модуля", КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) );
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
+{
+	IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) > 2 )
+		ИНДИКАТОР( НОМЕРСТРОКИ( "СписокДокументов" ), СписокДокументов.url );
+
+	IF ( !ЕГАИС.ЗагрузитьДокумент( СписокДокументов.url ) )
+	{
+		ИНДИКАТОР( );
+		СИСТЕМНОЕСООБЩЕНИЕ( );
+		RETURN "";
+	}
+	
+	ПРОПУСТИТЬ( 1, "СписокДокументов" );
+}
+// Контекст СписокДокументов пока не удаляем, т.к. по нему будем удалять файлы из УТМ
+ИНДИКАТОР( );
+
+// После чтения всех имеющихся на сервере файлов можно формировать контрагентов, товары и документы
+IF ( !ЕГАИС.СформироватьКонтрагентов( ) ) 
+{
+	СИСТЕМНОЕСООБЩЕНИЕ( );
+	RETURN "";
+}
+
+// Необходимо выбрать только уникальные сочетания полей товаров, т.к. при загрузке данные могут повторяться
+ВременнаяТаблицаТоваров		= "##" + УНИКАЛЬНОЕИМЯ( );
+__SQL( )
+{
+	SELECT ISNULL( MAX( pref_Type ), '' ) AS pref_Type, ISNULL( MAX( pref_FullName ), '' ) AS pref_FullName, ISNULL( MAX( pref_ShortName ), '' ) AS pref_ShortName, 
+			pref_AlcCode, ISNULL( MAX( pref_ProductVCode ), '' ) AS pref_ProductVCode, ISNULL( MAX( pref_Capacity ), 0 ) AS pref_Capacity, ISNULL( MAX( oref_ClientRegId ), '' ) AS oref_ClientRegId,
+			ISNULL( MAX( pref_AlcVolume ), 0 ) AS pref_AlcVolume, ISNULL( MAX( producer ), '' ) AS producer, ISNULL( MAX( importer ), '' ) AS importer, ISNULL( MAX( pref_UnitType ), '' ) AS pref_UnitType
+	INTO [[ ВременнаяТаблицаТоваров ]]
+	FROM [[ ЕГАИСТаблицаТоваров  ]]
+	GROUP BY pref_AlcCode;
+		 
+	DELETE FROM [[ ЕГАИСТаблицаТоваров ]];
+	
+	INSERT INTO [[ ЕГАИСТаблицаТоваров ]] (nn, pref_Type, pref_FullName, pref_ShortName, pref_AlcCode, pref_Capacity, pref_AlcVolume, pref_ProductVCode, oref_ClientRegId, producer, importer, pref_UnitType )
+	SELECT '', pref_Type, pref_FullName, pref_ShortName, pref_AlcCode, pref_Capacity, pref_AlcVolume, pref_ProductVCode, oref_ClientRegId, producer, importer, pref_UnitType
+	FROM [[ ВременнаяТаблицаТоваров ]];
+	
+	DROP TABLE [[ ВременнаяТаблицаТоваров ]];
+}
+
+// Для имеющихся товаров устанавливаем связи
+__SQL( )
+{
+	UPDATE temp SET
+		 nn		= ISNULL( ( SELECT MAX( code ) FROM sprres_egais WHERE alcocode = temp.pref_AlcCode ), '' )
+	FROM [[ ЕГАИСТаблицаТоваров ]] temp;
+
+	-- Проставляем производителя/импортера в загружнных товарах из справочника контрагентов
+	UPDATE temp 
+	SET producer	= sprclient.code
+	FROM [[ ЕГАИСТаблицаТоваров ]] temp 
+	INNER JOIN sprclient sprclient ON temp.oref_ClientRegId = sprclient.egaisid AND temp.oref_ClientRegId<>'';
+
+	UPDATE temp 
+	SET importer	= sprclient.code
+	FROM [[ ЕГАИСТаблицаИмпортеров ]] temp 
+	INNER JOIN sprclient sprclient ON temp.oref_ClientRegId = sprclient.egaisid AND temp.oref_ClientRegId<>'';
+		 
+	UPDATE temp1
+	SET importer	= temp2.importer
+	FROM [[ ЕГАИСТаблицаТоваров ]] temp1
+	INNER JOIN [[ ЕГАИСТаблицаИмпортеров ]] temp2 ON temp1.pref_AlcCode = temp2.pref_AlcCode;
+}
+
+ИДЗагрузки		= ЗАПРОС( "SELECT CONVERT( varchar( 50 ), NEWID( ) )" );
+
+// Переносим загруженные товары в sprres_egais
+// Обновляем ранее загруженные данные
+// WHERE egais.incomplete = 1; Убрано условие, чтобы информация о товаре обновлялась всегда из ЕГАИС.
+//		UPDATE egais
+//		SET		producer		= temp.producer
+//		FROM sprres_egais egais
+//		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp 
+//		ON egais.alcocode = temp.pref_AlcCode
+//		WHERE egais.producer = '';
+		
+//		UPDATE egais
+//		SET		importer		= temp.importer
+//		FROM sprres_egais egais
+//		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp 
+//		ON egais.alcocode = temp.pref_AlcCode
+//		WHERE egais.importer = '';
+
+//		UPDATE egais
+//		SET		loadid			= '[[ИДЗагрузки]]'
+//		FROM sprres_egais egais
+//		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp 
+//		ON egais.alcocode = temp.pref_AlcCode;
+
+__SQL( )
+{ 
+		INSERT INTO sprres_egais ( code, name, shortname, alcocode, nnvid, d_litr, a_proc, producer, importer, packed, loadid ) 
+		SELECT '', LEFT( pref_FullName, 250 ), pref_ShortName, pref_AlcCode, pref_ProductVCode, pref_Capacity, pref_AlcVolume, producer, importer, 
+			  CASE WHEN pref_UnitType = '' THEN -1 ELSE CASE WHEN pref_UnitType = 'Unpacked' THEN 0 ELSE 1 END END, '[[ИДЗагрузки]]'
+		FROM [[ ЕГАИСТаблицаТоваров ]] temp
+		WHERE NOT EXISTS( SELECT * FROM sprres_egais WHERE alcocode = temp.pref_AlcCode );
+		
+		UPDATE egais
+		SET		name			= temp.pref_FullName,
+				shortname		= temp.pref_ShortName,
+				nnvid			= temp.pref_ProductVCode,
+				d_litr			= temp.pref_Capacity,
+				a_proc			= temp.pref_AlcVolume,
+				producer		= temp.producer,
+				importer		= temp.importer,
+				packed			= CASE WHEN pref_UnitType = '' THEN -1 ELSE CASE WHEN pref_UnitType = 'Unpacked' THEN 0 ELSE 1 END END,
+				incomplete		= 0,
+				loadid			= '[[ИДЗагрузки]]'
+		FROM sprres_egais egais
+		INNER JOIN [[ ЕГАИСТаблицаТоваров ]] temp 
+		ON egais.alcocode = temp.pref_AlcCode;
+}
+
+СИСТЕМНОЕСООБЩЕНИЕ( );
+RETURN ИДЗагрузки;

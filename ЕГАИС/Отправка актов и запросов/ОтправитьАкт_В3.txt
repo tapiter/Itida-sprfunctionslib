@@ -1,1 +1,88 @@
-ЕГАИСИД		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );ДОБАВИТЬКОНТЕКСТ( "SELECT spr001.egaisid, spr001.egaisactnote, spr001.date, spr001.egaisact					FROM spr001 spr001 					WHERE spr001.identity_column = " + ИДДокумента, "ДокументИнфо" );IF ( !ПУСТО( ДокументИнфо.egaisid ) ){	КомментарийКАкту	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisactnote );	ИДДокументаВЕГАИС	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisid );	АктТекст	= "<?xml version=""1.0"" encoding=""UTF-8""?><ns:Documents Version=""1.0"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:ns= ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""							  xmlns:wa=""http://fsrar.ru/WEGAIS/ActTTNSingle_v3"" xmlns:ce=""http://fsrar.ru/WEGAIS/CommonV3"">	<ns:Owner>		<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>	</ns:Owner>	<ns:Document>		<ns:WayBillAct_v3>			<wa:Header>				<wa:IsAccept>" + ЕСЛИ( ДокументИнфо.egaisact == 3, "Rejected", ЕСЛИ( ДокументИнфо.egaisact == 2, "Differences", "Accepted" ) ) + "</wa:IsAccept>				<wa:ACTNUMBER>1-1</wa:ACTNUMBER>				<wa:ActDate>" + DTOC( ДАТАВРЕМЯ( ), 7, "-" ) + "</wa:ActDate>				<wa:WBRegId>" + ИДДокументаВЕГАИС + "</wa:WBRegId>				<wa:Note>" + КомментарийКАкту + "</wa:Note>			</wa:Header>			<wa:Content>";	// Для акта разногласия надо перечислять в чем именно разногласия	IF ( ДокументИнфо.egaisact == 2 )	{		ДОБАВИТЬКОНТЕКСТ( "SELECT egais_identity, identity_column, (SELECT TOP 1 barcode FROM barcodes2 WHERE code = '001' AND ic = " + ИДДокумента + " AND spec_ic = spec.identity_column ) AS informB, realkolp FROM spec001 spec WHERE ic = " + ИДДокумента + " ORDER BY identity_column ", "СписокСтрок" );		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )		{			СправкаБ		= ЕГАИС.ЗаменитьСимволы( ALLTRIM( ЕСЛИ( ATC( СписокСтрок.informB, "/" ) > 0, ПОЛУЧИТЬСЛОВО( "/" + СписокСтрок.informB, "/", "/", 2 ), СписокСтрок.informB ) ) );			АктТекст	+= "				<wa:Position>					<wa:Identity>" + ЕГАИС.ЗаменитьСимволы( СписокСтрок.egais_identity ) + "</wa:Identity>					<wa:InformF2RegId>" + СправкаБ + "</wa:InformF2RegId>					<wa:RealQuantity>" + STR( СписокСтрок.realkolp ) + "</wa:RealQuantity>";			ДОБАВИТЬКОНТЕКСТ( "SELECT barcode FROM barcodes WHERE ic = " + ИДДокумента + " AND spec_ic = " + СписокСтрок.identity_column + " AND kolp = 0", "СписокМарок" );			IF ( КОЛИЧЕСТВОСТРОК( "СписокМарок" ) > 0 )			{				АктТекст	+= "					<wa:MarkInfo>";				WHILE ( !КОНЕЦКОНТЕКСТА( "СписокМарок" ) )				{					АктТекст	+= "						<ce:amc>" + СписокМарок.barcode + "</ce:amc>";					ПРОПУСТИТЬ( 1, "СписокМарок" );				}				УДАЛИТЬКОНТЕКСТ( "СписокМарок" );				АктТекст	+= "					</wa:MarkInfo>";			}			АктТекст	+= "				</wa:Position>";			ПРОПУСТИТЬ( 1, "СписокСтрок" );		}		УДАЛИТЬКОНТЕКСТ( "СписокСтрок" ); 	}	АктТекст	+="			</wa:Content>		</ns:WayBillAct_v3>	</ns:Document></ns:Documents>";					// Отправляем получившийся текст на сервер	ОтветСервера = "";	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/WayBillAct_v3", ПЕРЕКОДИРОВАТЬ( АктТекст, "ANSI", "UTF-8" ), @ОтветСервера, "WayBillAct_v3.xml" ) ) RETURN false; 	ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url SET FMTONLY OFF", "ТТНUrl" );	ЗАГРУЗИТЬ( "ТТНUrl", "XMLSTRING", ОтветСервера, "url" );		// Если все благополучно отправлено, то сохраняем информацию в документе	ЗАПРОС( "UPDATE spr001 SET egaisstatus = 2, egaisreplyid = '" + ТТНUrl.url + "', egaisact_reply='' WHERE identity_column = " + ИДДокумента );	ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 					   VALUES ( '001', " + ИДДокумента + ", 0, 'АктКвитанцияУТМ.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );	УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );	УДАЛИТЬКОНТЕКСТ( "ТТНUrl" );	ЕГАИС.ДобавитьЗапрос( 1, "001", ИДДокумента, АктТекст, ОтветСервера );}RETURN true;
+ЕГАИСИД		= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + СКЛАД + "'" );
+
+ДОБАВИТЬКОНТЕКСТ( "SELECT spr001.egaisid, spr001.egaisactnote, spr001.date, spr001.egaisact
+					FROM spr001 spr001 
+					WHERE spr001.identity_column = " + ИДДокумента, "ДокументИнфо" );
+IF ( !ПУСТО( ДокументИнфо.egaisid ) )
+{
+	КомментарийКАкту	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisactnote );
+	ИДДокументаВЕГАИС	= ЕГАИС.ЗаменитьСимволы( ДокументИнфо.egaisid );
+	АктТекст	= 
+"<?xml version=""1.0"" encoding=""UTF-8""?>
+<ns:Documents Version=""1.0"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:ns= ""http://fsrar.ru/WEGAIS/WB_DOC_SINGLE_01""
+							  xmlns:wa=""http://fsrar.ru/WEGAIS/ActTTNSingle_v3"" xmlns:ce=""http://fsrar.ru/WEGAIS/CommonV3"">
+	<ns:Owner>
+		<ns:FSRAR_ID>" + ЕГАИСИД + "</ns:FSRAR_ID>
+	</ns:Owner>
+	<ns:Document>
+		<ns:WayBillAct_v3>
+			<wa:Header>
+				<wa:IsAccept>" + ЕСЛИ( ДокументИнфо.egaisact == 3, "Rejected", ЕСЛИ( ДокументИнфо.egaisact == 2, "Differences", "Accepted" ) ) + "</wa:IsAccept>
+				<wa:ACTNUMBER>1-1</wa:ACTNUMBER>
+				<wa:ActDate>" + DTOC( ДАТАВРЕМЯ( ), 7, "-" ) + "</wa:ActDate>
+				<wa:WBRegId>" + ИДДокументаВЕГАИС + "</wa:WBRegId>
+				<wa:Note>" + КомментарийКАкту + "</wa:Note>
+			</wa:Header>
+			<wa:Content>
+";
+	// Для акта разногласия надо перечислять в чем именно разногласия
+	IF ( ДокументИнфо.egaisact == 2 )
+	{
+		ДОБАВИТЬКОНТЕКСТ( "SELECT egais_identity, identity_column, (SELECT TOP 1 barcode FROM barcodes2 WHERE code = '001' AND ic = " + ИДДокумента + " AND spec_ic = spec.identity_column ) AS informB, realkolp FROM spec001 spec WHERE ic = " + ИДДокумента + " ORDER BY identity_column ", "СписокСтрок" );
+		WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
+		{
+			СправкаБ		= ЕГАИС.ЗаменитьСимволы( ALLTRIM( ЕСЛИ( ATC( СписокСтрок.informB, "/" ) > 0, ПОЛУЧИТЬСЛОВО( "/" + СписокСтрок.informB, "/", "/", 2 ), СписокСтрок.informB ) ) );
+			АктТекст	+= 
+"				<wa:Position>
+					<wa:Identity>" + ЕГАИС.ЗаменитьСимволы( СписокСтрок.egais_identity ) + "</wa:Identity>
+					<wa:InformF2RegId>" + СправкаБ + "</wa:InformF2RegId>
+					<wa:RealQuantity>" + STR( СписокСтрок.realkolp ) + "</wa:RealQuantity>";
+			ДОБАВИТЬКОНТЕКСТ( "SELECT barcode FROM barcodes WHERE ic = " + ИДДокумента + " AND spec_ic = " + СписокСтрок.identity_column + " AND kolp = 0", "СписокМарок" );
+			IF ( КОЛИЧЕСТВОСТРОК( "СписокМарок" ) > 0 )
+			{
+				АктТекст	+= 
+"					<wa:MarkInfo>
+";
+				WHILE ( !КОНЕЦКОНТЕКСТА( "СписокМарок" ) )
+				{
+					АктТекст	+= 
+"						<ce:amc>" + СписокМарок.barcode + "</ce:amc>
+";
+					ПРОПУСТИТЬ( 1, "СписокМарок" );
+				}
+				УДАЛИТЬКОНТЕКСТ( "СписокМарок" );
+				АктТекст	+= 
+"					</wa:MarkInfo>
+";
+			}
+			АктТекст	+= 
+"				</wa:Position>
+";
+			ПРОПУСТИТЬ( 1, "СписокСтрок" );
+		}
+		УДАЛИТЬКОНТЕКСТ( "СписокСтрок" ); 
+	}
+	АктТекст	+=
+"			</wa:Content>
+		</ns:WayBillAct_v3>
+	</ns:Document>
+</ns:Documents>";
+				
+	// Отправляем получившийся текст на сервер
+	ОтветСервера = "";
+	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/WayBillAct_v3", ПЕРЕКОДИРОВАТЬ( АктТекст, "ANSI", "UTF-8" ), @ОтветСервера, "WayBillAct_v3.xml" ) ) RETURN false; 
+
+	ДОБАВИТЬКОНТЕКСТ( "SET FMTONLY ON SELECT CONVERT( char( 250 ), '' ) AS url SET FMTONLY OFF", "ТТНUrl" );
+	ЗАГРУЗИТЬ( "ТТНUrl", "XMLSTRING", ОтветСервера, "url" );	
+
+	// Если все благополучно отправлено, то сохраняем информацию в документе
+	ЗАПРОС( "UPDATE spr001 SET egaisstatus = 2, egaisreplyid = '" + ТТНUrl.url + "', egaisact_reply='' WHERE identity_column = " + ИДДокумента );
+
+	ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec000_img ( code, ic, pnum, filename, doc_image ) 
+					   VALUES ( '001', " + ИДДокумента + ", 0, 'АктКвитанцияУТМ.txt', CONVERT( varbinary( max ), '" + STDF( ОтветСервера ) + "' ) )", "ПриложениеКДокументу" );
+	УДАЛИТЬКОНТЕКСТ( "ПриложениеКДокументу" );
+	УДАЛИТЬКОНТЕКСТ( "ТТНUrl" );
+	ЕГАИС.ДобавитьЗапрос( 1, "001", ИДДокумента, АктТекст, ОтветСервера );
+
+}
+RETURN true;

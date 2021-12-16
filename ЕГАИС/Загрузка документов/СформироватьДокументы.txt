@@ -1,1 +1,118 @@
-// Прежде всего необходимо произвести предварительную подготовку. // В строках накладных проставить поставщика и товар// Сопоставить справки Б и строки накладных.// Отдельно обработать чеки (ответы на акты) пока не понятно, т.к. похоже, что они не будут возвращаться// Затем, сформировать список накладных из строк// Пройти по списку и проверить наличие загруженных ранее накладных // Если указано, что надо обновлять накладные, то найденные непроведенные накладные надо удалить// Читаем сохраненные параметры ЕГАИСИЗМЕНЯТЬДОКУМЕНТЫ		= false; //VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_MODIFYDOCS" + СКЛАД + "'" ) ) != 0;_ERRORCODE					= 0;ErrorMessage 				= "Ошибка формирования документов." + CHR( 13 );// Проставляем поставщика в строках накладныхЗАПРОС( "UPDATE temp		 SET client 		= sprclient.code		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp		 INNER JOIN sprclient sprclient ON temp.oref_ClientRegId = sprclient.egaisid" );// Проставляем товары в строках накладных по алкокодуЗАПРОС( "UPDATE temp		 SET nn 			= sprres.code,			 wb_UnitType	= CASE WHEN sprres.packed = -1 THEN wb_UnitType ELSE CASE WHEN sprres.packed = 1 THEN 'Packed' ELSE 'Unpacked' END END		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp		 INNER JOIN sprres_egais sprres ON temp.pref_AlcCode = sprres.alcocode" );		 // Сопоставляем справки Б и строки накладныхЗАПРОС( "UPDATE temp		 SET egaisid		= temp_b.wbr_WBRegId		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.wb_header_Identity = temp_b.wbr_header_Identity AND temp.oref_ClientRegId = temp_b.oref_ClientRegId" );// Делим загруженные марки по ТТНЗАПРОС( "UPDATE temp		 SET egaisid		= temp_b.wbr_WBRegId		 FROM " + ЕГАИСТаблицаМарок + " temp		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.wb_header_Identity = temp_b.wbr_header_Identity AND temp.oref_ClientRegId = temp_b.oref_ClientRegId" );// Проставляем в строках накладных номера партий (ИД справок Б)ЗАПРОС( "UPDATE temp		 SET barcode2		=  RTRIM( CASE WHEN temp.wb_FARegID <> '' THEN temp.wb_FARegID ELSE temp.pref_RegId END ) + '/' + RTRIM( CASE WHEN temp_b.wbr_InformBRegId <> '' THEN temp_b.wbr_InformBRegId ELSE temp_b.wbr_InformF2RegId END)		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.wb_header_Identity = temp_b.wbr_header_Identity AND temp.oref_ClientRegId = temp_b.oref_ClientRegId AND temp.wb_Identity = temp_b.wbr_Identity" );// Сопоставляем приложения к документам и справки БЗАПРОС( "UPDATE " + ЕГАИСТаблицаФайлов + " SET egaisid	= wbr_WBRegId WHERE wbr_WBRegId <> ''" );ЗАПРОС( "UPDATE " + ЕГАИСТаблицаФайлов + " SET egaisid	= tc_RegID WHERE egaisid = '' AND tc_RegID <> ''" );ЗАПРОС( "UPDATE temp		 SET egaisid		= temp_b.wbr_WBRegId		 FROM " + ЕГАИСТаблицаФайлов + " temp		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.oref_ClientRegId = temp_b.oref_ClientRegId" ); IF ( _ERRORCODE < 0 ){	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );	RETURN false;}// Добавляем новые карточки в справочник контрагентовДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT wb_NUMBER, wb_ChangeOwnership, wb_Date, client, egaisid, url FROM " + ЕГАИСТаблицаСтрокНакладных + " WHERE egaisid <> ''", "НовыеДокументы" );WHILE ( !КОНЕЦКОНТЕКСТА( "НовыеДокументы" ) ){	IF ( _ERRORCODE < 0 )	{		СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );		RETURN false;	}	// Если в параметрах указано, что можно изменять имеющиеся товары, то ищем товар по названию	СтатусАкта				= 0;	ТекстКомментария		= "";	СтатусОтправкиАкта		= 0;	СтатусОтправкиВНП		= 0;	ИДНакладной				= ЗАПРОС( "SELECT identity_column FROM spr001 WHERE egaisid = '" + STDF( НовыеДокументы.egaisid ) + "'" );	IF ( !ПУСТО( ИДНакладной ) )	{		ДокументУдален		= ЗАПРОС( "SELECT f_deleted FROM spr000 WHERE code ='001' AND ic= " + ИДНакладной );		// Если документ существует, то проверяем не проведен ли он		Проведен			= ЗАПРОС( "SELECT transacted FROM accountlist WHERE code = '001' AND ic = " + ИДНакладной + " AND transacted = 1" );		// Проведенные документы просто пропускаем. Так же пропускаем существующие документы, если не надо их менять		// Если документ помечен на удаление, то его пересоздаем		IF ( ( Проведен OR !ЕГАИСИЗМЕНЯТЬДОКУМЕНТЫ ) AND !ДокументУдален )		{			ДокИмя			= ЗАПРОС( "SELECT 'Приходная накладная № ' + RTRIM( ndok ) + ' от ' + CONVERT( varchar( 20 ), date, 104 ) FROM spr000 WHERE code ='001' AND ic= " + ИДНакладной );			ПропуститьДок	= true;			IF ( Проведен )				СООБЩЕНИЕ( ДокИмя + " с ЕГАИС ИД " + НовыеДокументы.egaisid + " уже есть в базе данных и проведена." + CHR( 13 ) + "Документ был пропущен при загрузке.", "Загрузка документов" );			ELSE				ПропуститьДок	= СООБЩЕНИЕ( ДокИмя + " с ЕГАИС ИД " + НовыеДокументы.egaisid + " уже есть в базе данных." + CHR( 13 ) + "Загрузить документ еще раз?" + CHR( 13 ) + 													  "При повторной загрузке документа будут утеряны ранее прочитанные марки и фактическое количество.", "Загрузка документов", 36 ) != 6;						IF ( ПропуститьДок )			{				ПРОПУСТИТЬ( 1, "НовыеДокументы" );				CONTINUE;			}		}		// Удаляем непроведенный документ. Предварительно принудительно снимаем возможные блокировки, чтобы никто не пытался его записать		ЗАПРОС( "EXECUTE sp_unlockobject 'DOC', '001', " + ИДНакладной + ", 0" );		// Сохраняем значения статуса отправки акта и текста комментария к нему		СтатусАкта			= ЗАПРОС( "SELECT egaisact FROM spr001 WHERE identity_column= " + ИДНакладной );		СтатусОтправкиАкта	= ЗАПРОС( "SELECT egaisstatus FROM spr001 WHERE identity_column= " + ИДНакладной );		СтатусОтправкиВНП	= ЗАПРОС( "SELECT egaisvnpstatus FROM spr001 WHERE identity_column= " + ИДНакладной );		ТекстКомментария	= ЗАПРОС( "SELECT egaisactnote FROM spr001 WHERE identity_column= " + ИДНакладной );		IF ( !ЗАПРОС( "DELETE FROM spr001 WHERE identity_column= " + ИДНакладной ) )		{			СООБЩЕНИЕ( "Ошибка удаления обновляемого документа." + CHR( 13 ) + _ERRORDESCRIPTION );			RETURN false;		}	}	// В этом место документы можно только создавать	IF ( !ЕГАИС.СформироватьДокумент( НовыеДокументы.wb_NUMBER, НовыеДокументы.wb_Date, НовыеДокументы.client, НовыеДокументы.egaisid, 									  СтатусАкта, СтатусОтправкиАкта, СтатусОтправкиВНП, ТекстКомментария, НовыеДокументы.url, НовыеДокументы.wb_ChangeOwnership ) ) RETURN false;	ПРОПУСТИТЬ( 1, "НовыеДокументы" );}УДАЛИТЬКОНТЕКСТ( "НовыеДокументы" );RETURN true;
+// Прежде всего необходимо произвести предварительную подготовку. 
+// В строках накладных проставить поставщика и товар
+// Сопоставить справки Б и строки накладных.
+// Отдельно обработать чеки (ответы на акты) пока не понятно, т.к. похоже, что они не будут возвращаться
+
+// Затем, сформировать список накладных из строк
+// Пройти по списку и проверить наличие загруженных ранее накладных 
+// Если указано, что надо обновлять накладные, то найденные непроведенные накладные надо удалить
+
+// Читаем сохраненные параметры 
+ЕГАИСИЗМЕНЯТЬДОКУМЕНТЫ		= false; //VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_MODIFYDOCS" + СКЛАД + "'" ) ) != 0;
+_ERRORCODE					= 0;
+ErrorMessage 				= "Ошибка формирования документов." + CHR( 13 );
+
+// Проставляем поставщика в строках накладных
+ЗАПРОС( "UPDATE temp
+		 SET client 		= sprclient.code
+		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp
+		 INNER JOIN sprclient sprclient ON temp.oref_ClientRegId = sprclient.egaisid" );
+
+// Проставляем товары в строках накладных по алкокоду
+ЗАПРОС( "UPDATE temp
+		 SET nn 			= sprres.code,
+			 wb_UnitType	= CASE WHEN sprres.packed = -1 THEN wb_UnitType ELSE CASE WHEN sprres.packed = 1 THEN 'Packed' ELSE 'Unpacked' END END
+		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp
+		 INNER JOIN sprres_egais sprres ON temp.pref_AlcCode = sprres.alcocode" );
+		 
+// Сопоставляем справки Б и строки накладных
+ЗАПРОС( "UPDATE temp
+		 SET egaisid		= temp_b.wbr_WBRegId
+		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp
+		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.wb_header_Identity = temp_b.wbr_header_Identity AND temp.oref_ClientRegId = temp_b.oref_ClientRegId" );
+
+// Делим загруженные марки по ТТН
+ЗАПРОС( "UPDATE temp
+		 SET egaisid		= temp_b.wbr_WBRegId
+		 FROM " + ЕГАИСТаблицаМарок + " temp
+		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.wb_header_Identity = temp_b.wbr_header_Identity AND temp.oref_ClientRegId = temp_b.oref_ClientRegId" );
+
+// Проставляем в строках накладных номера партий (ИД справок Б)
+ЗАПРОС( "UPDATE temp
+		 SET barcode2		=  RTRIM( CASE WHEN temp.wb_FARegID <> '' THEN temp.wb_FARegID ELSE temp.pref_RegId END ) + '/' + RTRIM( CASE WHEN temp_b.wbr_InformBRegId <> '' THEN temp_b.wbr_InformBRegId ELSE temp_b.wbr_InformF2RegId END)
+		 FROM " + ЕГАИСТаблицаСтрокНакладных + " temp
+		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.wb_header_Identity = temp_b.wbr_header_Identity AND temp.oref_ClientRegId = temp_b.oref_ClientRegId AND temp.wb_Identity = temp_b.wbr_Identity" );
+
+// Сопоставляем приложения к документам и справки Б
+ЗАПРОС( "UPDATE " + ЕГАИСТаблицаФайлов + " SET egaisid	= wbr_WBRegId WHERE wbr_WBRegId <> ''" );
+ЗАПРОС( "UPDATE " + ЕГАИСТаблицаФайлов + " SET egaisid	= tc_RegID WHERE egaisid = '' AND tc_RegID <> ''" );
+ЗАПРОС( "UPDATE temp
+		 SET egaisid		= temp_b.wbr_WBRegId
+		 FROM " + ЕГАИСТаблицаФайлов + " temp
+		 INNER JOIN " + ЕГАИСТаблицаСтрокСправокБ + " temp_b ON temp.wb_NUMBER = temp_b.wbr_WBNumber AND temp.wb_Date = temp_b.wbr_WBDate AND temp.oref_ClientRegId = temp_b.oref_ClientRegId" );
+ 
+IF ( _ERRORCODE < 0 )
+{
+	СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+	RETURN false;
+}
+
+// Добавляем новые карточки в справочник контрагентов
+ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT wb_NUMBER, wb_ChangeOwnership, wb_Date, client, egaisid, url FROM " + ЕГАИСТаблицаСтрокНакладных + " WHERE egaisid <> ''", "НовыеДокументы" );
+WHILE ( !КОНЕЦКОНТЕКСТА( "НовыеДокументы" ) )
+{
+	IF ( _ERRORCODE < 0 )
+	{
+		СООБЩЕНИЕ( ErrorMessage + _ERRORDESCRIPTION );
+		RETURN false;
+	}
+	// Если в параметрах указано, что можно изменять имеющиеся товары, то ищем товар по названию
+	СтатусАкта				= 0;
+	ТекстКомментария		= "";
+	СтатусОтправкиАкта		= 0;
+	СтатусОтправкиВНП		= 0;
+	ИДНакладной				= ЗАПРОС( "SELECT identity_column FROM spr001 WHERE egaisid = '" + STDF( НовыеДокументы.egaisid ) + "'" );
+	IF ( !ПУСТО( ИДНакладной ) )
+	{
+		ДокументУдален		= ЗАПРОС( "SELECT f_deleted FROM spr000 WHERE code ='001' AND ic= " + ИДНакладной );
+		// Если документ существует, то проверяем не проведен ли он
+		Проведен			= ЗАПРОС( "SELECT transacted FROM accountlist WHERE code = '001' AND ic = " + ИДНакладной + " AND transacted = 1" );
+		// Проведенные документы просто пропускаем. Так же пропускаем существующие документы, если не надо их менять
+		// Если документ помечен на удаление, то его пересоздаем
+		IF ( ( Проведен OR !ЕГАИСИЗМЕНЯТЬДОКУМЕНТЫ ) AND !ДокументУдален )
+		{
+			ДокИмя			= ЗАПРОС( "SELECT 'Приходная накладная № ' + RTRIM( ndok ) + ' от ' + CONVERT( varchar( 20 ), date, 104 ) FROM spr000 WHERE code ='001' AND ic= " + ИДНакладной );
+			ПропуститьДок	= true;
+			IF ( Проведен )
+				СООБЩЕНИЕ( ДокИмя + " с ЕГАИС ИД " + НовыеДокументы.egaisid + " уже есть в базе данных и проведена." + CHR( 13 ) + "Документ был пропущен при загрузке.", "Загрузка документов" );
+			ELSE
+				ПропуститьДок	= СООБЩЕНИЕ( ДокИмя + " с ЕГАИС ИД " + НовыеДокументы.egaisid + " уже есть в базе данных." + CHR( 13 ) + "Загрузить документ еще раз?" + CHR( 13 ) + 
+													  "При повторной загрузке документа будут утеряны ранее прочитанные марки и фактическое количество.", "Загрузка документов", 36 ) != 6;
+			
+			IF ( ПропуститьДок )
+			{
+				ПРОПУСТИТЬ( 1, "НовыеДокументы" );
+				CONTINUE;
+			}
+		}
+		// Удаляем непроведенный документ. Предварительно принудительно снимаем возможные блокировки, чтобы никто не пытался его записать
+		ЗАПРОС( "EXECUTE sp_unlockobject 'DOC', '001', " + ИДНакладной + ", 0" );
+		// Сохраняем значения статуса отправки акта и текста комментария к нему
+		СтатусАкта			= ЗАПРОС( "SELECT egaisact FROM spr001 WHERE identity_column= " + ИДНакладной );
+		СтатусОтправкиАкта	= ЗАПРОС( "SELECT egaisstatus FROM spr001 WHERE identity_column= " + ИДНакладной );
+		СтатусОтправкиВНП	= ЗАПРОС( "SELECT egaisvnpstatus FROM spr001 WHERE identity_column= " + ИДНакладной );
+		ТекстКомментария	= ЗАПРОС( "SELECT egaisactnote FROM spr001 WHERE identity_column= " + ИДНакладной );
+		IF ( !ЗАПРОС( "DELETE FROM spr001 WHERE identity_column= " + ИДНакладной ) )
+		{
+			СООБЩЕНИЕ( "Ошибка удаления обновляемого документа." + CHR( 13 ) + _ERRORDESCRIPTION );
+			RETURN false;
+		}
+	}
+	// В этом место документы можно только создавать
+	IF ( !ЕГАИС.СформироватьДокумент( НовыеДокументы.wb_NUMBER, НовыеДокументы.wb_Date, НовыеДокументы.client, НовыеДокументы.egaisid, 
+									  СтатусАкта, СтатусОтправкиАкта, СтатусОтправкиВНП, ТекстКомментария, НовыеДокументы.url, НовыеДокументы.wb_ChangeOwnership ) ) RETURN false;
+	ПРОПУСТИТЬ( 1, "НовыеДокументы" );
+}
+УДАЛИТЬКОНТЕКСТ( "НовыеДокументы" );
+
+RETURN true;

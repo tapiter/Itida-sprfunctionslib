@@ -1,1 +1,59 @@
-IF ( !ФИРМАИЛИКОНТРАГЕНТ )	ДОБАВИТЬКОНТЕКСТ( "SELECT inn, kpp, name, CASE WHEN shortname = '' THEN name ELSE shortname END AS shortname, legal_adress AS address,							  ISNULL( ( SELECT MAX( ex_code ) FROM sprcountry WHERE name = sprclient.country ), '' ) AS country, postcode,							  LEFT( CASE WHEN kpp = '' THEN inn ELSE kpp END, 2 ) AS region, department, city, town, street, building, block, egaisid AS EGAISID					   FROM sprclient					   WHERE code = '" + КОНТРАГЕНТ + "'", "КонтрагентИнфо" );ELSE{	// Если у склада указана КПП, то берем его из склада. Иначе из фирмы	КППСКЛАДА			= ЗАПРОС( "SELECT kpp FROM sprskl WHERE code = (SELECT MAX( CONVERT( varchar( 100 ), value ) ) FROM param_ex WHERE param = 'EGAIS_SKLAD" + УТМ + "' )" );	ВЫРАЖЕНИЕДЛЯКПП		= "CASE WHEN '" + КППСКЛАДА + "' = '' THEN kpp ELSE '" + КППСКЛАДА + "' END";	ДОБАВИТЬКОНТЕКСТ( "SELECT inn, " + ВЫРАЖЕНИЕДЛЯКПП + " AS kpp, name, CASE WHEN shortname = '' THEN name ELSE shortname END AS shortname, legal_adress AS address,							  ISNULL( ( SELECT MAX( ex_code ) FROM sprcountry WHERE name = sprfirm.country ), '' ) AS country, postcode,							  LEFT( CASE WHEN " + ВЫРАЖЕНИЕДЛЯКПП + " = '' THEN inn ELSE " + ВЫРАЖЕНИЕДЛЯКПП + " END, 2 ) AS region, department, city, town, street, building, block,							  ( SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + УТМ + "' ) AS EGAISID					   FROM sprfirm sprfirm					   WHERE code = '" + КОНТРАГЕНТ + "'", "КонтрагентИнфо" );}// Если не указан адрес контрагента, то не выводим ничего, т.к. иначе будет ошибкаСтрокаКонтрагента			= "";IF ( ПУСТО( КонтрагентИнфо.EGAISID ) ){	СООБЩЕНИЕ( "У контрагента " + КонтрагентИнфо.name + " не указан ЕГАИС ИД" + CHR( 13 ) + "Котрагента выгружен не будет" );	THROW "Контрагент";}IF ( ПУСТО( КонтрагентИнфо.address ) ){	СООБЩЕНИЕ( "У контрагента " + КонтрагентИнфо.name + " не указан адрес местоположения" + CHR( 13 ) + "Котрагента выгружен не будет" );	THROW "Контрагент";}IF ( !ПУСТО( КонтрагентИнфо.kpp ) AND LEN( КонтрагентИнфо.kpp ) != 9 ){	СООБЩЕНИЕ( "У контрагента " + КонтрагентИнфо.name + " неверно указан КПП" + CHR( 13 ) + "Котрагента выгружен не будет" );	THROW "Контрагент";}IF ( LEN( КонтрагентИнфо.inn ) > 10 )	ИЗМЕНИТЬПОЛЕ( "КонтрагентИнфо", "kpp", "" );	СтрокаКонтрагента			="						<" + ТЭГ + ">" + 							ЕСЛИ( !ПУСТО( КонтрагентИнфо.inn )," 							<oref:INN>" + КонтрагентИнфо.inn + "</oref:INN>", "" ) +							ЕСЛИ( !ПУСТО( КонтрагентИнфо.kpp )," 							<oref:KPP>" + КонтрагентИнфо.kpp + "</oref:KPP>", "" ) + "							<oref:ClientRegId>" + КонтрагентИнфо.EGAISID + "</oref:ClientRegId>							<oref:FullName>" + ЕГАИС.ЗаменитьСимволы( КонтрагентИнфо.name ) + "</oref:FullName>							<oref:ShortName>" + ЕГАИС.ЗаменитьСимволы( ЛЕВСИМВ( КонтрагентИнфо.shortname, 64 ) ) + "</oref:ShortName>" +							ЕГАИС.ВыгрузитьАдрес( КонтрагентИнфо.country, КонтрагентИнфо.postcode, КонтрагентИнфо.region, КонтрагентИнфо.department, 												 КонтрагентИнфо.city, КонтрагентИнфо.town, КонтрагентИнфо.street, КонтрагентИнфо.building, КонтрагентИнфо.block, КонтрагентИнфо.address ) + "						</" + ТЭГ + ">";						УДАЛИТЬКОНТЕКСТ( "КонтрагентИнфо" );RETURN СтрокаКонтрагента;
+
+
+IF ( !ФИРМАИЛИКОНТРАГЕНТ )
+	ДОБАВИТЬКОНТЕКСТ( "SELECT inn, kpp, name, CASE WHEN shortname = '' THEN name ELSE shortname END AS shortname, legal_adress AS address,
+							  ISNULL( ( SELECT MAX( ex_code ) FROM sprcountry WHERE name = sprclient.country ), '' ) AS country, postcode,
+							  LEFT( CASE WHEN kpp = '' THEN inn ELSE kpp END, 2 ) AS region, department, city, town, street, building, block, egaisid AS EGAISID
+					   FROM sprclient
+					   WHERE code = '" + КОНТРАГЕНТ + "'", "КонтрагентИнфо" );
+ELSE
+{
+	// Если у склада указана КПП, то берем его из склада. Иначе из фирмы
+	КППСКЛАДА			= ЗАПРОС( "SELECT kpp FROM sprskl WHERE code = (SELECT MAX( CONVERT( varchar( 100 ), value ) ) FROM param_ex WHERE param = 'EGAIS_SKLAD" + УТМ + "' )" );
+	ВЫРАЖЕНИЕДЛЯКПП		= "CASE WHEN '" + КППСКЛАДА + "' = '' THEN kpp ELSE '" + КППСКЛАДА + "' END";
+	ДОБАВИТЬКОНТЕКСТ( "SELECT inn, " + ВЫРАЖЕНИЕДЛЯКПП + " AS kpp, name, CASE WHEN shortname = '' THEN name ELSE shortname END AS shortname, legal_adress AS address,
+							  ISNULL( ( SELECT MAX( ex_code ) FROM sprcountry WHERE name = sprfirm.country ), '' ) AS country, postcode,
+							  LEFT( CASE WHEN " + ВЫРАЖЕНИЕДЛЯКПП + " = '' THEN inn ELSE " + ВЫРАЖЕНИЕДЛЯКПП + " END, 2 ) AS region, department, city, town, street, building, block,
+							  ( SELECT value FROM param_ex WHERE param = 'EGAIS_ID" + УТМ + "' ) AS EGAISID
+					   FROM sprfirm sprfirm
+					   WHERE code = '" + КОНТРАГЕНТ + "'", "КонтрагентИнфо" );
+}
+
+// Если не указан адрес контрагента, то не выводим ничего, т.к. иначе будет ошибка
+СтрокаКонтрагента			= "";
+IF ( ПУСТО( КонтрагентИнфо.EGAISID ) )
+{
+	СООБЩЕНИЕ( "У контрагента " + КонтрагентИнфо.name + " не указан ЕГАИС ИД" + CHR( 13 ) + "Котрагента выгружен не будет" );
+	THROW "Контрагент";
+}
+IF ( ПУСТО( КонтрагентИнфо.address ) )
+{
+	СООБЩЕНИЕ( "У контрагента " + КонтрагентИнфо.name + " не указан адрес местоположения" + CHR( 13 ) + "Котрагента выгружен не будет" );
+	THROW "Контрагент";
+}
+IF ( !ПУСТО( КонтрагентИнфо.kpp ) AND LEN( КонтрагентИнфо.kpp ) != 9 )
+{
+	СООБЩЕНИЕ( "У контрагента " + КонтрагентИнфо.name + " неверно указан КПП" + CHR( 13 ) + "Котрагента выгружен не будет" );
+	THROW "Контрагент";
+}
+IF ( LEN( КонтрагентИнфо.inn ) > 10 )
+	ИЗМЕНИТЬПОЛЕ( "КонтрагентИнфо", "kpp", "" );
+	
+СтрокаКонтрагента			=
+"
+						<" + ТЭГ + ">" + 
+							ЕСЛИ( !ПУСТО( КонтрагентИнфо.inn )," 
+							<oref:INN>" + КонтрагентИнфо.inn + "</oref:INN>", "" ) +
+							ЕСЛИ( !ПУСТО( КонтрагентИнфо.kpp )," 
+							<oref:KPP>" + КонтрагентИнфо.kpp + "</oref:KPP>", "" ) + "
+							<oref:ClientRegId>" + КонтрагентИнфо.EGAISID + "</oref:ClientRegId>
+							<oref:FullName>" + ЕГАИС.ЗаменитьСимволы( КонтрагентИнфо.name ) + "</oref:FullName>
+							<oref:ShortName>" + ЕГАИС.ЗаменитьСимволы( ЛЕВСИМВ( КонтрагентИнфо.shortname, 64 ) ) + "</oref:ShortName>" +
+							ЕГАИС.ВыгрузитьАдрес( КонтрагентИнфо.country, КонтрагентИнфо.postcode, КонтрагентИнфо.region, КонтрагентИнфо.department, 
+												 КонтрагентИнфо.city, КонтрагентИнфо.town, КонтрагентИнфо.street, КонтрагентИнфо.building, КонтрагентИнфо.block, КонтрагентИнфо.address ) + "
+						</" + ТЭГ + ">
+";
+						
+УДАЛИТЬКОНТЕКСТ( "КонтрагентИнфо" );
+
+RETURN СтрокаКонтрагента;

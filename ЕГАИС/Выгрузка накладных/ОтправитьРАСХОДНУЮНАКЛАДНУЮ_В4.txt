@@ -35,7 +35,7 @@ IF ( ДокументИнфо.egaisstatus > 0 )
 				<wb:ChangeOwnership>" + ЕСЛИ( ДокументИнфо.egaischangeowner, "IsChange", "NotChange" ) + "</wb:ChangeOwnership>
 				<wb:TRANSPORT_TYPE>car</wb:TRANSPORT_TYPE>
 				<wb:TRAN_COMPANY>" + ЕГАИС.ЗаменитьСимволы( ДокументИнфо.transportCompany ) + "</wb:TRAN_COMPANY> " + 
-				ЕСЛИ( !ПУСТО( ДокументИнфо.mmodel ), "<wb:TRAN_CAR>" + ЕГАИС.ЗаменитьСимволы( ДокументИнфо.mmodel ) + "</wb:TRAN_CAR>", "" ) + 
+//				ЕСЛИ( !ПУСТО( ДокументИнфо.mmodel ), "<wb:TRAN_CAR>" + ЕГАИС.ЗаменитьСимволы( ДокументИнфо.mmodel ) + "</wb:TRAN_CAR>", "" ) + 
 				ЕСЛИ( !ПУСТО( ДокументИнфо.mnum ), "<wb:TRANSPORT_REGNUMBER>" + ЕГАИС.ЗаменитьСимволы( ДокументИнфо.mnum ) + "</wb:TRANSPORT_REGNUMBER>", "" ) + "
 				<wb:TRAN_TRAILER></wb:TRAN_TRAILER>
 				<wb:TRAN_CUSTOMER>" + ЕГАИС.ЗаменитьСимволы( ДокументИнфо.clientRealName ) + "</wb:TRAN_CUSTOMER>

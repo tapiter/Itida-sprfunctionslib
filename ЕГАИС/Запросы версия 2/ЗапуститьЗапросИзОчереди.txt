@@ -1,8 +1,10 @@
 
 // Выбираем следущий запрос из очереди
-КодУТМ			= ЗАПРОС( "SELECT ent, query_type, query_text FROM egais_queryqueue WHERE identity_column= " + ИДОчереди );
+КодУТМ			= ЗАПРОС( "SELECT ent, query_type, query_text, code, ic FROM egais_queryqueue WHERE identity_column= " + ИДОчереди );
 ТипЗапроса		= ЗАПРОС( "", "query_type" );
 ТекстЗапроса	= ЗАПРОС( "", "query_text" );
+КодДокумента	= ЗАПРОС( "", "code" );
+ИДДокумента		= ЗАПРОС( "", "ic" );
 
 // Если очередь пустая
 IF ( ПУСТО( КодУТМ ) ) RETURN true;
@@ -35,7 +37,7 @@ IF ( !ЕГАИС.HTTPCommand( "POST", ПутьУТМ, ПЕРЕКОДИРОВАТ
 __SQL( )
 {
 	INSERT INTO egais_requestslist ( code, ic, request_type, request_id, request_date, request, signature ) 
-	VALUES ( '', 0, [[ТИПЗАПРОСА]], '[[STDF( ПодписьУТМ.url, 250 )]]', GETDATE( ), '[[STDF( ТЕКСТЗАПРОСА )]]', '[[STDF( ПодписьУТМ.sign, 250 )]]' )
+	VALUES ( '[[КодДокумента]]', [[ИДДокумента]], [[ТИПЗАПРОСА]], '[[STDF( ПодписьУТМ.url, 250 )]]', GETDATE( ), '[[STDF( ТЕКСТЗАПРОСА )]]', '[[STDF( ПодписьУТМ.sign, 250 )]]' )
 }
 
 // Записываем ИД запроса в очередь и меняем статус

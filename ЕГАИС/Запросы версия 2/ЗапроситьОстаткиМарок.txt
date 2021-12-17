@@ -10,7 +10,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокКодов" ) )
 
 	// Если сегодня уже есть запрос с такой же справкой, то пропускаем его
 	IF ( ЗАПРОС( "SELECT CASE WHEN EXISTS(SELECT * 
-										  FROM egais_queruqueue 
+										  FROM egais_queryqueue 
 										  WHERE query_type = 24 AND DATEDIFF( day, query_date, GETDATE( ) ) = 0 AND query_param = '" + STDF( ФОРМАБ ) + "' AND status = 0 ) THEN 1 ELSE 0 END" ) == 1 )
 	{
 		Пропущено++;
@@ -39,8 +39,8 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокКодов" ) )
 
 	// Записываем запросы в очередь для отправик в ЕГАИС
 	_ERRORDESCRIPTION		= "";
-	IF ( !ЗАПРОС( "INSERT INTO egais_queryqueue ( ent, query_type, query_param, status, query_date, query_cancelled, query_id, query_text, priority )
-				   VALUES ( '" + СКЛАД + "', 24, '" + STDF( ФОРМАБ ) + "', 0, GETDATE( ), 0, '', '" + STDF( ТекстЗапроса ) + "', 1 )" ) )
+	IF ( !ЗАПРОС( "INSERT INTO egais_queryqueue ( ent, code, ic, query_type, query_param, status, query_date, query_cancelled, query_id, query_text, priority )
+				   VALUES ( '" + СКЛАД + "', '" + КодДокумента + "', " + ИДДокумента + ", 24, '" + STDF( ФОРМАБ ) + "', 0, GETDATE( ), 0, '', '" + STDF( ТекстЗапроса ) + "', 1 )" ) )
 	{
 		ТекстОшибки			= _ERRORDESCRIPTION;
 		СООБЩЕНИЕ( "При формировании очереди запросов возникла ошибка: " + ТекстОшибки );

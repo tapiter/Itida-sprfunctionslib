@@ -1,0 +1,35 @@
+Результат = true;
+IF ( !ПУСТО(ЗначениеАтрибута) OR ЗначениеАтрибута == 0 )
+{
+	driverKKM.TagNumber		= НомерАтрибута;
+	driverKKM.FNGetTagDescription();
+	ТипАтрибута = driverKKM.TagType;
+	//driverKKM.TagType = ТипАтрибута;
+	IF ( ТипАтрибута == 0 ) // ttByte
+		driverKKM.TagValueInt = ЗначениеАтрибута;
+	IF ( ТипАтрибута == 1 ) // ttUint16
+		driverKKM.TagValueInt = ЗначениеАтрибута;
+	IF ( ТипАтрибута == 2 ) // ttUint32
+		driverKKM.TagValueInt = ЗначениеАтрибута;
+	IF ( ТипАтрибута == 3 ) // ttVLN
+		driverKKM.TagValueBin = ЗначениеАтрибута;  
+	IF ( ТипАтрибута == 4 ) // ttFVLN
+		driverKKM.TagValueFVLN = ЗначениеАтрибута;
+	IF ( ТипАтрибута == 5 ) // ttBitMask
+		driverKKM.TagValueBin = ЗначениеАтрибута;
+	IF ( ТипАтрибута == 6 ) // ttUnixTime 
+		driverKKM.TagValueDateTime = ЗначениеАтрибута;
+	IF ( ТипАтрибута == 7 ) // ttString
+		driverKKM.TagValueStr = ЗначениеАтрибута;
+	
+	driverKKM.Password = Пароль;
+	driverKKM.FNSendTag();
+	IF ( driverKKM.ResultCode <> 0 )
+	{
+		//ОписаниеОшибки = "Ошибка при установке реквизита "+НомерАтрибута;
+		//driverKKM.CancelCheck();
+		Результат = false;
+	}
+}
+
+RETURN Результат;

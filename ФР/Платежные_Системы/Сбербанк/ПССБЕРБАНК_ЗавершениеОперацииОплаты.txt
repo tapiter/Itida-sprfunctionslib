@@ -46,7 +46,7 @@ IF ( _ККТСУММАБЕЗНАЛ > 0 )
 	DriverPayCard.Clear();
 	DriverPayCard = false;
 	_ККТСУММАБЕЗНАЛ					= 0;
-	IF ( SPLITPSYSTEM <> true )
+	IF ( SPLITPSYSTEM <> true AND SPLITPSYSTEM <> "true" )
 		ВСЕГОБЕЗНАЛ 				= 0;
 }
 

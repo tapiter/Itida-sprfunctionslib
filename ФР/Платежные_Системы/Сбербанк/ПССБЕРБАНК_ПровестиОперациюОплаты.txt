@@ -2,7 +2,7 @@
 IF ( TYPE ("SPLITPSYSTEM") == "U" )
 	SPLITPSYSTEM = false;
 	
-IF (SPLITPSYSTEM == true)
+IF ( SPLITPSYSTEM <> true AND SPLITPSYSTEM <> "true" )
 {
 	_ККТСУММАБЕЗНАЛ = СУММАБЕЗНАЛ;
 }
@@ -53,10 +53,13 @@ IF ( _ККТСУММАБЕЗНАЛ > 0 )
 		}
 		ELSE
 		{
+			/*
+			//закомментировано, т.к. если авторизация не выполнена, то платеж не проведен через ПС, следовательно и отменять нечего
 			//отмена транзакции
 			СуммаОплатыПС					= ROUND( _ККТСУММАБЕЗНАЛ, 2)*100;
 			DriverPayCard.SParam ("Amount", СуммаОплатыПС);
 			DriverPayCard.NFun(4003);
+			*/
 			DriverPayCard.Clear();
 			DriverPayCard 				= false;
 			_ОШИБКАВЫПОЛНЕНИЯ 			= true;

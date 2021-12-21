@@ -1,7 +1,7 @@
 IF ( TYPE ("SPLITPSYSTEM") == "U" )
 	SPLITPSYSTEM = false;
 	
-IF (SPLITPSYSTEM == true)
+IF ( SPLITPSYSTEM == true OR SPLITPSYSTEM == "true" )
 {
 	_ККТСУММАБЕЗНАЛ = СУММАБЕЗНАЛ;
 }
@@ -50,7 +50,7 @@ IF ( _ККТСУММАБЕЗНАЛ > 0 )
 	ReferenceNumber 				= DriverPayCard.ReferenceNumber;
 	DriverPayCard 					= false;
 	_ККТСУММАБЕЗНАЛ					= 0;
-	IF ( SPLITPSYSTEM <> true )
+	IF ( SPLITPSYSTEM <> true AND SPLITPSYSTEM <> "true" )
 		ВСЕГОБЕЗНАЛ 				= 0;
 }
 

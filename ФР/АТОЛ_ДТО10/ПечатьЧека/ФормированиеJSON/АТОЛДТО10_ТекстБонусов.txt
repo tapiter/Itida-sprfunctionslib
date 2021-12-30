@@ -1,4 +1,4 @@
-ПозицииЧека 		= "";
+
 ТИПБОНУСА			= ЗАПРОС( "SELECT bonusalias FROM sprbonus WHERE code IN ( SELECT bonus FROM sprmcard WHERE cardn = '" + НОМЕРКАРТЫ + "' )" );
 ОПЛАЧЕНОБОНУСОМ 	= СТРОКА( ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫ + "' AND priz= '-' AND chequeic= " + ИДОбъекта ), 10, 2 );
 НАЧИСЛЕНОБОНУСОВ	= СТРОКА( ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫ + "' AND priz= '+' AND chequeic= " + ИДОбъекта ), 10, 2 );

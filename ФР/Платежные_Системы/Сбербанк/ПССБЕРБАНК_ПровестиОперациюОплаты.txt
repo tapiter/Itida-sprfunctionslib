@@ -1,8 +1,8 @@
 // Авторизация платежной системы
 IF ( TYPE ("SPLITPSYSTEM") == "U" )
-	SPLITPSYSTEM = false;
+	SPLITPSYSTEM = true;
 	
-IF ( SPLITPSYSTEM <> true AND SPLITPSYSTEM <> "true" )
+IF ( SPLITPSYSTEM == true OR SPLITPSYSTEM == "true" )
 {
 	_ККТСУММАБЕЗНАЛ = СУММАБЕЗНАЛ;
 }

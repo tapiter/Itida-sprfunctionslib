@@ -1,4 +1,4 @@
-ВерсияБиблиотеки = "v.6.0";	
+ВерсияБиблиотеки = "v.6.1";	
 // Имя устройства ФР
 COMPARAMORDER( false );
 deviceName = "ККМ АТОЛ";
@@ -13,7 +13,7 @@ catch( )
 }
 IF ( ТИП( "fptr" ) <> "O" )
 {
-	RETURN "ДРАЙВЕР ККТ АТОЛ v.10 НЕ УСТАНОВЛЕН";
+	RETURN "(" + ВерсияБиблиотеки + ") ДРАЙВЕР ККТ АТОЛ v.10 НЕ УСТАНОВЛЕН";
 }
 НастройкиККТ = ЗАПРОС("SELECT value FROM param_ex WHERE param = 'ATOLKKTSETTINGS" + КОДОБОРУДОВАНИЯ + "'");
 
@@ -93,7 +93,7 @@ IF ( fptr.isOpened( ) )
 }
 ELSE
 {
-	deviceName = "Ошибка (" + fptr.errorCode( ) + "): " + fptr.errorDescription( );
+	deviceName = "(" + ВерсияБиблиотеки + ") Ошибка (" + fptr.errorCode( ) + "): " + fptr.errorDescription( );
 }
 
 fptr	= false;

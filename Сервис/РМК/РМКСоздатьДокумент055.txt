@@ -68,15 +68,16 @@ SQLERROR
 WHILE ( !КОНЕЦКОНТЕКСТА( "Строки" ) )
 {
 	ИДСтрок			= ЗАМЕНИТЬ( Строки.spec_iclist, " ", "," );
+	ВыражениеЦена	= "CASE WHEN ROUND( SUM( spec.kolp ), 3 ) = 0 THEN SUM( spec.summa_wd ) ELSE SUM( spec.summa_wd ) / SUM( spec.kolp ) END";
 	IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec055 ( ic, npp, nn, s_code, ed, koef_e, koef_c, nnname, cena, kolp, kodn, summa, sumnds, inside, packs )
 							 SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, spec.s_code, spec.ed, spec.koef_e, 
-									spec.koef_c, dbo.fn_fullnnname( sprres.code ), ROUND( spec.cena_wd, 2 ), SUM( spec.kolp ), sprres.kodn, SUM( spec.summa_wd ), 
+									spec.koef_c, dbo.fn_fullnnname( sprres.code ), " + ВыражениеЦена + ", SUM( spec.kolp ), sprres.kodn, SUM( spec.summa_wd ), 
 									SUM( dbo.fn_getsumnds( sprres.kodn, spec.summa_wd, temp.date ) ), 1, SUM( spec.kolp )
 							 FROM chequespec spec
 							 INNER JOIN " + ТаблицаСтрок + " temp ON temp.spec_ic = spec.identity_column
 							 INNER JOIN sprres sprres ON (spec.nn <> '' AND spec.nn = sprres.code) OR (spec.s_code <> '' AND spec.s_code = sprres.code)
 							 WHERE temp.docic= " + ИДСПИСКА + " AND temp.spec_ic IN ( " + ИДСтрок + " )
-							 GROUP BY spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, sprres.code, ROUND( spec.cena_wd, 2 ), sprres.kodn ", "Спецификация" ) ) RETURN -1;
+							 GROUP BY spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, sprres.code, sprres.kodn ", "Спецификация" ) ) RETURN -1;
 	ИДСтроки	= Спецификация.ident;
 	УДАЛИТЬКОНТЕКСТ( "Спецификация" );
 

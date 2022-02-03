@@ -33,7 +33,7 @@ IF ( !ПУСТО( ДокументИнфо.egaisid ) )
 </ns:Documents>";
 				
 	ОтветСервера = "";
-	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/WayBillAct_v3", ПЕРЕКОДИРОВАТЬ( АктТекст, "ANSI", "UTF-8" ), @ОтветСервера, "WayBillAct_v3.xml" ) ) RETURN false; 
+	IF ( !ЕГАИС.HTTPCommand( "POST", "/opt/in/WayBillAct_v4", ПЕРЕКОДИРОВАТЬ( АктТекст, "ANSI", "UTF-8" ), @ОтветСервера, "WayBillAct_v4.xml" ) ) RETURN false; 
 
 		// Если все благополучно отправлено, то сохраняем информацию в документе
 	ЗАПРОС( "UPDATE spr002 SET egaisact = 0 WHERE identity_column = " + ИДДокумента );

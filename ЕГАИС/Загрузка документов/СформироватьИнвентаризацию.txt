@@ -46,7 +46,7 @@ IF ( _ERRORCODE < 0 )
 				CASE WHEN CHARINDEX( '/', informb ) > 0 THEN SUBSTRING( informb, CHARINDEX( '/', informb ) + 1, 50 ) ELSE informb END AS informb
 		 INTO " + ИМЯТАБЛИЦЫСПРАВОК + "
 		 FROM egais_marks 
-		 GROUP BY informb" );
+		 GROUP BY CASE WHEN CHARINDEX( '/', informb ) > 0 THEN SUBSTRING( informb, CHARINDEX( '/', informb ) + 1, 50 ) ELSE informb END" );
 ЗАПРОС( "CREATE INDEX " + ИМЯТАБЛИЦЫСПРАВОК + "_informb ON " + ИМЯТАБЛИЦЫСПРАВОК + "(informb)" );
 
 // Документ создаем в транзакции

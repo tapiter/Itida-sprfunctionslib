@@ -1,5 +1,6 @@
 
-Версия2ЕГАИС		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_VERSION2" + СКЛАД + "'" ) ) > 0;
+//Версия2ЕГАИС		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_VERSION2" + СКЛАД + "'" ) ) > 0;
+Версия4ЕГАИС		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_VERSION4" + СКЛАД + "'" ) ) > 0;
 
 // Проверяем накладные, возможно, по некоторым уже были отправлены акты
 ДОБАВИТЬКОНТЕКСТ( "SELECT ndok, date FROM spr002 WHERE egaisid = '' AND identity_column IN ( SELECT ic FROM " + ИМЯТАБЛИЦЫ + " )", "СписокНакладных" );
@@ -22,8 +23,11 @@ IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 )
 }
 WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
 {
-	Версия2ЕГАИСКлиента	= ЗАПРОС( "SELECT egaisversion FROM sprclient WHERE code = (SELECT client FROM spr002 WHERE identity_column = " + СписокДокументов.ic + " )" ) > 1; 
-	IF ( !ЕГАИС.ОтправитьАКТОтменыНакладной_В3( СписокДокументов.ic ) ) RETURN false;
+	IF ( Версия4ЕГАИС )
+	{
+		IF ( !ЕГАИС.ОтправитьАКТОтменыНакладной_В4( СписокДокументов.ic ) ) RETURN false;
+	}
+	ELSE IF ( !ЕГАИС.ОтправитьАКТОтменыНакладной_В3( СписокДокументов.ic ) ) RETURN false;
 	ПРОПУСТИТЬ( 1, "СписокДокументов" );
 }
 УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );

@@ -37,8 +37,7 @@ WHILE ( !КонецКонтекста( "СписокСкладов" ) )
 			INNER JOIN " + БазаДанных + "accountlist alist ON alist.code = '001' AND alist.ic = spr.identity_column AND alist.account_= '" + АДУчет + "' AND alist.transacted = 1
 			INNER JOIN " + БазаДанных + "sprnn sprnn ON spec.nn = sprnn.nn
 			INNER JOIN sprnnvid sprnnvid ON sprnnvid.code = sprnn.nnvid
-			WHERE (" + СписокСкладов.dbase + ".dbo.fn_chartoint( sprnnvid.code ) >= 500 OR dbo.fn_chartoint( sprnnvid.code ) IN ( 261, 262, 263 ) ) AND 
-				  DATEDIFF( day, spr.date, @period_max ) >= 0 AND spr.sklad = '" + СписокСкладов.code + "' " + УсловиеНаФирмуД + "
+			WHERE sprnnvid.f_alcobeer = 1 AND DATEDIFF( day, spr.date, @period_max ) >= 0 AND spr.sklad = '" + СписокСкладов.code + "' " + УсловиеНаФирмуД + "
 			ORDER BY spr.date, spec.identity_column
 				  
 	
@@ -49,8 +48,8 @@ WHILE ( !КонецКонтекста( "СписокСкладов" ) )
 			FROM " + БазаДанных + "reg001 reg 
 			INNER JOIN " + БазаДанных + "sprnn sprnn ON reg.nn = sprnn.nn
 			INNER JOIN sprnnvid sprnnvid ON sprnnvid.code = sprnn.nnvid
-			WHERE (" + СписокСкладов.dbase + ".dbo.fn_chartoint( sprnnvid.code ) >= 500 OR dbo.fn_chartoint( sprnnvid.code ) IN ( 261, 262, 263 ) ) AND
-				  ((reg.priz ='+' AND reg.kolp > 0 ) OR ( reg.priz = '-' AND reg.kolp < 0 ) ) AND reg.code <> '001' AND DATEDIFF( day, reg.date, @period_max ) >= 0 AND
+			WHERE sprnnvid.f_alcobeer = 1 AND ( ( reg.priz ='+' AND reg.kolp > 0 ) OR ( reg.priz = '-' AND reg.kolp < 0 ) ) AND 
+					reg.code <> '001' AND DATEDIFF( day, reg.date, @period_max ) >= 0 AND
 					reg.account_ = '" + АДУчет + "' AND reg.sklad = '" + СписокСкладов.code + "' " + УсловиеНаФирмуР + "
 			ORDER BY reg.date, reg.identity_column
 			
@@ -208,7 +207,7 @@ WHILE ( !КонецКонтекста( "СписокСкладов" ) )
 		INNER JOIN " + БазаДанных + "spec002 spec ON spr.identity_column = spec.ic
 		INNER JOIN " + БазаДанных + "accountlist alist ON spr.identity_column = alist.ic AND alist.code = '002' AND alist.transacted = 1 AND alist.account_='001'
 		INNER JOIN " + БазаДанных + "sprnn sprnn ON spec.nn = sprnn.nn
-		INNER JOIN sprnnvid sprnnvid ON sprnn.nnvid= sprnnvid.code AND sprnnvid.code IN ( '261', '262', '263', '500', '510', '520' )
+		INNER JOIN sprnnvid sprnnvid ON sprnn.nnvid= sprnnvid.code AND sprnnvid.f_alcobeer = 1
 		INNER JOIN " + БазаДанных + "sprclient sprclient ON sprnn.importer = sprclient.code 
 		INNER JOIN " + БазаДанных + "sprclient sprvendor ON sprvendor.code = spr.client AND sprvendor.inn <> '" + STDF( СвойИНН ) + "'
 		WHERE DATEDIFF( day, spr.date, @period_min ) <= 0 AND DATEDIFF( day, spr.date, @period_max ) >= 0 AND spr.ttntype = 1 AND

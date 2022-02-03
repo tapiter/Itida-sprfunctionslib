@@ -680,19 +680,26 @@ ELSE IF ( ATC( СписокДокументов.url, "REPLYRESTBCODE" ) > 0 ) //
 				НайденоМарок++;
 				// Записываем марки/справки в таблицу марок/справок
 				__sql( ) {
-					DECLARE @alcocode varchar( 50 );
-					SELECT @alcocode = '[[ Алкокод ]]';
-					IF @alcocode = '' SELECT @alcocode = dbo.fn_alcocodeformark( '[[ STDF( ЛокальныеМарки.ce_amc ) ]]' );
+					DECLARE @alcocode varchar( 50 ), @formb varchar( 50 ), @mark varchar( 150 );
+					SELECT @alcocode = '[[ Алкокод ]]', @formb= '[[ФОРМАБ]]', @mark= '[[ STDF( ЛокальныеМарки.ce_amc ) ]]';
+					IF @alcocode = '' SELECT @alcocode = dbo.fn_alcocodeformark( @mark );
+					if CHARINDEX( '/', @formb ) = 0 AND EXISTS( SELECT * FROM spec001 WHERE informb LIKE '%/' + @formb )
+						SELECT TOP 1 @formb = informb 
+						FROM spec001 
+						INNER JOIN spr001 ON spec001.ic = spr001.identity_column
+						INNER JOIN spr000 ON spr000.code = '001' AND spr000.ic = spec001.ic
+						WHERE spr000.f_deleted = 0 AND spec001.informb LIKE '%/' + @formb
+						ORDER BY spr001.date DESC
 					
-					IF EXISTS( SELECT * FROM egais_marks WHERE mark = '[[ STDF( ЛокальныеМарки.ce_amc ) ]]' )
+					IF EXISTS( SELECT * FROM egais_marks WHERE mark = @mark )
 						UPDATE egais_marks 
-						SET informb 	= CASE WHEN NOT informb LIKE '%[[ STDF( ФОРМАБ ) ]]' THEN '[[ STDF( ФОРМАБ ) ]]' ELSE informb END,
+						SET informb 	= CASE WHEN NOT informb LIKE '%' + @formb THEN @formb ELSE informb END,
 							bcexists	= 1,
 							date		= GETDATE( )
-						WHERE mark = '[[ STDF( ЛокальныеМарки.ce_amc ) ]]';
+						WHERE mark = @mark;
 					ELSE
 						INSERT INTO egais_marks ( mark, alcocode, informb, bcexists, date ) 
-						VALUES ( '[[ STDF( ЛокальныеМарки.ce_amc ) ]]', @alcocode, '[[ STDF( ФОРМАБ ) ]]', 1, GETDATE( ) );
+						VALUES ( @mark, @alcocode, @formb, 1, GETDATE( ) );
 				}
 				IF ( !ПУСТО( КодДокумента ) AND !ПУСТО( ИДДокумента ) AND !ПУСТО( ИДСтроки ) )
 				{

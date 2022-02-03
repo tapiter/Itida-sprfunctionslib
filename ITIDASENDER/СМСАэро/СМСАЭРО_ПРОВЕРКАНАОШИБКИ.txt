@@ -8,7 +8,7 @@ ELSE
 {
 	//ЗАГРУЗИТЬJSON( "Ошибка", ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" ) );
 	ДанныеОтвета = ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" );	
-	IF (ПОЛЕ_JSON( Ответ, "success", true ) <> "true" AND ПОЛЕ_JSON( Ответ, "success", true ) <> true)
+	IF (ПОЛЕ_JSON( Ответ, "success", true ) <> "true" AND ПОЛЕ_JSON( Ответ, "success", true ) <> true AND ПОЛЕ_JSON( Ответ, "message", "" ) <> "pending" )
 	{
 		Ответ		= "Ошибка: " + ПОЛЕ_JSON( Ответ, "message", "" );
 		Результат	= false;

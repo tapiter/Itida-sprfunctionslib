@@ -1,0 +1,52 @@
+IF ( ПУСТО( КОДОБОРУДОВАНИЯ ) )
+{
+	СООБЩЕНИЕ( "Ошибка работы с ФР (" + МестоВызова + ")." + CHR( 13 ) +"Не определен код оборудования", "Ошибка работы с ККМ" );
+	RETURN false;
+}
+
+COMPARAMORDER( false );
+
+driverKKM = _МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ];
+ОтсоединятьсяОтУстройства		= ЗАПРОС( "SELECT f_disconnect FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'" ) == 1;
+
+IF ( ТИП( "driverKKM" ) <> "O" )
+{
+	_МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ] = CreateObject( "AddIn.DrvFR", 1 );
+	driverKKM = _МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ];
+}
+
+// Если не получмлось создать объект драйера, то ошибка
+IF ( ТИП( "driverKKM" ) <> "O" )	
+{
+	СООБЩЕНИЕ( "Ошибка работы с ФР (" + МестоВызова + ")." + CHR( 13 ) +"Не удалось создать объект драйвера.");
+	RETURN false;
+}
+	
+//определим расположение файла лога
+ИмяФайлаЛога = ФР.ШТРИХ_ПУТЬДОФАЙЛАЖУРНАЛА( КОДОБОРУДОВАНИЯ );
+
+driverKKM.ComLogFile	= ИмяФайлаЛога;
+driverKKM.LogOn = true;
+
+driverKKM.LDNumber 	= НомерУстройства; // Номер логического устройства
+// Загружаем параметры логического устройсва в поля драйвера
+//driverKKM.GetParamLD( );
+driverKKM.SetActiveLD();
+
+
+// Вызываем метод соединения с ФР
+driverKKM.Password	= FROperatorProfile;
+IF (driverKKM.Connected	== false)
+	driverKKM.Connected	= true;
+
+// Если возникла ошибка, то фиксируем ее
+resultCode 			= driverKKM.ResultCode;
+
+IF ( resultCode <> 0 )
+{
+	// Вывод ошибки
+	MessageBox( driverKKM.ResultCodeDescription, "Ошибка " + driverKKM.ResultCode + " при установке связи с ККМ" );
+	_ОШИБКАВЫПОЛНЕНИЯ				= true;
+	RETURN false;
+}
+RETURN true;

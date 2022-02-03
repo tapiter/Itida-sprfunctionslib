@@ -1,0 +1,32 @@
+try
+{
+	driverKKM.Password = "30"; //пароль администратора
+	driverKKM.TableNumber  = НомерТаблицы;
+	driverKKM.RowNumber = НомерРяда;
+	driverKKM.FieldNumber = НомерПоля;
+	driverKKM.ReadTable();
+	СтароеЗначение = ЕСЛИ( ТипПоля == 0, driverKKM.ValueOfFieldInteger, driverKKM.ValueOfFieldString); //0 - целое число, 1 - строка символов
+	IF ( Режим == "Чтение" )
+	{
+		Значение = СтароеЗначение;			
+	}
+	ELSE
+	{
+		IF ( СтароеЗначение <> Значение )
+		{
+			IF ( ТипПоля == 0 )
+				driverKKM.ValueOfFieldInteger = Значение;
+			ELSE
+				driverKKM.ValueOfFieldString = Значение;
+			
+			driverKKM.WriteTable();
+		}	
+	}
+}
+catch()
+{
+	СООБЩЕНИЕ("Ошибка "+ЕСЛИ( Режим == "Чтение", "записи в таблицу ", "обращения к таблице ") + НомерТаблицы);
+	RETURN false;		
+}
+
+RETURN true;

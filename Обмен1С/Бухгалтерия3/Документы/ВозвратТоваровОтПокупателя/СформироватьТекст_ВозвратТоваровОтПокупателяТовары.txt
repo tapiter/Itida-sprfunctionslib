@@ -1,3 +1,49 @@
-IF (ВыгружатьТоварыСвернутоПоНДС){	/*//вариант 1	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 													SUM(kolp)					AS Количество, 													SUM( summa )/SUM(kolp)		AS Цена, 													SUM( summa )				AS Сумма,													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,													0		 											  AS СуммаНДС, 													''''				AS НомерГТД,													''''				AS СтранаПроисхождения,													SUM( dbo.fn_calcsklad_incena(spec.nn, '''+ВозвратТоваровОтПокупателя.date+''',																			'''+ВозвратТоваровОтПокупателя.sklad+''',																			''' + Учет + ''') * kolp ) / SUM( kolp ) AS Себестоимость												FROM spec006 spec WHERE ic= ' + ВозвратТоваровОтПокупателя.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +" GROUP BY kodn'</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";	*/	//вариант 2
+IF (ВыгружатьТоварыСвернутоПоНДС)
+{
+	/*//вариант 1
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
+													SUM(kolp)					AS Количество, 
+													SUM( summa )/SUM(kolp)		AS Цена, 
+													SUM( summa )				AS Сумма,
+													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
+													0		 											  AS СуммаНДС, 
+													''''				AS НомерГТД,
+													''''				AS СтранаПроисхождения,
+													SUM( dbo.fn_calcsklad_incena(spec.nn, '''+ВозвратТоваровОтПокупателя.date+''',
+																			'''+ВозвратТоваровОтПокупателя.sklad+''',
+																			''' + Учет + ''') * kolp ) / SUM( kolp ) AS Себестоимость
+												FROM spec006 spec WHERE ic= ' + ВозвратТоваровОтПокупателя.identity_column + " + '"' + " AND nn&lt;&gt;''" + '"' +" GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+	*/
+	//вариант 2
 	СуммаСебестоимости = "SUM( dbo.fn_calcsklad_incena(spec.nn, '''+ВозвратТоваровОтПокупателя.date+''','''+ВозвратТоваровОтПокупателя.sklad+''',''' + Учет + ''') * kolp )";
-		ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 													" + СуммаСебестоимости + "							 		AS Количество, 													ROUND( SUM( summa ) / (CASE WHEN " + СуммаСебестоимости + " = 0 THEN 1 ELSE " + СуммаСебестоимости + " END), 2)	AS Цена, 													SUM( summa )												AS Сумма,													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) 		AS СтавкаНДС,													0		 											  		AS СуммаНДС, 													''''				AS НомерГТД,													''''				AS СтранаПроисхождения												FROM spec006 spec WHERE ic= ' + ВозвратТоваровОтПокупателя.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";	RETURN ТЕКСТ_СВЕРНУТО;		}ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn )	 		  AS Номенклатура, 															 kolp 												  AS Количество, 															 cena												  AS Цена, 															 summa												  AS Сумма,															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,															 0		 											  AS СуммаНДС, 															 (SELECT declar FROM sprres WHERE code = spec.nn)	  AS НомерГТД,															 (SELECT ex_code FROM sprcountry WHERE code =																	(SELECT manuf FROM sprnn WHERE nn= spec.nn))  AS СтранаПроисхождения,															 dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(ВозвратТоваровОтПокупателя.date)+''',																			'''+ВозвратТоваровОтПокупателя.sklad+''',																			''' + Учет + ''') * kolp  AS Себестоимость												FROM spec006 spec WHERE ic= ' + ВозвратТоваровОтПокупателя.identity_column + ' AND nn&lt;&gt;''''  '</ЗАПРОС>				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";RETURN ТЕКСТ;
+	
+	ТЕКСТ_СВЕРНУТО = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT ''" + _1С_ТОВАР_КОД + "''	AS Номенклатура, 
+													" + СуммаСебестоимости + "							 		AS Количество, 
+													ROUND( SUM( summa ) / (CASE WHEN " + СуммаСебестоимости + " = 0 THEN 1 ELSE " + СуммаСебестоимости + " END), 2)	AS Цена, 
+													SUM( summa )												AS Сумма,
+													(SELECT name FROM sprlistkodn WHERE code= spec.kodn) 		AS СтавкаНДС,
+													0		 											  		AS СуммаНДС, 
+													''''				AS НомерГТД,
+													''''				AS СтранаПроисхождения
+												FROM spec006 spec WHERE ic= ' + ВозвратТоваровОтПокупателя.identity_column + ' AND nn&lt;&gt;'''' GROUP BY kodn'</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+	RETURN ТЕКСТ_СВЕРНУТО;		
+}
+
+ТЕКСТ = "<?xml version=""1.0"" encoding=""Windows-1251""?><ОТСТУП>3</ОТСТУП><ЗАПРОС>'SELECT (SELECT maincode FROM sprres WHERE code= spec.nn )	 		  AS Номенклатура, 
+															 kolp 												  AS Количество, 
+															 cena												  AS Цена, 
+															 summa												  AS Сумма,
+															 (SELECT name FROM sprlistkodn WHERE code= spec.kodn) AS СтавкаНДС,
+															 0		 											  AS СуммаНДС, 
+															 (SELECT declar FROM sprres WHERE code = spec.nn)	  AS НомерГТД,
+															 (SELECT ex_code FROM sprcountry WHERE code =
+																	(SELECT manuf FROM sprnn WHERE nn= spec.nn))  AS СтранаПроисхождения,
+															 dbo.fn_calcsklad_incena(spec.nn, '''+TTOC(ВозвратТоваровОтПокупателя.date)+''',
+																			'''+ВозвратТоваровОтПокупателя.sklad+''',
+																			''' + Учет + ''') * kolp  AS Себестоимость
+												FROM spec006 spec WHERE ic= ' + ВозвратТоваровОтПокупателя.identity_column + ' AND nn&lt;&gt;''''  '</ЗАПРОС>
+				<ВЫЧИСЛИТЬ/><ТЭГЗАГОЛОВКА>Товары</ТЭГЗАГОЛОВКА><ТЭГСТРОКИ>Row</ТЭГСТРОКИ><ИМЯКОНТЕКСТА>Спецификация</ИМЯКОНТЕКСТА>";
+
+RETURN ТЕКСТ;

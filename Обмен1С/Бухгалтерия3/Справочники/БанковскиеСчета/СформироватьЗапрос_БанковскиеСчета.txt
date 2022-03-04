@@ -1,1 +1,19 @@
-IF ( TYPE( "_1С_БАНКОВСКИЙСЧЕТ_ВАЛЮТА" ) <> "C" )	_1С_БАНКОВСКИЙСЧЕТ_ВАЛЮТА = "810";	ТЕКСТЗАПРОСА = "SELECT rsf.code AS Ref, rsf.notavail AS DeletionMark,		(SELECT ex_code FROM sprfirm WHERE code= rsf.firm) AS Owner, 		rsf.code AS code, rs.name AS Description,		rsf.rs AS НомерСчета, 		rsb.mfo AS Банк, rsb.mfo AS БанкДляРасчетов, f.name AS ТекстКорреспондента,		'Расчетный' AS ВидСчета,		'" + _1С_БАНКОВСКИЙСЧЕТ_ВАЛЮТА + "' AS ВалютаДенежныхСредствFROM sprrsfirm rsfINNER JOIN sprrs rs ON rsf.rs = rs.codeINNER JOIN sprfirm f ON rsf.firm = f.codeINNER JOIN sprbank rsb ON rs.bank = rsb.code "+ЕСЛИ( ВыгрузитьВсеСправочники, "", "WHERE "+IIF(Фирма <> "", "f.code IN ("+Фирма_Список+") AND", "")+"	 (( DATEDIFF( day, rs.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, rs.edit_dat, '" + Период_max + "' ) >= 0 ) OR	  ( DATEDIFF( day, rsf.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, rsf.edit_dat, '" + Период_max + "' ) >= 0 )) ");RETURN ТЕКСТЗАПРОСА;
+IF ( TYPE( "_1С_БАНКОВСКИЙСЧЕТ_ВАЛЮТА" ) <> "C" )
+	_1С_БАНКОВСКИЙСЧЕТ_ВАЛЮТА = "810";	
+
+ТЕКСТЗАПРОСА = "SELECT rsf.code AS Ref, rsf.notavail AS DeletionMark,
+		(SELECT ex_code FROM sprfirm WHERE code= rsf.firm) AS Owner, 
+		rsf.code AS code, rs.name AS Description,
+		rsf.rs AS НомерСчета, 
+		rsb.mfo AS Банк, rsb.mfo AS БанкДляРасчетов, f.name AS ТекстКорреспондента,
+		'Расчетный' AS ВидСчета,
+		'" + _1С_БАНКОВСКИЙСЧЕТ_ВАЛЮТА + "' AS ВалютаДенежныхСредств
+FROM sprrsfirm rsf
+INNER JOIN sprrs rs ON rsf.rs = rs.code
+INNER JOIN sprfirm f ON rsf.firm = f.code
+INNER JOIN sprbank rsb ON rs.bank = rsb.code "+
+ЕСЛИ( ВыгрузитьВсеСправочники, "", "WHERE "+IIF(Фирма <> "", "f.code IN ("+Фирма_Список+") AND", "")+"
+	 (( DATEDIFF( day, rs.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, rs.edit_dat, '" + Период_max + "' ) >= 0 ) OR
+	  ( DATEDIFF( day, rsf.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, rsf.edit_dat, '" + Период_max + "' ) >= 0 )) ");
+
+RETURN ТЕКСТЗАПРОСА;

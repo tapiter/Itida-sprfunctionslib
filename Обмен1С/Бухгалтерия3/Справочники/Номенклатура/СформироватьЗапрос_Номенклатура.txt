@@ -1,1 +1,24 @@
-IF (ВыгружатьТоварыСвернутоПоНДС)	RETURN "";ТЕКСТЗАПРОСА = "SELECT code AS Ref, folder AS IsFolder, notavail AS DeletionMark,		maincode AS code, CASE WHEN shortname = '' THEN REPLACE( name, '&', '&amp;' ) ELSE REPLACE( shortname, '&', '&amp;' ) END AS Description,		REPLACE( RTRIM( LTRIM( name ) ) + ' ' + CASE WHEN weight <> 0 THEN RTRIM(CONVERT(char(8 ), weight)) + ' ' + ed_weight ELSE CASE WHEN d_litr <> 0 THEN RTRIM(CONVERT(char(8 ), d_litr)) + ' ' + edd_litr ELSE ' ' END END, '&', '&amp;' ) AS НаименованиеПолное, 		REPLACE( a_code, '&', '&amp;' ) AS Артикул, declar AS НомерГТД,		(SELECT ex_code FROM spredn WHERE code = s.ed) AS ЕдиницаИзмерения, 		(SELECT name FROM sprlistkodn WHERE code = s.kodn) AS ВидСтавкиНДС,		note AS Комментарий, CONVERT( bit, CASE WHEN cat='002' THEN 1 ELSE 0 END ) AS Услуга,		(SELECT ex_code FROM sprres_g WHERE code= s.group_) AS НоменклатурнаяГруппа, 		(SELECT ex_code FROM sprcountry WHERE code= s.manuf) AS СтранаПроисхождения,		(SELECT 'S_' + CONVERT( char(10), MAX( parent ) ) FROM spectree WHERE code='0000000001' AND ic= s.identity_column AND folder= 0) AS parent,		(SELECT ex_code FROM sprztr WHERE code+subcode= s.z_code) AS СтатьяЗатрат,		CASE WHEN cat='002' THEN 'Услуга' ELSE 'Товар' END AS ВидНоменклатуры FROM sprres s  WHERE folder= 0 AND cat IN ('001','002') "+ЕСЛИ( ВыгрузитьВсеСправочники, "", " AND s.code IN (SELECT DISTINCT CASE WHEN spec.nn <> '' THEN spec.nn ELSE spec.s_code END FROM spec000 spec INNER JOIN spr000 spr000 ON spec.ic = spr000.ic AND spec.code = spr000.codeWHERE " + ЕСЛИ( !ПУСТО( Фирма ), " spr000.firm IN (" + Фирма_Список + ") AND", "") + " (( DATEDIFF( day, spr000.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, spr000.edit_dat, '" + Период_max + "' ) >= 0 ) OR 		 ( DATEDIFF( day, spr000.date,     '" + Период_min + "' ) <= 0 AND DATEDIFF( day, spr000.date,     '" + Период_max + "' ) >= 0 )))");		 RETURN ТЕКСТЗАПРОСА;
+IF (ВыгружатьТоварыСвернутоПоНДС)
+	RETURN "";
+
+ТЕКСТЗАПРОСА = "SELECT code AS Ref, folder AS IsFolder, notavail AS DeletionMark,
+		maincode AS code, CASE WHEN shortname = '' THEN REPLACE( name, '&', '&amp;' ) ELSE REPLACE( shortname, '&', '&amp;' ) END AS Description,
+		REPLACE( RTRIM( LTRIM( name ) ) + ' ' + CASE WHEN weight <> 0 THEN RTRIM(CONVERT(char(8 ), weight)) + ' ' + ed_weight ELSE CASE WHEN d_litr <> 0 THEN RTRIM(CONVERT(char(8 ), d_litr)) + ' ' + edd_litr ELSE ' ' END END, '&', '&amp;' ) AS НаименованиеПолное, 
+		REPLACE( a_code, '&', '&amp;' ) AS Артикул, declar AS НомерГТД,
+		(SELECT ex_code FROM spredn WHERE code = s.ed) AS ЕдиницаИзмерения, 
+		(SELECT name FROM sprlistkodn WHERE code = s.kodn) AS ВидСтавкиНДС,
+		note AS Комментарий, CONVERT( bit, CASE WHEN cat='002' THEN 1 ELSE 0 END ) AS Услуга,
+		(SELECT ex_code FROM sprres_g WHERE code= s.group_) AS НоменклатурнаяГруппа, 
+		(SELECT ex_code FROM sprcountry WHERE code= s.manuf) AS СтранаПроисхождения,
+		(SELECT 'S_' + CONVERT( char(10), MAX( parent ) ) FROM spectree WHERE code='0000000001' AND ic= s.identity_column AND folder= 0) AS parent,
+		(SELECT ex_code FROM sprztr WHERE code+subcode= s.z_code) AS СтатьяЗатрат,
+		CASE WHEN cat='002' THEN 'Услуга' ELSE 'Товар' END AS ВидНоменклатуры
+ FROM sprres s 
+ WHERE folder= 0 AND cat IN ('001','002') "+
+ЕСЛИ( ВыгрузитьВсеСправочники, "", " AND s.code IN 
+(SELECT DISTINCT CASE WHEN spec.nn <> '' THEN spec.nn ELSE spec.s_code END FROM spec000 spec 
+INNER JOIN spr000 spr000 ON spec.ic = spr000.ic AND spec.code = spr000.code
+WHERE " + ЕСЛИ( !ПУСТО( Фирма ), " spr000.firm IN (" + Фирма_Список + ") AND", "") + " (( DATEDIFF( day, spr000.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, spr000.edit_dat, '" + Период_max + "' ) >= 0 ) OR 
+		 ( DATEDIFF( day, spr000.date,     '" + Период_min + "' ) <= 0 AND DATEDIFF( day, spr000.date,     '" + Период_max + "' ) >= 0 )))");
+		 
+RETURN ТЕКСТЗАПРОСА;

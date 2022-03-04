@@ -1,1 +1,10 @@
-ТЕКСТЗАПРОСА = "SELECT 			code AS Ref, notavail AS DeletionMark, 			ex_code AS Code, name AS Description, 			inn AS ИНН,	imns AS КодИМНСFROM sprfirm f WHERE ( LEN( inn ) > 10 OR LEN( ogrn ) > 13 ) "+ЕСЛИ( ВыгрузитьВсеСправочники, "", "AND DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0"+	ЕСЛИ( !ПУСТО( Фирма ), "AND f.code IN (" + Фирма_Список + ")", "") );RETURN ТЕКСТЗАПРОСА;
+ТЕКСТЗАПРОСА = "SELECT 
+			code AS Ref, notavail AS DeletionMark, 
+			ex_code AS Code, name AS Description, 
+			inn AS ИНН,	imns AS КодИМНС
+FROM sprfirm f 
+WHERE ( LEN( inn ) > 10 OR LEN( ogrn ) > 13 ) "+
+ЕСЛИ( ВыгрузитьВсеСправочники, "", "AND DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0"+
+	ЕСЛИ( !ПУСТО( Фирма ), "AND f.code IN (" + Фирма_Список + ")", "") );
+
+RETURN ТЕКСТЗАПРОСА;

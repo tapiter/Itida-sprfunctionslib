@@ -1,1 +1,8 @@
-IF (ВыгружатьТоварыСвернутоПоНДС)	RETURN "";ТЕКСТЗАПРОСА = "SELECT code AS Ref, folder AS IsFolder, notavail AS DeletionMark, ex_code AS code, name AS Description FROM sprres_g WHERE f_os= 0 "+ЕСЛИ( ВыгрузитьВсеСправочники, "", "AND DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0");RETURN ТЕКСТЗАПРОСА;
+IF (ВыгружатьТоварыСвернутоПоНДС)
+	RETURN "";
+
+ТЕКСТЗАПРОСА = "SELECT code AS Ref, folder AS IsFolder, notavail AS DeletionMark, ex_code AS code, name AS Description
+ FROM sprres_g WHERE f_os= 0 "+
+ЕСЛИ( ВыгрузитьВсеСправочники, "", "AND DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0");
+
+RETURN ТЕКСТЗАПРОСА;

@@ -1,1 +1,17 @@
-IF ( TYPE( "_1С_ОРГАНИЗАЦИИ_ВИДЫСТАВОКЕСНИПФР" ) <> "C" )	_1С_ОРГАНИЗАЦИИ_ВИДЫСТАВОКЕСНИПФР = "ДляНеСельскохозяйственныхПроизводителей";	ТЕКСТЗАПРОСА = "SELECT 			code AS Ref, notavail AS DeletionMark, 			CASE WHEN ex_code = '' THEN code ELSE ex_code END AS Code, name AS Description, 			inn AS ИНН,	kpp AS КПП,  name AS НаименованиеПолное, okpo AS КодПоОКПО, okato AS КодПоОКАТО, 			imns AS КодИМНС, (SELECT MAX( code ) FROM sprrsfirm WHERE firm= f.code AND fmain= 1) AS ОсновнойБанковскийСчет,			ogrn AS ОГРН, okonh AS КодОКВЭД, shortname AS НаименованиеСокращенное,			CASE WHEN LEN( ogrn ) = 15 THEN 'ФизЛицо' ELSE 'ЮрЛицо' END AS ЮрФизЛицо, 			'" + _1С_ОРГАНИЗАЦИИ_ВИДЫСТАВОКЕСНИПФР + "' AS ВидыСтавокЕСНиПФР,			CASE WHEN LEN( inn ) > 10 OR LEN( ogrn ) > 13 THEN ex_code ELSE '' END AS ИндивидуальныйПредпринимательFROM sprfirm f "+ЕСЛИ( ВыгрузитьВсеСправочники, "", "WHERE " + ЕСЛИ( !ПУСТО( Фирма ) , "f.code IN (" + Фирма_Список + ") AND", "") + "	DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0" );RETURN ТЕКСТЗАПРОСА;
+IF ( TYPE( "_1С_ОРГАНИЗАЦИИ_ВИДЫСТАВОКЕСНИПФР" ) <> "C" )
+	_1С_ОРГАНИЗАЦИИ_ВИДЫСТАВОКЕСНИПФР = "ДляНеСельскохозяйственныхПроизводителей";
+	
+ТЕКСТЗАПРОСА = "SELECT 
+			code AS Ref, notavail AS DeletionMark, 
+			CASE WHEN ex_code = '' THEN code ELSE ex_code END AS Code, name AS Description, 
+			inn AS ИНН,	kpp AS КПП,  name AS НаименованиеПолное, okpo AS КодПоОКПО, okato AS КодПоОКАТО, 
+			imns AS КодИМНС, (SELECT MAX( code ) FROM sprrsfirm WHERE firm= f.code AND fmain= 1) AS ОсновнойБанковскийСчет,
+			ogrn AS ОГРН, okonh AS КодОКВЭД, shortname AS НаименованиеСокращенное,
+			CASE WHEN LEN( ogrn ) = 15 THEN 'ФизЛицо' ELSE 'ЮрЛицо' END AS ЮрФизЛицо, 
+			'" + _1С_ОРГАНИЗАЦИИ_ВИДЫСТАВОКЕСНИПФР + "' AS ВидыСтавокЕСНиПФР,
+			CASE WHEN LEN( inn ) > 10 OR LEN( ogrn ) > 13 THEN ex_code ELSE '' END AS ИндивидуальныйПредприниматель
+FROM sprfirm f "+
+ЕСЛИ( ВыгрузитьВсеСправочники, "", "WHERE " + ЕСЛИ( !ПУСТО( Фирма ) , "f.code IN (" + Фирма_Список + ") AND", "") + "
+	DATEDIFF( day, edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, edit_dat, '" + Период_max + "' ) >= 0" );
+
+RETURN ТЕКСТЗАПРОСА;

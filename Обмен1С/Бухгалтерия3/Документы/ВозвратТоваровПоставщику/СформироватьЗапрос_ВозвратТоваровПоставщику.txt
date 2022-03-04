@@ -1,3 +1,36 @@
-IF ( !Обмен1С.ВыгружатьТипДокумента("055") )	RETURN "";IF ( TYPE( "_1С_СТАТЬЯ_ДОХОДОВ_РАСХОДОВ_" ) <> "C" )	_1С_СТАТЬЯ_ДОХОДОВ_РАСХОДОВ_ = "";	ТЕКСТЗАПРОСА = "SELECT s000.code + s000.maindb + CONVERT( char(10), s000.mainic ) AS Ref, s000.f_deleted AS DeletionMark,			s.date AS Date, s.ndok AS Number, a.transacted AS Posted, 						" + КодФирмы + "								 		 AS Организация, 			'ПокупкаКомиссия' 										 AS ВидОперации, 			s.note 													 AS Комментарий, 			(SELECT ex_code FROM sprcur WHERE code= s.cur) 			 AS ВалютаДокумента,			s.client 												 AS Грузополучатель,			s.firm  												 AS Грузоотправитель,			s.contract 												 AS ДоговорКонтрагента,			" + КодКонтрагента + " 									 AS Контрагент,			1 														 AS КратностьВзаиморасчетов, 			s.cur_rate 												 AS КурсВзаиморасчетов, 			" + КодСклада + "								 		 AS Склад,			CONVERT( bit, 1 ) 										 AS СуммаВключаетНДС, 			s.summa 												 AS СуммаДокумента,			CONVERT( bit, 1 ) 										 AS УчитыватьНДС, 			(SELECT clev FROM sprskl WHERE code= s.sklad)			 AS ТипЦен,			'"+_1С_СТАТЬЯ_ДОХОДОВ_РАСХОДОВ_+"'				 		 AS СтатьяДоходовИРасходов,						s.sklad, s.identity_column FROM spr055 s INNER JOIN sprfirm f ON s.firm = f.code INNER JOIN spr000 s000 ON s000.code = '055' AND s000.ic = s.identity_column  INNER JOIN accountlist a ON a.code = s000.code AND a.ic = s000.ic AND a.f_main= 1 AND a.transacted = 1 AND s000.f_deleted = 0 "+ЕСЛИ( ВыгрузитьВсеСправочники, "WHERE 1 = 2", "WHERE  " + ЕСЛИ( !ПУСТО( Фирма ), "f.code IN (" + Фирма_Список + ") AND", "") + 
+IF ( !Обмен1С.ВыгружатьТипДокумента("055") )
+	RETURN "";
+
+IF ( TYPE( "_1С_СТАТЬЯ_ДОХОДОВ_РАСХОДОВ_" ) <> "C" )
+	_1С_СТАТЬЯ_ДОХОДОВ_РАСХОДОВ_ = "";
+	
+ТЕКСТЗАПРОСА = "SELECT s000.code + s000.maindb + CONVERT( char(10), s000.mainic ) AS Ref, s000.f_deleted AS DeletionMark,
+			s.date AS Date, s.ndok AS Number, a.transacted AS Posted, 
+			
+			" + КодФирмы + "								 		 AS Организация, 
+			'ПокупкаКомиссия' 										 AS ВидОперации, 
+			s.note 													 AS Комментарий, 
+			(SELECT ex_code FROM sprcur WHERE code= s.cur) 			 AS ВалютаДокумента,
+			s.client 												 AS Грузополучатель,
+			s.firm  												 AS Грузоотправитель,
+			s.contract 												 AS ДоговорКонтрагента,
+			" + КодКонтрагента + " 									 AS Контрагент,
+			1 														 AS КратностьВзаиморасчетов, 
+			s.cur_rate 												 AS КурсВзаиморасчетов, 
+			" + КодСклада + "								 		 AS Склад,
+			CONVERT( bit, 1 ) 										 AS СуммаВключаетНДС, 
+			s.summa 												 AS СуммаДокумента,
+			CONVERT( bit, 1 ) 										 AS УчитыватьНДС, 
+			(SELECT clev FROM sprskl WHERE code= s.sklad)			 AS ТипЦен,
+			'"+_1С_СТАТЬЯ_ДОХОДОВ_РАСХОДОВ_+"'				 		 AS СтатьяДоходовИРасходов,
+			
+			s.sklad, s.identity_column
+ FROM spr055 s
+ INNER JOIN sprfirm f ON s.firm = f.code
+ INNER JOIN spr000 s000 ON s000.code = '055' AND s000.ic = s.identity_column 
+ INNER JOIN accountlist a ON a.code = s000.code AND a.ic = s000.ic AND a.f_main= 1 AND a.transacted = 1 AND s000.f_deleted = 0 "+
+ЕСЛИ( ВыгрузитьВсеСправочники, "WHERE 1 = 2", "WHERE  " + ЕСЛИ( !ПУСТО( Фирма ), "f.code IN (" + Фирма_Список + ") AND", "") + 
 ЕСЛИ( ВыгрузкаСтрогоПоДатеДокумента, " ", " ( ( DATEDIFF( day, s.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.edit_dat, '" + Период_max + "' ) >= 0 ) OR " ) +
-" ( DATEDIFF( day, s.date,     '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.date,     '" + Период_max + "' ) >= 0 )" + ЕСЛИ( !ВыгрузкаСтрогоПоДатеДокумента, ")","") );		 RETURN ТЕКСТЗАПРОСА;
+" ( DATEDIFF( day, s.date,     '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.date,     '" + Период_max + "' ) >= 0 )" + ЕСЛИ( !ВыгрузкаСтрогоПоДатеДокумента, ")","") );
+		 
+RETURN ТЕКСТЗАПРОСА;

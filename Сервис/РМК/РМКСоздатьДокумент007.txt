@@ -86,6 +86,5 @@ _ERRORCODE				= 0;
 		 note    		= 'Создан на основании кассовых чеков.' 
 		 WHERE identity_column= " + ИДНакладной );
 ЗАПРОС( "EXEC sp_recalc007 " + ИДНакладной );
-IF ( _ERRORCODE != 0 ) RETURN -1;
 
 RETURN ИДНакладной;

@@ -74,8 +74,10 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокСтрок" ) )
 					   WHERE mainbc.code = '003' AND mainbc.spec_ic = " + СписокСтрок.identity_column + 
 					   ЕСЛИ( НеПроверятьСправкуБ, "", " AND dbo.fn_informbformark( mainbc.barcode, 0 ) = '" + STDF( СправкаБ ) + "'" ), "СписокМарок" );
 					   
-	ДолжныБытьМарки	= ЗАПРОС( "SELECT bcexists FROM egais_marks WHERE informb LIKE '%/" + STDF( СправкаБ ) + "'" );
-	IF ( ДолжныБытьМарки && КОЛИЧЕСТВОСТРОК( "СписокМарок" ) < СписокСтрок.kolp )
+	ДолжныБытьМарки	= ЗАПРОС( "SELECT bcexists, alcocode FROM egais_marks WHERE informb LIKE '%/" + STDF( СправкаБ ) + "'", "bcexists" );
+	Алкокод			= ЗАПРОС( "", "alcocode" );
+	Упакованное		= ЗАПРОС( "SELECT packed FROM sprres_egais WHERE alcocode = '" + Алкокод + "'" );
+	IF ( ДолжныБытьМарки && ( ( КОЛИЧЕСТВОСТРОК( "СписокМарок" ) < СписокСтрок.kolp && Упакованное ) OR ( !Упакованное && КОЛИЧЕСТВОСТРОК( "СписокМарок" ) == 0 ) ) )
 	{
 		ТекстСообщенияПроМарки		+= CHR( 13 ) + ЗАПРОС( "SELECT RTRIM( name ) + ' (' + RTRIM( maincode ) + ')' FROM sprnn WHERE nn= '" + СписокСтрок.nn + "'" );
 		НайденыОшибки				= true;

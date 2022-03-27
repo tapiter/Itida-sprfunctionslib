@@ -37,12 +37,14 @@ try
 													  kskod char( 3 ) DEFAULT '', identity_column int IDENTITY( 1, 1 ) ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаСтрок + " ( spec_ic int, docic int, date datetime, type char( 3 ), paytype char( 3 ) ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаМодификаторов + " ( docic int, type char( 3 ), paytype char( 3 ), ware char( 10 ), qty float ) " );
-	ЗАПРОС( "CREATE TABLE " + ТаблицаЧеков + " ( chequelist_ic int ) " );
+	ЗАПРОС( "CREATE TABLE " + ТаблицаЧеков + " ( chequelist_ic int, rid varchar( 50 ) DEFAULT '', checktype int ) " );
 
 	// Запрашиваем список чеков, по которым не было создано документов
-	ЗАПРОС( "INSERT INTO " + ТаблицаЧеков + " ( chequelist_ic ) 
-			 SELECT list.identity_column FROM chequelist list 	
-			 WHERE list.rmkschem= '" + РМКСХЕМА + "' AND list.rmk='" + РМККОД + "' AND processed = 0 " +
+	ЗАПРОС( "INSERT INTO " + ТаблицаЧеков + " ( chequelist_ic, rid, checktype ) 
+			 SELECT list.identity_column, list.rid, list.checktype 
+			 FROM chequelist list 	
+			 LEFT OUTER JOIN chequelist_processed prc ON list.rid = prc.rid
+			 WHERE list.rmkschem= '" + РМКСХЕМА + "' AND list.rmk='" + РМККОД + "' AND ISNULL( prc.processed, 0 ) = 0 " +
 			 ЕСЛИ( ИСКЛЮЧИТЬОТКРЫТЫЕ, "AND EXISTS(SELECT * FROM chequelist WHERE rmkschem= list.rmkschem AND rmk= list.rmk AND 
 																				 checktype= 10 AND shiftnumber= list.shiftnumber AND fr_code= list.fr_code )", "" ) );
 	IF ( _ERRORCODE != 0 ) throw;
@@ -254,18 +256,45 @@ try
 		ELSE IF ( Документы.code == "020" ) Создано020++;
 
 		// Проставляем связь чеков и документов
-		IF ( !ЗАПРОС( "UPDATE chequelist 
-					   SET 	doccode_c	= '" + Документы.code + "', 
-							ic_c 		= " + ИДСозданного + ",
-							processed	= 1
-					   WHERE identity_column IN ( SELECT ic FROM chequespec WHERE identity_column IN ( SELECT spec_ic FROM " + ТаблицаСтрок + " WHERE docic =" +  Документы.identity_column+ " ) )" ) ) throw;
+		ИмяВременнойТаблицы		= "##" + УНИКАЛЬНОЕИМЯ( );
+		__SQL( )
+		{
+			SELECT DISTINCT c.rid INTO [[ ИмяВременнойТаблицы ]]
+			FROM chequelist c
+			INNER JOIN chequespec s ON c.identity_column = s.ic
+			INNER JOIN [[ ТаблицаСтрок ]] t ON t.spec_ic = s.identity_column
+			WHERE t.docic = [[ Документы.identity_column ]];
 		
-		// Если все успешно, то завершаем транзакцию
-		IF ( !ЗАПРОС( "COMMIT TRANSACTION" ) ) throw;
+			DELETE FROM p FROM chequelist_processed p
+			INNER JOIN [[ ИмяВременнойТаблицы ]] t ON t.rid = p.rid;
+			
+			INSERT INTO chequelist_processed ( rid, processed, doccode_c, ic_c )
+			SELECT rid, 1, '[[ Документы.code ]]', [[ИДСозданного]]
+			FROM [[ ИмяВременнойТаблицы ]] t;
+			
+			--Если все успешно, то завершаем транзакцию
+			COMMIT TRANSACTION;
+		}
+		SQLERROR
+		{
+			throw;
+		}
 		ПРОПУСТИТЬ( 1, "Документы" );
 	}
 	// Проставляем признак обработки чека, для того, чтобы больше не грузился
-	ЗАПРОС( "UPDATE chequelist SET processed = 1 WHERE identity_column IN ( SELECT chequelist_ic FROM " + ТаблицаЧеков + " )" );
+	// Чеки закрытия смены не нужно помечать, т.к. иначе, при повторной загрузке, они не будут обработаны
+//	ЗАПРОС( "UPDATE chequelist SET processed = 1 WHERE identity_column IN ( SELECT chequelist_ic FROM " + ТаблицаЧеков + " ) AND checktype <> 10" );
+	__SQL( )
+	{
+		DELETE FROM c FROM chequelist_processed c 
+		INNER JOIN [[ ТаблицаЧеков ]] temp ON c.rid = temp.rid AND c.processed = 0;
+		
+		INSERT INTO chequelist_processed ( rid, processed ) 
+		SELECT t.rid, 1
+		FROM [[ ТаблицаЧеков ]] t
+		LEFT OUTER JOIN chequelist_processed c ON c.rid= t.rid
+		WHERE t.checktype <> 10 AND c.rid IS NULL;
+	}
 	УДАЛИТЬКОНТЕКСТ( "Документы" );
 	
 	ВтомЧисле			= "";

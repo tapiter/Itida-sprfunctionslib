@@ -175,6 +175,7 @@ try
 	{
 		Действие		= "CustomerInformation";
 		КодДействия		= "ExpInvoiceAndPrimaryAccountingDocumentCustomer";
+		КодДействия		= ЕСЛИ( ФункцияСчФ == "ДОП", "PrimaryAccountingDocumentCustomer", "ExpInvoiceAndPrimaryAccountingDocumentCustomer" );
 		КодТранзакции	= "CustomerInformation";
 		ДокументXML		= ON_SCHFDOPPOK( );
 		ИмяФайла		= ИмяФайлаПодтв + ".xml";

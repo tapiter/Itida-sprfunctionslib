@@ -27,9 +27,9 @@ IF ( !Обмен1С.ВыгружатьТипДокумента("001") )
 			s.identity_column
  FROM spr001 s INNER JOIN sprfirm f ON s.firm = f.code
  INNER JOIN spr000 s000 ON s000.code = '001' AND s000.ic = s.identity_column 
- INNER JOIN accountlist a ON a.code = s000.code AND a.ic = s000.ic AND a.f_main= 1 AND a.transacted = 1 AND s000.f_deleted = 0 "+
+ INNER JOIN accountlist a ON a.code = s000.code AND a.ic = s000.ic AND a.account_= '" + Учет + "' AND a.transacted = 1 AND s000.f_deleted = 0 "+
 ЕСЛИ( ВыгрузитьВсеСправочники, "WHERE 1 = 2", "WHERE  " + ЕСЛИ( !ПУСТО( Фирма ), "f.code IN (" + Фирма_Список + ") AND", "") + 
 ЕСЛИ( ВыгрузкаСтрогоПоДатеДокумента, " ", " ( ( DATEDIFF( day, s.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.edit_dat, '" + Период_max + "' ) >= 0 ) OR " ) +
 " ( DATEDIFF( day, s.date,     '" + Период_min + "' ) <= 0 AND DATEDIFF( day, s.date,     '" + Период_max + "' ) >= 0 )" + ЕСЛИ( !ВыгрузкаСтрогоПоДатеДокумента, ")","") );
-		 
+
 RETURN ТЕКСТЗАПРОСА;

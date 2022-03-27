@@ -1,0 +1,14 @@
+ТекстЗапросаПодтвержденияКМ = "{""type"": ""acceptMarkingCode""}";
+		
+fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаПодтвержденияКМ );
+fptr.processJson( );
+
+IF ( !ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки("Подтверждение КМ", false))
+{
+	ФР.АТОЛДТО10_ОтключитьККТ();
+	УДАЛИТЬКОНТЕКСТ("НовыеКомандыЧека");
+	УДАЛИТЬКОНТЕКСТ("ПозицииЧека");
+	RETURN false;
+}
+
+RETURN fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );

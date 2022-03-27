@@ -2,7 +2,7 @@
 Команда = ДАННЫЕ_JSON("command", "OpenCheck");
 ТипЧека = ДАННЫЕ_JSON("checkType", VAL(КомандыЧека.checktype));
 СНО		= ДАННЫЕ_JSON("taxSystem", ФР.МЕРКУРИЙФР_ПолучитьЗначениеСНО( ЗАПРОС( "SELECT taxtype FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'" ) ));
-ПечататьЧек = ДАННЫЕ_JSON("printDoc", ЕСЛИ( VAL( КомандыЧека.echeque )==1, false, true) );
+ПечататьЧек = ДАННЫЕ_JSON("printDoc", ЕСЛИ( VAL( ПЕРЕМЕННАЯ( "ЭЛЕКТРОННЫЙЧЕК", 0 ) ) == 1, false, true) );
 /*
 //следующие реквизиты не будем передавать при открытии, из-за необязательности
 address (string, необяз.) – адрес расчёта.

@@ -3,29 +3,41 @@
     "sessionKey": "CAC1A797-6A48-474A-A08E-72A8CD3AEFE2",
     "command": "AddGoods",
     "nomenclatureCode": "",
+    "markingCode": "RE0EMVx0Fl5NNVVFZTI9IUxZS3k5OTFFRTA1",
+    "mcInfo": {
+        "mc": "MDEwMTIzNDU2Nzg5MDEyMzIxTSw3YUwwSkRHYkpDV2EdOTE4MDhCHTkyQ3VFMmI0d0JoUHY5WGVvQlFERXV4OXdPS2VOUjR2ZjRJK3EvUWJocXpoUkd5WVF5bWtrcGd0QVpVdFBIbGZwMFRIR1ZONmkrRDhaeFpRY2JUbnZFTWc9PQ==",
+        "ean": "4603928506843",
+        "processingMode": 0,
+        "plannedStatus": 2,
+        "part": {
+            "numerator": 2,
+            "denominator": 5
+        }
+    },
     "productName": "Товар 1",
     "qty": 10000,
+    "measureUnit": 0,
     "section": 2,
     "taxCode": 6,
     "paymentFormCode": 4,
     "productTypeCode": 1,
     "countryOfOrigin": "051",
-    "customsDeclaration": "11/141117/0004455",
+    "customsDeclaration": "11 / 141117 / 0004455",
     "additionalAttribute": "",
     "price": 3250,
     "sum": 3134,
     "exciseAmount": 150,
-    "addInfo": "Текст с доп. информацией",
+    "addInfo": "Текст с доп.информацией",
     "agent": {
         "code": 3,
         "payingOp": "Операция платежного агента",
-        "payingPhone": ["+79499372501", "+79499387645"],
+        "payingPhone": [" + 79499372501", " + 79499387645"],
         "transfName": "Наименование оператора перевода",
         "transfINN": "4239017922",
-        "transfAddress": "г.Москва, ул.Инженерная, д.15",
-        "transfPhone": ["+79499387465"],
-        "operatorPhone": ["+79494098744"],
-        "supplierPhone": ["+79490389306", "+79497362081"],
+        "transfAddress": "г.Москва, ул.Инженерная, 	д.15",
+        "transfPhone": [" + 79499387465"],
+        "operatorPhone": [" + 79494098744"],
+        "supplierPhone": [" + 79490389306", " + 79497362081"],
         "supplierINN": "4259017825",
         "supplierName": "Наименование поставщика"
     }
@@ -129,16 +141,43 @@ IF ( КоличествоМарок >= 1 )
 	WHILE ( НомерМарки <= КоличествоМарок )
 	{
 		ШКМарки 		= Марки[ НомерМарки ];
+		
+		IF (ВерсияФФД == "1.2")
+		{
+			//РезультатПроверкиКМ = КомандыЧека.kmcheckresult;
+			ВЫБРАТЬКОНТЕКСТ( "РезультатыОбработкиКМ" );
+			ПЕРЕЙТИВНАЧАЛО( "РезультатыОбработкиКМ" );
+			НАШЛИ			= false;
+			
+			WHILE ( !КОНЕЦКОНТЕКСТА( "РезультатыОбработкиКМ" ) && !НАШЛИ )
+			{
+				Нашли		= ALLTRIM( РезультатыОбработкиКМ.Штрихкод ) == ALLTRIM( ШКМарки );
+				IF ( !НАШЛИ ) ПРОПУСТИТЬ( 1, "РезультатыОбработкиКМ" );
+			}
+			IF (НАШЛИ)
+				РезультатПроверкиКМ = РезультатыОбработкиКМ.Результат;
+				
+			ВЫБРАТЬКОНТЕКСТ( "КомандыЧека" );
+		}
+		
 		НомерМарки++;
 		Количество		= 1; 
 		Сумма			= ЦенаПродажиПозиции;
 		СуммаСкидкиПозиции = 0; //скидки в случае разделения позиции не выводим
 		
 		
-		
-		ТекстПозицииЧека = "{ ""sessionKey"": """ + _МАССИВКЛЮЧЕЙФР[ VAL( ФР.КОДОБОРУДОВАНИЯ() ) ] + """,	""command"": ""AddGoods"", ""nomenclatureCode"": """ + ФР.МЕРКУРИЙФР_ТекстМаркировки() + """, ""productName"": """ + НаименованиеТовара +
+		IF (ВерсияФФД == "1.2")
+		{
+			ТекстПозицииЧека = "{ ""sessionKey"": """ + _МАССИВКЛЮЧЕЙФР[ VAL( ФР.КОДОБОРУДОВАНИЯ() ) ] + """,	""command"": ""AddGoods"", ""mcInfo"": """ + ФР.МЕРКУРИЙФР_ТекстМаркировки() + """, ""productName"": """ + НаименованиеТовара +
 			""", ""qty"": " + STR( Количество * КоэффициентКоличества, 16, 0) + ", ""section"": " + КомандыЧека.department + ",	""taxCode"": " + КомандыЧека.kodn + ", ""paymentFormCode"": " + PaymentMode + 
 			", ""productTypeCode"": " + КомандыЧека.rsubject + ", ""price"": " + STR( ЦенаПродажиПозиции * КоэффициентСумм, 16, 0 ) + ", ""sum"": " + STR( Сумма * КоэффициентСумм, 16, 0 ) + " }";
+		}
+		ELSE
+		{
+			ТекстПозицииЧека = "{ ""sessionKey"": """ + _МАССИВКЛЮЧЕЙФР[ VAL( ФР.КОДОБОРУДОВАНИЯ() ) ] + """,	""command"": ""AddGoods"", ""nomenclatureCode"": """ + ФР.МЕРКУРИЙФР_ТекстМаркировки() + """, ""productName"": """ + НаименованиеТовара +
+			""", ""qty"": " + STR( Количество * КоэффициентКоличества, 16, 0) + ", ""section"": " + КомандыЧека.department + ",	""taxCode"": " + КомандыЧека.kodn + ", ""paymentFormCode"": " + PaymentMode + 
+			", ""productTypeCode"": " + КомандыЧека.rsubject + ", ""price"": " + STR( ЦенаПродажиПозиции * КоэффициентСумм, 16, 0 ) + ", ""sum"": " + STR( Сумма * КоэффициентСумм, 16, 0 ) + " }";
+		}
 		
 		//регистрируем позицию в чеке
 		ОТВЕТ = "";

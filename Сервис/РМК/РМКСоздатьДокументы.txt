@@ -51,7 +51,7 @@ try
 			 
 	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT list.fr_code, list.ndok, list.date, list.firm, list.cur, ISNULL( eq.sklad, list.sklad ) AS sklad, list.empl, 
 									CASE WHEN list.doccode IN ( '008', '046' ) THEN SPACE( 7 ) ELSE list.partner END AS client, dbo.fn_chartoint( list.checktype ) AS checktype, 
-									list.doccode, list.total, list.cash, list.noncash + list.credit + list.sert + list.bonus AS cashless, list.f_separatedoc,
+									list.doccode, list.total, list.cash, list.noncash + list.credit + list.sert AS cashless, list.bonus, list.f_separatedoc,
 									list.shiftnumber, list.cardnumber, list.identity_column, list.kskod,
 									CASE WHEN list.noncash <> 0 THEN '002' ELSE CASE WHEN list.credit <> 0 THEN '003' ELSE 
 									CASE WHEN list.sert <> 0 THEN '004' ELSE CASE WHEN list.bonus <> 0 THEN '005' ELSE '000' END END END END AS paytype, 
@@ -170,7 +170,7 @@ try
 			}
 			ЗАПРОС( "INSERT INTO " + ТаблицаСтрок + " ( spec_ic, docic, date, type, paytype ) VALUES ( " + Строки.spec_ic + ", " + m_docic + ", '" + m_date + "', '" + Чеки.type + "', '" + Чеки.paytype + "')" );
 			// Проставляем сумму безнала
-			m_cashless			= ЕСЛИ( Чеки.total != 0, Чеки.cashless * Строки.summa_wd / Чеки.total, 0 );
+			m_cashless			= ЕСЛИ( Чеки.total != 0, Чеки.cashless * Строки.summa_wd / ( Чеки.total - Чеки.bonus ), 0 );
 			ЗАПРОС( "UPDATE " + ТаблицаДокументов + " SET cashless = cashless + " + STR( m_cashless, 20, 8 ) + " WHERE identity_column = " + m_docic );
 			IF ( _ERRORCODE != 0 ) throw;
 			

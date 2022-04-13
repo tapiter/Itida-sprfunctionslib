@@ -1,0 +1,155 @@
+
+// Авторизуемся
+/*
+IF ( ПУСТО( ИДДОКУМЕНТА ) )
+	ИДДОКУМЕНТА 		= ЗАПРОС("SELECT TOP 1 ic FROM mark_stock_spec ORDER BY edit_dat DESC");
+*/
+ЛИМИТКМНАЗАПРОС			= 15;
+СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
+ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
+МАРКИРОВКАТОКЕН		=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );
+IF ( ПУСТО( МАРКИРОВКАТОКЕН ) ) RETURN false;
+
+ГРУППАМАРКИРОВКИ		= LOWER( ALLTRIM( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + ПРЕДПРИЯТИЕ + "'" ) ) );
+IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: cis char, gtin char, tnVedEaes char, tnVedEaesGroup char, productName char, emissionDate char, ownerInn char, status char, emissionType char", "СписокКМ" ) ) RETURN false;
+
+АдресСервера 			= ЕСЛИ( ТестовыйКонтур, "https://demo.lp.crpt.tech", "https://ismp.crpt.ru" );
+Ответ					= "";
+СтатусКМ				= "INTRODUCED";
+ДатаЭмиссииНачало		= "";
+ДатаЭмиссииКонец		= DTOC( ДАТА(), 7, "-" ) + "T00:00:00Z"
+
+ДОБАВИТЬКОНТЕКСТ("SELECT gtin, identity_column, status, description FROM mark_stock_spec WHERE ic = " + ИДДОКУМЕНТА + " AND status <> 2", "СтрокиДокумента");
+ПЕРЕЙТИВНАЧАЛО("СтрокиДокумента");
+ВЫБРАТЬКОНТЕКСТ("СтрокиДокумента");
+WHILE ( !КОНЕЦКОНТЕКСТА( "СтрокиДокумента" ) )
+{
+	СтрокаGTIN			= ALLTRIM(СтрокиДокумента.gtin);
+	СтрокаИД			= СтрокиДокумента.identity_column;
+	СтрокаСтатус		= СтрокиДокумента.status;
+	СтрокаОписание		= СтрокиДокумента.description;
+	
+	ПервыйЗапросПоGTIN	= true;
+	mUit 				= "";
+	mEmissionDate 		= "";	
+	
+	IF ( !ПУСТО( СтрокаОписание ) )
+	{
+		mUit			= ПОЛЕ_JSON( СтрокаОписание, "uit", "" );
+		mEmissionDate	= ПОЛЕ_JSON( СтрокаОписание, "emissionDate", "" );
+		ПервыйЗапросПоGTIN = false;
+	}		
+	
+	try
+	{
+		ТекстОшибки			= "Сервер " + АдресСервера + CHR( 13 ) + "вернул сообщение об ошибке: " + CHR( 13 );
+		Соединение 			= HTTPCONNECT( АдресСервера, "", true, МАРКИРОВКА.ФАЙЛЖУРНАЛА( ) );
+		IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+		
+		Заголовки[ 0 ]		= "Content-Type: application/json";
+		Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;
+		
+		ЕстьЕщеДанные		= true;		
+		
+		//посылаем запросы по gtin пока есть еще данные для получения
+		WHILE ( ЕстьЕщеДанные )
+		{
+			IF ( ПервыйЗапросПоGTIN )
+			{
+				Ответ				= HTTPGET( Соединение, "/api/v4/facade/identifytools/listV2?cisStatus=" + СтатусКМ + "&pg=" + ГРУППАМАРКИРОВКИ + 
+					"&gtin=" + СтрокаGTIN + "&orderColumn=emd&order=ASC&limit=" + ЛИМИТКМНАЗАПРОС + "&cache=false&childrenPaging=false&childrenLimit=1&childrenPage=1", "Заголовки" );
+					
+				ПервыйЗапросПоGTIN = false;	
+			}
+			ELSE
+			{
+				Ответ				= HTTPGET( Соединение, "/api/v4/facade/identifytools/listV2?cisStatus=" + СтатусКМ + "&pg=" + ГРУППАМАРКИРОВКИ + 
+					"&gtin=" + СтрокаGTIN + "&pageDir=NEXT&uit=" + mUit + "&orderColumn=emd&order=ASC&orderedColumnValue=" + mEmissionDate + 
+					"&limit=" + ЛИМИТКМНАЗАПРОС + "&cache=false&childrenPaging=false&childrenLimit=1&childrenPage=1", "Заголовки" );
+			}
+		
+			IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
+			
+			ОбработанныйОтвет 	= ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" );
+			
+			ЗАГРУЗИТЬJSON( "СписокКМ", ПОЛЕ_JSON( ОбработанныйОтвет, "results", ""), "КМ" );
+			
+			//проверим наличие еще данных по КМ
+			СледующаяСтраница = ПОЛЕ_JSON( ОбработанныйОтвет, "nextPage", "");			
+			ЕстьЕщеДанные = СледующаяСтраница == true OR СледующаяСтраница == "true";
+			
+			// Проходим по полченному списку кодов маркировки и записываем в строки документа
+			ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокКМ" ) ) 
+			{
+				mGTIN			= ПОЛЕ_JSON( СписокКМ.КМ, "gtin", "");
+				mMark			= ПОЛЕ_JSON( СписокКМ.КМ, "cis", "" );
+				
+				//запоминаем последние прочитанные uit и emissiondate для того чтобы продолжить с них же при обрыве связи
+				mUit			= ПОЛЕ_JSON( СписокКМ.КМ, "uit", "" );
+				mEmissionDate	= ПОЛЕ_JSON( СписокКМ.КМ, "emissionDate", "" );
+					
+				IF ( СтрокаИД > 0 )
+				{
+					IF ( !ЗАПРОС( "IF NOT EXISTS( SELECT * FROM mark_stock_marks WHERE ic=" + ИДДОКУМЕНТА + " AND spec_ic= " + СтрокаИД + " AND mark= '" + STDF( mMark ) + "' ) 
+								   INSERT INTO mark_stock_marks ( ic, spec_ic, mark ) VALUES ( " + ИДДОКУМЕНТА + ", " + СтрокаИД + ", '" + STDF( mMark ) + "' )" ) ) THROW( _ERRORDESCRIPTION );								   
+				}
+				ПРОПУСТИТЬ( 1, "СписокКМ" ); 
+			}
+			УДАЛИТЬКОНТЕКСТ( "СписокКМ" );
+			ВЫБРАТЬКОНТЕКСТ("СтрокиДокумента");
+			
+			IF ( !ПУСТО( mUit ) AND !ПУСТО( mEmissionDate ) )
+			{
+				//сформируем информацию в виде JSON строки по последнему полученному КМ
+				СтрокаСохранения = "{" + ДАННЫЕ_JSON("uit", mUit) + ", " + ДАННЫЕ_JSON("emissionDate", mEmissionDate) + "}";
+				//сохраним информацию по последнему полученному ид в строку
+				IF ( !ЗАПРОС( "UPDATE mark_stock_spec 
+								SET description = '" + СтрокаСохранения + "' 
+								WHERE ic = "  + ИДДОКУМЕНТА + " 
+								AND identity_column = " + СтрокаИД ) ) THROW( _ERRORDESCRIPTION );
+			}
+			
+			IF ( !ЕстьЕщеДанные AND !ПУСТО( СледующаяСтраница ) )
+			{
+				IF ( !ЗАПРОС( "UPDATE mark_stock_spec 
+						   SET status = 2, 
+							   description = 'Коды маркировки получены успешно',
+							   kolp = ( SELECT COUNT( * ) FROM mark_stock_marks marks WHERE marks.ic= " + ИДДОКУМЕНТА + " AND marks.spec_ic= mark_stock_spec.identity_column )
+						   WHERE ic = "  + ИДДОКУМЕНТА + " AND ( SELECT COUNT( * ) FROM mark_stock_marks marks WHERE marks.ic= " + ИДДОКУМЕНТА + " AND marks.spec_ic= mark_stock_spec.identity_column ) > 0" ) ) THROW( _ERRORDESCRIPTION );
+			}
+			
+		} //конец цикла получения данных по gtin из строки
+	}
+	catch ( ТекстСообщения )
+	{
+		HTTPCLOSE( Соединение );
+		СООБЩЕНИЕ( ТекстСообщения );
+		УДАЛИТЬКОНТЕКСТ( "СписокКМ" );
+		УДАЛИТЬКОНТЕКСТ("СтрокиДокумента");
+		RETURN false;
+	}
+	ОЖИДАНИЕ( 500 );
+	ПРОПУСТИТЬ( 1, "СтрокиДокумента");
+}
+
+try
+{
+	// Если полчены все коды маркировки, то ставим следующий статус у документа
+	IF ( !ЗАПРОС( "UPDATE mark_stock
+				SET status = CASE WHEN EXISTS( SELECT * FROM mark_stock_spec WHERE ic= "  + ИДДОКУМЕНТА + " AND status IN ( 3, 4 ) ) THEN 4 ELSE 
+							CASE WHEN EXISTS( SELECT * FROM mark_stock_spec WHERE ic= "  + ИДДОКУМЕНТА + " AND status IN ( 1, 0 ) ) THEN 1 ELSE 2 END END
+				   WHERE identity_column = "  + ИДДОКУМЕНТА ) ) THROW( _ERRORDESCRIPTION );
+}
+catch ( ТекстСообщения )
+{
+	СООБЩЕНИЕ( ТекстСообщения );
+	УДАЛИТЬКОНТЕКСТ("СтрокиДокумента");
+	RETURN false;
+}
+УДАЛИТЬКОНТЕКСТ("СтрокиДокумента");
+
+HTTPCLOSE( Соединение );
+
+УДАЛИТЬКОНТЕКСТ( "СписокКМ" );
+
+RETURN true;

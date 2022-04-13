@@ -1,4 +1,3 @@
-
 СУЗИД					= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_SUZID" + ПРЕДПРИЯТИЕ + "'" );
 
 try

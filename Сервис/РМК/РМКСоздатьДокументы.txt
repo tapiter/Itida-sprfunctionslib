@@ -34,7 +34,7 @@ try
 	_ERRORCODE				= 0;
 	ЗАПРОС( "CREATE TABLE " + ТаблицаДокументов + " ( code char( 3 ) DEFAULT '', id int DEFAULT 0, shiftnumber int DEFAULT 0, date datetime DEFAULT '', firm char( 7 ) DEFAULT '', 
 													  cashless float DEFAULT 0, sklad char( 3 ) DEFAULT '', client char( 7 ) DEFAULT '', fr_code char( 3 ) DEFAULT '', 
-													  kskod char( 3 ) DEFAULT '', identity_column int IDENTITY( 1, 1 ) ) " );
+													  kskod char( 3 ) DEFAULT '', f_date bit DEFAULT 0, identity_column int IDENTITY( 1, 1 ) ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаСтрок + " ( spec_ic int, docic int, date datetime, type char( 3 ), paytype char( 3 ) ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаМодификаторов + " ( docic int, type char( 3 ), paytype char( 3 ), ware char( 10 ), qty float ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаЧеков + " ( chequelist_ic int, rid varchar( 50 ) DEFAULT '', checktype int ) " );
@@ -46,7 +46,8 @@ try
 			 LEFT OUTER JOIN chequelist_processed prc ON list.rid = prc.rid
 			 WHERE list.rmkschem= '" + РМКСХЕМА + "' AND list.rmk='" + РМККОД + "' AND ISNULL( prc.processed, 0 ) = 0 " +
 			 ЕСЛИ( ИСКЛЮЧИТЬОТКРЫТЫЕ, "AND EXISTS(SELECT * FROM chequelist WHERE rmkschem= list.rmkschem AND rmk= list.rmk AND 
-																				 checktype= 10 AND shiftnumber= list.shiftnumber AND fr_code= list.fr_code )", "" ) );
+																				 checktype= 10 AND shiftnumber >= list.shiftnumber AND 
+																				 date >= list.date AND fr_code= list.fr_code )", "" ) );
 	IF ( _ERRORCODE != 0 ) throw;
 			 
 	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT list.fr_code, list.ndok, list.date, list.firm, list.cur, ISNULL( eq.sklad, list.sklad ) AS sklad, list.empl, 
@@ -92,7 +93,7 @@ try
 		{
 			//------- Если нашли чек закрытия смены, и тип даты - закрытие смены, то ставим дату документов из этой смены равной дате чека закрытия
 			IF ( Чеки.checktype == 10 AND ИСТОЧНИКДАТЫ == 2 )
-				ЗАПРОС( "UPDATE " + ТаблицаДокументов + " SET date = '" + TTOC( Чеки.date ) + "' WHERE shiftnumber = " + STR( Чеки.shiftnumber ) );
+				ЗАПРОС( "UPDATE " + ТаблицаДокументов + " SET date = '" + TTOC( Чеки.date ) + "', f_date= 1 WHERE shiftnumber <= " + STR( Чеки.shiftnumber ) + " AND f_date = 0" );
 			ПРОПУСТИТЬ( 1, "Чеки" );
 			CONTINUE;
 		}
@@ -170,7 +171,7 @@ try
 			}
 			ЗАПРОС( "INSERT INTO " + ТаблицаСтрок + " ( spec_ic, docic, date, type, paytype ) VALUES ( " + Строки.spec_ic + ", " + m_docic + ", '" + m_date + "', '" + Чеки.type + "', '" + Чеки.paytype + "')" );
 			// Проставляем сумму безнала
-			m_cashless			= ЕСЛИ( Чеки.total != 0, Чеки.cashless * Строки.summa_wd / ( Чеки.total - Чеки.bonus ), 0 );
+			m_cashless			= ЕСЛИ( Чеки.total != 0, Чеки.cashless * Строки.summa_wd / ( Чеки.total + Чеки.bonus ), 0 );
 			ЗАПРОС( "UPDATE " + ТаблицаДокументов + " SET cashless = cashless + " + STR( m_cashless, 20, 8 ) + " WHERE identity_column = " + m_docic );
 			IF ( _ERRORCODE != 0 ) throw;
 			

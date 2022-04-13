@@ -15,6 +15,7 @@ IF ( ПУСТО( СКЛАДПРИХОДА ) )
 КОММЕНТАРИЙ				= "Создан на основании входящего УПД № " + НОМЕРДОКУМЕНТА + " от " + DTOC( ДАТАДОКУМЕНТА );
 КОНТРАГЕНТ				= ЗАПРОС( "SELECT client FROM mark_in WHERE identity_column = " + ИДДОКУМЕНТА );
 _ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
+НАИМЕНОВАНИЕТОВАРА		= ЕСЛИ( ПЕРЕМЕННАЯ( "_МАРКИРОВКА_НАИМЕНОВАНИЕИЗУПД", false ), "spec.name", "ISNULL( sprres.name, spec.name )" );
 
 // Формируем список учетов для нового документа
 СписокУчетов			= "";
@@ -70,8 +71,8 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) )
 	}
 	
 	ИДСтроки	= ЗАПРОС( "INSERT INTO spec001 ( ic, linenum, nn, s_code, ed, koef_e, koef_c, nnname, cena, kolp, realkolp, kodn, summa, sumnds, inside, packs )
-						   SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, '', '" + Единица + "', " + СТРОКА( koef_e, 16, 8 ) + ", " + СТРОКА( koef_c, 16, 8 ) + ", 
-						   ISNULL( sprres.name, '' ), ROUND( spec.cena, 6 ), CASE WHEN kolp = 0 THEN 1 ELSE kolp END, 
+						   SELECT " + ИДНакладной + ", '" + STR( НОМЕРСТРОКИ( "Строки" ) + 1 ) + "', spec.nn, '', '" + Единица + "', " + СТРОКА( koef_e, 16, 8 ) + ", 
+						   " + СТРОКА( koef_c, 16, 8 ) + ", " + НАИМЕНОВАНИЕТОВАРА + ", ROUND( spec.cena, 6 ), CASE WHEN kolp = 0 THEN 1 ELSE kolp END, 
 						   CASE WHEN realkolp = 0 AND kolp = 0 THEN CASE WHEN realmark = '' THEN 0 ELSE 1 END ELSE realkolp END, 
 						   ISNULL( sprres.kodn, '' ), ROUND( spec.cena, 6 ) * kolp, dbo.fn_getsumnds( ISNULL( sprres.kodn, '' ), 
 						   ROUND( spec.cena, 6 ) * kolp, '" + DTOC( ДАТАДОКУМЕНТА ) + "' ), 1, kolp

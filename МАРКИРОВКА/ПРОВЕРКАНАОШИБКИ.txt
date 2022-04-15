@@ -1,16 +1,16 @@
 Результат		= true;
-
-/*
-СООБЩЕНИЕ("_RESPONSECODE = " + _RESPONSECODE + CHR(13) + CHR(10) +
-			"_ERRORCODE = " + _ERRORCODE);
-*/
 			
 IF ( _RESPONSECODE == 404 ) 
 {
 	Ответ		= "{""status"":""IN_PROGRESS""}";
 	Результат	= true;
 }
-ELSE IF ( _ERRORCODE !=  0 ) 
+ELSE IF ( _ERRORCODE ==  -1 ) 
+{
+	Ответ		= "Не удалось установить связь с сервером ГИС МТ";
+	Результат	= false;
+}
+ELSE IF ( _ERRORCODE != 0 AND _ERRORCODE != -1 ) 
 {
 	Ответ		= _ERRORDESCRIPTION + CHR( 13 ) + Ответ;
 	Результат	= false;

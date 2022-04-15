@@ -4,7 +4,7 @@
 IF ( ПУСТО( ИДДОКУМЕНТА ) )
 	ИДДОКУМЕНТА 		= ЗАПРОС("SELECT TOP 1 ic FROM mark_stock_spec ORDER BY edit_dat DESC");
 */
-ЛИМИТКМНАЗАПРОС			= 15;
+ЛИМИТКМНАЗАПРОС			= 50;
 СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
 ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
 МАРКИРОВКАТОКЕН		=  Маркировка.Авторизация( ПРЕДПРИЯТИЕ, СЕРТИФИКАТ, ТЕСТОВЫЙКОНТУР );
@@ -17,7 +17,8 @@ IF ( !ДОБАВИТЬКОНТЕКСТ( "LOCAL: cis char, gtin char, tnVedEaes c
 Ответ					= "";
 СтатусКМ				= "INTRODUCED";
 ДатаЭмиссииНачало		= "";
-ДатаЭмиссииКонец		= DTOC( ДАТА(), 7, "-" ) + "T00:00:00Z"
+ДатаЭмиссииКонец		= DTOC( ДАТА(), 7, "-" ) + "T00:00:00Z";
+ПредыдущийУИД			= "";
 
 ДОБАВИТЬКОНТЕКСТ("SELECT gtin, identity_column, status, description FROM mark_stock_spec WHERE ic = " + ИДДОКУМЕНТА + " AND status <> 2", "СтрокиДокумента");
 ПЕРЕЙТИВНАЧАЛО("СтрокиДокумента");
@@ -50,22 +51,26 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СтрокиДокумента" ) )
 		Заголовки[ 1 ]		= "Authorization: Bearer " + МАРКИРОВКАТОКЕН;
 		
 		ЕстьЕщеДанные		= true;		
-		
+				
 		//посылаем запросы по gtin пока есть еще данные для получения
 		WHILE ( ЕстьЕщеДанные )
 		{
+			//запоминаем последний запрошенный uit
+			ПредыдущийУИД	= mUit;
+							
 			IF ( ПервыйЗапросПоGTIN )
 			{
-				Ответ				= HTTPGET( Соединение, "/api/v4/facade/identifytools/listV2?cisStatus=" + СтатусКМ + "&pg=" + ГРУППАМАРКИРОВКИ + 
-					"&gtin=" + СтрокаGTIN + "&orderColumn=emd&order=ASC&limit=" + ЛИМИТКМНАЗАПРОС + "&cache=false&childrenPaging=false&childrenLimit=1&childrenPage=1", "Заголовки" );
+				Ответ				= HTTPGET( Соединение, "/api/v4/facade/identifytools/listV2?pg=" + ГРУППАМАРКИРОВКИ + "&gtin=" + СтрокаGTIN + 
+					"&cisStatus=" + СтатусКМ + "&orderColumn=emd&order=DESC&limit=" + ЛИМИТКМНАЗАПРОС + 
+					"&cache=false&packs=ALL&childrenPaging=false&childrenLimit=1&childrenPage=1", "Заголовки" );
 					
 				ПервыйЗапросПоGTIN = false;	
 			}
 			ELSE
 			{
-				Ответ				= HTTPGET( Соединение, "/api/v4/facade/identifytools/listV2?cisStatus=" + СтатусКМ + "&pg=" + ГРУППАМАРКИРОВКИ + 
-					"&gtin=" + СтрокаGTIN + "&pageDir=NEXT&uit=" + mUit + "&orderColumn=emd&order=ASC&orderedColumnValue=" + mEmissionDate + 
-					"&limit=" + ЛИМИТКМНАЗАПРОС + "&cache=false&childrenPaging=false&childrenLimit=1&childrenPage=1", "Заголовки" );
+				Ответ				= HTTPGET( Соединение, "/api/v4/facade/identifytools/listV2?pg=" + ГРУППАМАРКИРОВКИ + "&gtin=" + СтрокаGTIN + 
+					"&cisStatus=" + СтатусКМ + "&pageDir=NEXT&uit=" + mUit + "&orderColumn=emd&order=DESC&orderedColumnValue=" + mEmissionDate + 
+					"&limit=" + ЛИМИТКМНАЗАПРОС + "&cache=false&packs=ALL&childrenPaging=false&childrenLimit=1&childrenPage=1", "Заголовки" );
 			}
 		
 			IF ( !МАРКИРОВКА.ПРОВЕРКАНАОШИБКИ( @Ответ ) ) THROW ( Ответ );
@@ -87,6 +92,14 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СтрокиДокумента" ) )
 				//запоминаем последние прочитанные uit и emissiondate для того чтобы продолжить с них же при обрыве связи
 				mUit			= ПОЛЕ_JSON( СписокКМ.КМ, "uit", "" );
 				mEmissionDate	= ПОЛЕ_JSON( СписокКМ.КМ, "emissionDate", "" );
+				
+				//во избежание зацикливания получения, проверяем последний uit с текущим полученным,
+				//и если ГИС МТ начинает возвращать одинаковые данные на запросы, то прерываем получение
+				IF ( ПредыдущийУИД == mUit )
+				{
+					ЕстьЕщеДанные = false;
+					//СледующаяСтраница = "";
+				}
 					
 				IF ( СтрокаИД > 0 )
 				{
@@ -104,7 +117,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СтрокиДокумента" ) )
 				СтрокаСохранения = "{" + ДАННЫЕ_JSON("uit", mUit) + ", " + ДАННЫЕ_JSON("emissionDate", mEmissionDate) + "}";
 				//сохраним информацию по последнему полученному ид в строку
 				IF ( !ЗАПРОС( "UPDATE mark_stock_spec 
-								SET description = '" + СтрокаСохранения + "' 
+								SET description = '" + STDF( СтрокаСохранения ) + "' 
 								WHERE ic = "  + ИДДОКУМЕНТА + " 
 								AND identity_column = " + СтрокаИД ) ) THROW( _ERRORDESCRIPTION );
 			}

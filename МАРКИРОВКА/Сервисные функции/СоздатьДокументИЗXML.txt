@@ -106,7 +106,7 @@ try
 	// Для формы модуля маркировка проверяем период 
 	IF ( Дата < FORMDATE_MIN )
 		FORMDATE_MIN		= Дата;
-	ELSE IF ( Дата > FORMDATE_MIN )
+	IF ( Дата > FORMDATE_MAX )
 		FORMDATE_MAX		= Дата;
 
 

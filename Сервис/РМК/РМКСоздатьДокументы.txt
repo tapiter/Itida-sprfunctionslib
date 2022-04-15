@@ -5,7 +5,7 @@ _ERRORCODE				= 0;
 
 IF ( VAL( ЗАПРОС( "SELECT CONVERT( varchar( 128 ), SERVERPROPERTY( 'ProductVersion' ) )" ) ) < 10 )
 {
-	СООБЩЕНИЕ( "MS SQL сервер 2005 не поддреживает работу необходимого функционала.\nДля создания документов вам необходимо использовать форму для обмена с оборудованием." );
+	СООБЩЕНИЕ( "MS SQL сервер 2005 не поддерживает работу необходимого функционала.\nДля создания документов вам необходимо использовать форму для обмена с оборудованием." );
 	RETURN false;
 }
 
@@ -35,7 +35,7 @@ try
 	ЗАПРОС( "CREATE TABLE " + ТаблицаДокументов + " ( code char( 3 ) DEFAULT '', id int DEFAULT 0, shiftnumber int DEFAULT 0, date datetime DEFAULT '', firm char( 7 ) DEFAULT '', 
 													  cashless float DEFAULT 0, sklad char( 3 ) DEFAULT '', client char( 7 ) DEFAULT '', fr_code char( 3 ) DEFAULT '', 
 													  kskod char( 3 ) DEFAULT '', f_date bit DEFAULT 0, identity_column int IDENTITY( 1, 1 ) ) " );
-	ЗАПРОС( "CREATE TABLE " + ТаблицаСтрок + " ( spec_ic int, docic int, date datetime, type char( 3 ), paytype char( 3 ) ) " );
+	ЗАПРОС( "CREATE TABLE " + ТаблицаСтрок + " ( spec_ic int, docic int, date datetime, type char( 3 ), paytype char( 3 ), checktype int ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаМодификаторов + " ( docic int, type char( 3 ), paytype char( 3 ), ware char( 10 ), qty float ) " );
 	ЗАПРОС( "CREATE TABLE " + ТаблицаЧеков + " ( chequelist_ic int, rid varchar( 50 ) DEFAULT '', checktype int ) " );
 
@@ -113,9 +113,11 @@ try
 		{
 			// Если выбран контрагент, то может быть либо расходная накладная, либо возврат от покупателя, либо приходная накладная, 
 			IF ( !ПУСТО( m_client ) )
-				m_doccode	= ЕСЛИ( Чеки.checktype == 0, "002", ЕСЛИ( Чеки.checktype == 1, "006", ЕСЛИ( Чеки.checktype == 2, "001", "055" ) ) );
+				m_doccode	= ЕСЛИ( Чеки.checktype == 0, "002", ЕСЛИ( Чеки.checktype == 1, "006", 
+							  ЕСЛИ( Чеки.checktype == 2, "001", ЕСЛИ( Чеки.checktype == 11 || Чеки.checktype == 12, "014", "055" ) ) ) );
 			ELSE
-				m_doccode	= ЕСЛИ( Чеки.checktype == 0 || Чеки.checktype == 1, "008", ЕСЛИ( Чеки.checktype == 2, "001", "055" ) );
+				m_doccode	= ЕСЛИ( Чеки.checktype == 0 || Чеки.checktype == 1 || Чеки.checktype == 11 || Чеки.checktype == 12, "008", 
+							  ЕСЛИ( Чеки.checktype == 2, "001", "055" ) );
 		}
 		// Если нужен отдельный документ, то добавляем запись в список документов
 		IF ( Чеки.f_separatedoc ) 
@@ -169,7 +171,8 @@ try
 					m_docic		= ЗАПРОС( "SELECT MAX( identity_column ) FROM " + ТаблицаДокументов );
 				}
 			}
-			ЗАПРОС( "INSERT INTO " + ТаблицаСтрок + " ( spec_ic, docic, date, type, paytype ) VALUES ( " + Строки.spec_ic + ", " + m_docic + ", '" + m_date + "', '" + Чеки.type + "', '" + Чеки.paytype + "')" );
+			ЗАПРОС( "INSERT INTO " + ТаблицаСтрок + " ( spec_ic, docic, date, type, paytype, checktype ) 
+					 VALUES ( " + Строки.spec_ic + ", " + m_docic + ", '" + m_date + "', '" + Чеки.type + "', '" + Чеки.paytype + "', '" + Чеки.checktype + "')" );
 			// Проставляем сумму безнала
 			m_cashless			= ЕСЛИ( Чеки.total != 0, Чеки.cashless * Строки.summa_wd / ( Чеки.total + Чеки.bonus ), 0 );
 			ЗАПРОС( "UPDATE " + ТаблицаДокументов + " SET cashless = cashless + " + STR( m_cashless, 20, 8 ) + " WHERE identity_column = " + m_docic );
@@ -212,6 +215,7 @@ try
 	Создано007			= 0;
 	Создано003			= 0;
 	Создано020			= 0;
+	Создано014			= 0;
 
 	// Теперь необходимо пройти по списку обнаруженных документов и реально их создать 
 	ДОБАВИТЬКОНТЕКСТ( "SELECT code, date, firm, cashless, sklad, client, fr_code, kskod, shiftnumber, identity_column FROM " + ТаблицаДокументов + " ORDER BY identity_column", "Документы" );
@@ -243,6 +247,7 @@ try
 		ELSE IF ( Документы.code == "007" ) ИДСозданного= Сервис.РМКСоздатьДокумент007( Документы.identity_column, Документы.date, Документы.firm, Документы.sklad, ТаблицаСтрок );
 		ELSE IF ( Документы.code == "003" ) ИДСозданного= Сервис.РМКСоздатьДокумент003( Документы.identity_column, Документы.date, Документы.firm, Документы.sklad, ТаблицаСтрок, ТаблицаМодификаторов );
 		ELSE IF ( Документы.code == "020" ) ИДСозданного= Сервис.РМКСоздатьДокумент020( Документы.identity_column, Документы.date, Документы.firm, Документы.sklad, Документы.client, ТаблицаСтрок, ТаблицаМодификаторов );
+		ELSE IF ( Документы.code == "014" ) ИДСозданного= Сервис.РМКСоздатьДокумент014( Документы.identity_column, Документы.date, Документы.firm, Документы.client, ТаблицаСтрок );
 		
 		IF ( ИДСозданного <= 0 ) throw;
 		
@@ -255,6 +260,7 @@ try
 		ELSE IF ( Документы.code == "007" ) Создано007++;
 		ELSE IF ( Документы.code == "003" ) Создано003++;
 		ELSE IF ( Документы.code == "020" ) Создано020++;
+		ELSE IF ( Документы.code == "014" ) Создано014++;
 
 		// Проставляем связь чеков и документов
 		ИмяВременнойТаблицы		= "##" + УНИКАЛЬНОЕИМЯ( );
@@ -299,7 +305,7 @@ try
 	УДАЛИТЬКОНТЕКСТ( "Документы" );
 	
 	ВтомЧисле			= "";
-	ВсегоСоздано		= Создано001 + Создано002 + Создано006 + Создано008 + Создано046 + Создано055 + Создано007 + Создано003 + Создано020;
+	ВсегоСоздано		= Создано001 + Создано002 + Создано006 + Создано008 + Создано046 + Создано055 + Создано007 + Создано003 + Создано020 + Создано014;
 	IF ( Создано001 != 0 )
 		ВтомЧисле		+= "\nПриходных накладных: " + Создано001;
 	IF ( Создано002 != 0 )
@@ -318,6 +324,8 @@ try
 		ВтомЧисле		+= "\nСписаний ТМЦ: " + Создано003;
 	IF ( Создано020 != 0 )
 		ВтомЧисле		+= "\nЗаказов от покупателя: " + Создано020;
+	IF ( Создано014 != 0 )
+		ВтомЧисле		+= "\nАвансов полученных: " + Создано014;
 
 	IF ( !ПУСТО( ВтомЧисле ) )
 		ВтомЧисле		= "\nВ том числе:\n"  + ВтомЧисле;

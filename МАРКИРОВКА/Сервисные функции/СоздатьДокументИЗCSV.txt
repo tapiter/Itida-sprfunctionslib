@@ -1,0 +1,80 @@
+
+ВЫБРАТЬКОНТЕКСТ( "" );
+
+
+_ERRORDESCRIPTION	= "";
+ФИРМА				= ЗАПРОС( "SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "'" );
+try
+{
+	// Записываем прочитанные данные в базу
+	__SQL( "mark_in" )
+	{
+		BEGIN TRANSACTION;
+		-- ТАБЛИЦА ВХОДЯЩИХ ДОКУМЕНТОВ ИЗ СИСТЕМЫ МАРКИРОВКА
+		INSERT INTO mark_in ( guid, ent, ndok, date, firm )
+		VALUES ( NEWID( ), '[[ STDF( Предприятие ) ]]', 'б/н', GETDATE( ), '[[ STDF( Фирма ) ]]' );
+	}
+	SQLERROR throw( 1 );
+	
+	// Для формы модуля маркировка проверяем период 
+	IF ( ДАТА( ) < FORMDATE_MIN )
+		FORMDATE_MIN		= ДАТА( );
+	IF ( ДАТА( ) > FORMDATE_MAX )
+		FORMDATE_MAX		= ДАТА( );
+
+
+	ИДДокумента		= mark_in.ident;
+
+
+	ДОБАВИТЬКОНТЕКСТ( "LOCAL: Код char( 10 ), НаименованиеТовара text, Артикул text, ШтрихКод text, КМ text", "Данные" );
+	ЗАГРУЗИТЬ( "Данные", "CSV", ИмяФайла, ";" );
+
+	ПЕРЕЙТИВНАЧАЛО( "Данные" );
+	ПОКА ( !КОНЕЦКОНТЕКСТА( "Данные" ) )
+	{
+		IF ( !ПУСТО( Данные.Код ) )
+			Товар 		= ЗАПРОС( "SELECT code FROM sprres WHERE maincode = '" + STDF( Данные.Код ) + "'" );
+		ELSE 
+		{
+			// Пробуем определить товар на ШК
+			Товар 		= ЗАПРОС( "SELECT nn FROM sprnn WHERE gtin = '" + STDF( Данные.ШтрихКод ) + "' AND gtin <> ''
+								   UNION SELECT nn FROM sprnnbc WHERE bc = '" + STDF( Данные.ШтрихКод ) + "' AND bc <> ''
+								   UNION SELECT code FROM sprres_ed WHERE barcode = '" + STDF( Данные.ШтрихКод ) + "' AND barcode <> ''
+								   UNION SELECT code FROM sprres WHERE name = '" + STDF( Данные.НаименованиеТовара ) + "'" );
+		}							   
+		// Цену рассчитываем из суммы и количества
+		Цена		= 0;
+		Сумма		= Цена;
+		КодЕдиницы 	= ЗАПРОС( "SELECT ed FROM sprres WHERE code = '" + STDF( Товар ) + "'" );;
+		КодНалога 	= ЗАПРОС( "SELECT kodn FROM sprres WHERE code = '" + STDF( Товар ) + "'" );;
+							   
+		__SQL( "mark_in_spec" )
+		{
+			-- ТАБЛИЦА  С ТОВАРАМИ ДЛЯ ПОСТУПЛЕНИЯ КОДОВ МАРКИРОВКИ СИСТЕМЫ МЕРКИРОВКА
+			INSERT INTO mark_in_spec ( ic, ent, linenum, nn, name, gtin, kolp, ed, kodn, mark )
+			VALUES ( '[[ ИДДокумента ]]', '[[ STDF( Предприятие ) ]]', [[ НомерСтроки( "Данные" ) ]], 
+					 '[[ Товар ]]', '[[ STDF( Данные.НаименованиеТовара, 250 ) ]]', 
+					 '[[ STDF( Данные.ШтрихКод, 15 ) ]]', 1, '[[ STDF( КодЕдиницы, 15 ) ]]', 
+					 '[[ STDF( КодНалога ) ]]', '[[ STDF( Данные.КМ ) ]]' );
+		}
+		SQLERROR throw( 1 );
+		
+		ПРОПУСТИТЬ( 1, "Данные" );
+	}
+
+	__SQL( ) { COMMIT }
+}
+catch ( error )
+{
+	СообщениеОбОшибке	= _ERRORDESCRIPTION;
+	__SQL( ) { ROLLBACK }
+	СООБЩЕНИЕ( СообщениеОбОшибке );
+	УДАЛИТЬКОНТЕКСТ( "Данные" );
+	УДАЛИТЬКОНТЕКСТ( "mark_in_spec" );
+	RETURN false;
+}
+
+СООБЩЕНИЕ( "Документ успешно загружен." );
+УДАЛИТЬКОНТЕКСТ( "Данные" );
+УДАЛИТЬКОНТЕКСТ( "mark_in_spec" );
+RETURN true;

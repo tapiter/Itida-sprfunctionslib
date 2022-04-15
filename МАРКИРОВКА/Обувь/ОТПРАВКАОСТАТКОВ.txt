@@ -6,9 +6,9 @@ IF ( КОЛИЧЕСТВОСТРОК( "СписокДокументов" ) == 0 )
 ПОКА ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
 {
 	Статус	= ЗАПРОС( "SELECT status FROM mark_stock WHERE identity_column = " + СписокДокументов.ic );
-	Комментарий = ЗАПРОС( "SELECT note FROM mark_stock WHERE identity_column = " + СписокДокументов.ic );
+	Метод	= ЗАПРОС( "SELECT releasemethod FROM mark_stock WHERE identity_column = " + СписокДокументов.ic );
 	
-	IF ( ATC(Комментарий, "в обороте") > 0 )
+	IF ( UPPER( ALLTRIM( Метод ) ) == "KM_WORK" )
 		МАРКИРОВКА.ЗАГРУЗИТЬКМВОБОРОТЕИЗГИСМТ( ПРЕДПРИЯТИЕ, СписокДокументов.ic );	
 	ELSE IF ( Статус == 0 )
 		МАРКИРОВКА.ЗАКАЗКОДОВМАРКИРОВКИ( ПРЕДПРИЯТИЕ, СписокДокументов.ic );

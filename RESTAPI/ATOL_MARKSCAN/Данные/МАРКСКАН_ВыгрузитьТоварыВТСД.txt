@@ -1,0 +1,180 @@
+IF ( !ПУСТО( _ИМЯТАБЛИЦЫ ) )
+	ДОБАВИТЬКОНТЕКСТ( "SELECT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, temp.cena, dbo.fn_getbarcodes_ex( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
+	sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП, 
+	" + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( sprnn.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad_cena( sprnn.nn, '', '" + СКЛАД + "', '001' )") + " AS ЦенаСклада,
+	spectree.uniqueid AS uniqueid, dbo.fn_alcotype( sprnn.nnvid ) AS sprnn_alcotype, sprnn.f_mark AS f_mark, sprnn.markgroup AS markgroup,
+	(SELECT sptr.name FROM spectree sptr WHERE sptr.ic = spectree.parent AND sptr.objtype = 'SPR' AND ( sptr.objcode = 'S02' OR sptr.objcode = 'S05' )) AS group_name, sprnn.gtin AS GTIN 
+					   FROM "  + _ИМЯТАБЛИЦЫ + " temp
+					   INNER JOIN sprnn ON temp.nn = sprnn.nn
+					   INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' )
+					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer", "СписокТоваров" );
+ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND ПУСТО( СПИСОКДОКУМЕНТОВ ) AND ALLTRIM( КОДДОКУМЕНТА ) <> "MRK"  )
+	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, spec.cena, dbo.fn_getbarcodes_ex( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
+	sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП, 
+	" + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( sprnn.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad_cena( sprnn.nn, '', '" + СКЛАД + "', '001' )") + " AS ЦенаСклада,
+	spectree.uniqueid AS uniqueid, dbo.fn_alcotype( sprnn.nnvid ) AS sprnn_alcotype, sprnn.f_mark AS f_mark, sprnn.markgroup AS markgroup,
+	(SELECT sptr.name FROM spectree sptr WHERE sptr.ic = spectree.parent AND sptr.objtype = 'SPR' AND ( sptr.objcode = 'S02' OR sptr.objcode = 'S05' )) AS group_name, sprnn.gtin AS GTIN 
+					   FROM spec"  + КОДДОКУМЕНТА + " spec
+					   INNER JOIN sprnn ON spec.nn = sprnn.nn
+					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer
+					   INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' )
+					   WHERE spec.ic = " + ИДДОКУМЕНТА, "СписокТоваров" );
+ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND ПУСТО( СПИСОКДОКУМЕНТОВ ) AND ALLTRIM( КОДДОКУМЕНТА ) == "MRK"  )
+	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode AS maincode, spec.ed, spec.nn, spec.name, spec.cena, dbo.fn_getbarcodes_ex( spec.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем,
+						sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес, sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, '' AS Производитель, spr.vendorname AS ПроизводительИмя, spr.vendorinn AS ПроизводительИНН,
+						spr.vendorkpp AS ПроизводительКПП, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( spec.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad_cena( spec.nn, '', '" + СКЛАД + "', '001' )") + " AS ЦенаСклада,
+						spectree.uniqueid AS uniqueid, dbo.fn_alcotype( sprnn.nnvid ) AS sprnn_alcotype, sprnn.f_mark AS f_mark, sprnn.markgroup AS markgroup,
+						(SELECT sptr.name FROM spectree sptr WHERE sptr.ic = spectree.parent AND sptr.objtype = 'SPR' AND ( sptr.objcode = 'S02' OR sptr.objcode = 'S05' )) AS group_name, sprnn.gtin AS GTIN 
+						FROM mark_in spr
+						INNER JOIN mark_in_spec spec ON spr.identity_column = spec.ic
+						INNER JOIN sprnn sprnn ON spec.nn = sprnn.nn 
+						INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' )
+						WHERE spr.identity_column = " + ИДДОКУМЕНТА, "СписокТоваров" );
+ELSE IF ( !ПУСТО( СПИСОКДОКУМЕНТОВ ) )
+	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, spec.cena, dbo.fn_getbarcodes_ex( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
+	sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП, 
+	" + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( sprnn.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad_cena( sprnn.nn, '', '" + СКЛАД + "', '001' )") + " AS ЦенаСклада,
+	spectree.uniqueid AS uniqueid, dbo.fn_alcotype( sprnn.nnvid ) AS sprnn_alcotype, sprnn.f_mark AS f_mark, sprnn.markgroup AS markgroup,
+	(SELECT sptr.name FROM spectree sptr WHERE sptr.ic = spectree.parent AND sptr.objtype = 'SPR' AND ( sptr.objcode = 'S02' OR sptr.objcode = 'S05' )) AS group_name, sprnn.gtin AS GTIN 
+					   FROM spec000 spec
+					   INNER JOIN " + СПИСОКДОКУМЕНТОВ + " temp ON temp.code = spec.code AND temp.ic = spec.ic
+					   INNER JOIN sprnn ON spec.nn = sprnn.nn
+					   INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' )
+					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer", "СписокТоваров" );
+					   
+					   
+// Проходим по списку товаров и передаем их COM объекту
+ВЫБРАТЬКОНТЕКСТ( "СписокТоваров" );
+КоличествоТоваровОбщее = КОЛИЧЕСТВОСТРОК("СписокТоваров");
+ИНДИКАТОР("Формирование списка товаров для выгрузки",КоличествоТоваровОбщее);
+КоличествоТоваров = 0;
+ПерейтиВНачало( "СписокТоваров" );
+СтрокиТоваров = "";
+МассивСтрокТовара = "";
+ИДПакета = УНИКАЛЬНОЕИМЯ();
+WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
+{
+	//индикатор
+	КоличествоТоваров++;
+	IF ( КоличествоТоваров % 10 == 0 ) Индикатор( КоличествоТоваров, " Добавление товара ( " + КоличествоТоваров + " из " + КоличествоТоваровОбщее + " )" );
+	//индикатор
+	
+	ЦенаСклада		= СписокТоваров.ЦенаСклада;
+	IF (!_ВЫГРУЖАТЬТОВАРЫБЕЗЦЕНЫ AND ЦенаСклада == 0)
+	{
+		ПРОПУСТИТЬ(1, "СписокТоваров");
+		CONTINUE;
+	}
+	
+	IF (БлочнаяВыгрузка)
+	{
+		//выгружаем блоками по КоличествоТоваровВБлоке товаров
+		IF (indexT >= КоличествоТоваровВБлоке)
+		{
+			//выгрузка блока товаров
+			МассивСтрокТовара += """rows"": [" + СтрокиТоваров + "]";
+			
+			ТипДанных = "goods";
+			ДеталиОтправляемогоПакета = "{" + """type"":""" + ТипДанных + """" + ", " + МассивСтрокТовара + "}";			
+			ОтправляемыйПакет = "{ ""document"": { ""name"": """ + ТипДанных + """, ""protocol"": ""atolmsk"", ""details"": [" + ДеталиОтправляемогоПакета + "] } }";
+			
+			АдресТСД = RESTAPI.МАРКСКАН_АдресТСД( КОДОБОРУДОВАНИЯ );
+			ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( АдресТСД, "/v3/packet?token=" + RESTAPI.МАРКСКАН_Авторизация( АдресТСД ) + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+			
+			//обнуление строк и счетчика
+			МассивСтрокТовара = "";
+			СтрокиТоваров = "";
+			indexT=0;
+		}
+	}
+	
+	Наименование	= ЗАМЕНИТЬ( ЗАМЕНИТЬ( ЗАМЕНИТЬ( СписокТоваров.name, """", "" ), CHR( 13 ), "" ), CHR( 10 ), "" );
+	ТипАлкоголя		= СписокТоваров.sprnn_alcotype;
+	ЕдиницаИзмерения= ЕСЛИ(СписокТоваров.ed == "кг", "кг", "шт");
+	Весовой			= ЕдиницаИзмерения == "кг";
+	Остаток			= 0;
+	Маркированный	= СписокТоваров.f_mark;
+	ТипМаркировки	= СписокТоваров.markgroup;
+	ГруппаТовара	= СписокТоваров.group_name;
+	
+	
+	IF ( _ВЫГРУЖАТЬОСТАТКИ )
+	{
+		Остаток		= СписокТоваров.Остаток; 
+		//ЗАПРОС( "SELECT dbo.fn_calcsklad( '" + @Товар + "', '', '" + Склад + "', '001', '' )" );
+	}
+	
+	IF (ТипАлкоголя <> 0)		
+		Наименование = ALLTRIM(Наименование) + " " + ALLTRIM(STR(СписокТоваров.Объем, 10, 2)) + "" + ALLTRIM(СписокТоваров.ЕдиницаОбъема);
+	
+	//формирование структуры JSON для товара
+	
+	
+	СтрокиТоваров += ЕСЛИ( ПРАВСИМВ(СтрокиТоваров, 1) == "}" OR ПРАВСИМВ(СтрокиТоваров, 1) == "]", ",", "") + """row"": { ";
+		
+	//основные реквизиты товара
+	СтрокиТоваров += ДАННЫЕ_JSON("id", СписокТоваров.uniqueid) + ", ";
+	СтрокиТоваров += ДАННЫЕ_JSON("addcode", СписокТоваров.maincode) + ", ";
+	СтрокиТоваров += ДАННЫЕ_JSON("name", Наименование) + ", ";
+		
+	IF ( Маркированный )
+		ТипТовара = "mark";
+	ELSE IF (ТипАлкоголя ==	1)
+		ТипТовара = "alco";
+	ELSE
+		ТипТовара = "simple";
+		
+	СтрокиТоваров += ДАННЫЕ_JSON("goodstype", ТипТовара) + ", ";
+	СтрокиТоваров += ДАННЫЕ_JSON("unit", ЕдиницаИзмерения) + ", ";
+	СтрокиТоваров += ДАННЫЕ_JSON("vendorcode", СписокТоваров.Артикул) + ", ";
+	СтрокиТоваров += ДАННЫЕ_JSON("producer", СписокТоваров.ПроизводительИмя) + ", ";
+	СтрокиТоваров += ДАННЫЕ_JSON("group", ГруппаТовара);
+	СтрокиТоваров += "}";
+	
+	//штрихкоды
+	IF ( !ПУСТО( СписокТоваров.barcodes ) )
+	{
+		МассивШтрихкодов = "[";
+		СтрокаШтрихкодов = "," + СписокТоваров.barcodes;
+		НомерСлова = 1;
+		Штрихкод = ПОЛУЧИТЬСЛОВО(СтрокаШтрихкодов, "," , ",", НомерСлова);
+		WHILE ( !ПУСТО( Штрихкод ) )
+		{
+			ШтрихкодОбъект = "{" + " ""code"": " + ПЕРЕКОДИРОВАТЬ( Штрихкод, "ANSI", "BASE64") + "," + " ""quantitypack"": 1" + "," + " ""comment"": " + "шт" + " }";
+			МассивШтрихкодов += ЕСЛИ( ПРАВСИМВ(МассивШтрихкодов, 1) == "}", ",", "") + ШтрихкодОбъект;
+			
+			НомерСлова++;
+			Штрихкод = ПОЛУЧИТЬСЛОВО(СтрокаШтрихкодов, "," , ",", НомерСлова);
+		}
+		МассивШтрихкодов += "]";
+		СтрокиТоваров += """barcodes"":" + МассивШтрихкодов + ", ";
+	}
+	
+	//GTIN
+	IF ( !ПУСТО(СписокТоваров.GTIN) )
+		СтрокиТоваров += """gtins"": [{ ""code"": " + СписокТоваров.GTIN + "}]";
+	
+	
+	indexT++;
+	
+	ПРОПУСТИТЬ( 1, "СписокТоваров" );
+}
+УДАЛИТЬКОНТЕКСТ("СписокТоваров");
+
+//сбрасываем индикатор
+ИНДИКАТОР( );
+
+IF ( !ПУСТО(СтрокиТоваров) )
+{
+	МассивСтрокТовара += """rows"": [" + СтрокиТоваров + "]";
+				
+	ТипДанных = "goods";
+	ДеталиОтправляемогоПакета = "{" + """type"":""" + ТипДанных + """" + ", " + МассивСтрокТовара + "}";			
+	ОтправляемыйПакет = "{ ""document"": { ""name"": """ + ТипДанных + """, ""protocol"": ""atolmsk"", ""details"": [" + ДеталиОтправляемогоПакета + "] } }";
+
+	АдресТСД = RESTAPI.МАРКСКАН_АдресТСД( КОДОБОРУДОВАНИЯ );
+	ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( АдресТСД, "/v3/packet?token=" + RESTAPI.МАРКСКАН_Авторизация( АдресТСД ) + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+}
+
+
+RETURN true;

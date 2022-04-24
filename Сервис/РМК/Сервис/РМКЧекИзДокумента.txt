@@ -1,0 +1,70 @@
+_ERRORDESCRIPTION	= "";
+TRY
+{
+	// Проверяем наличие ранее сформированного чека
+	IF ( ЗАПРОС( "SELECT COUNT( * ) FROM chequelist WHERE prnonecr = 1 AND ucrid IN 
+					( SELECT rid FROM retaildeals WHERE owner= '" + STDF( УИДДокумента )+ "' )" ) > 0 ) 
+		THROW( "Чеки по документу уже были созданы и пробиты на кассе." );
+	{
+		
+	}
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM spr000 WHERE CONVERT( varchar( 50 ), rid ) = '" + УИДДокумента + "'", "Документ" ) )
+		THROW ( _ERRORDESCRIPTION );
+
+	ТИПДОКУМЕНТА	= Документ.code;
+	ИДДОКУМЕНТА		= Документ.ic;
+	НОМЕРДОКУМЕНТА	= Документ.ndok;
+	ДАТАДОКУМЕНТА	= TTOC( Документ.date );
+
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM spr" + Документ.code + " WHERE identity_column= " + ИДДОКУМЕНТА	, "Документ" ) ) 
+		THROW ( _ERRORDESCRIPTION );
+
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT s.nn, s.s_code, s.nnname, s.ed, s.cena, s.kolp, 
+									dbo.fn_docbarcodes( '" + ТИПДОКУМЕНТА + "', " + ИДДОКУМЕНТА + ", s.identity_column, ';' ) AS barcode 
+							 FROM spec" + ТИПДОКУМЕНТА + " s WHERE ic = " + ИДДОКУМЕНТА, "Строки" ) )
+		THROW ( _ERRORDESCRIPTION );
+							 
+
+	НАЗВАНИЕ		= ЗАПРОС( "SELECT RTRIM( shortname ) + ' #" + НОМЕРДОКУМЕНТА + " от " + ДАТАДОКУМЕНТА + "' 
+							   FROM docstab WHERE code = '" + ТИПДОКУМЕНТА + "'" );
+	КОММЕНТАРИЙ		= "Создан из документа " + НАЗВАНИЕ;
+	КОНТРАГЕНТ		= ЗНАЧЕНИЕПОЛЯ( "Документ", "client", "" );
+	ОТВЕТСТВЕННЫЙ	= ЗНАЧЕНИЕПОЛЯ( "Документ", "manager", "" );
+	СУММА			= ЗНАЧЕНИЕПОЛЯ( "Документ", "summa", 0.00 );
+
+	КОММЕНТАРИЙ		= ДАННЫЕ_JSON( "comment", КОММЕНТАРИЙ );
+	КОНТРАГЕНТ		= ДАННЫЕ_JSON( "partner", КОНТРАГЕНТ );
+	ОТВЕТСТВЕННЫЙ	= ДАННЫЕ_JSON( "manager", ОТВЕТСТВЕННЫЙ );
+	Документ		= "{" + КОММЕНТАРИЙ + ", " + КОНТРАГЕНТ + ", " + ОТВЕТСТВЕННЫЙ + ", ""lines"": [";
+	ПОКА ( !КОНЕЦКОНТЕКСТА( "Строки" ) )
+	{
+		IF ( НОМЕРСТРОКИ( "Строки" ) > 0 ) Документ+= ",";
+		Документ	+= "{"+
+						ДАННЫЕ_JSON( "ware", Строки.nn ) + "," +
+						ДАННЫЕ_JSON( "service", Строки.s_code ) + "," +
+						ДАННЫЕ_JSON( "name", Строки.nnname ) + "," +
+						ДАННЫЕ_JSON( "units", Строки.ed ) + "," +
+						ДАННЫЕ_JSON( "quantity", Строки.kolp ) + "," +
+						ДАННЫЕ_JSON( "price", Строки.cena ) + "," +
+						ДАННЫЕ_JSON( "manualprice", true ) + "," +
+						ДАННЫЕ_JSON( "barcode", Строки.barcode ) + "}";
+		ПРОПУСТИТЬ( 1, "Строки" );
+	}
+	Документ		+= "]}";
+	ИНФОРМАЦИЯ		= ЕСЛИ( ПУСТО( КОНТРАГЕНТ ), Документ.note, 
+							ЗАПРОС( "SELECT RTRIM( shortname ) + ', ' + RTRIM( inn ) + CASE WHEN kpp <> '' THEN '/' + kpp ELSE '' END 
+									 FROM sprclient WHERE code = '" + КОНТРАГЕНТ + "'" ) );
+									 
+	ЗАПРОС( "INSERT INTO retaildeals ( ndok, date, name, info, summa, csource, doccode, owner )
+			 VALUES ( '" + STDF( НОМЕРДОКУМЕНТА ) + "', '" + ДАТАДОКУМЕНТА + "', '" + STDF( НАЗВАНИЕ ) + "', 
+					  '" + STDF( ИНФОРМАЦИЯ ) + "', " + STR( СУММА, 16, 2 ) + ", '" + STDF( Документ ) + "', 
+					  '" + ТИПДОКУМЕНТА + "', '" + STDF( УИДДОКУМЕНТА ) + "' )" );
+}
+catch ( ТекстСообщения )
+{
+	IF ( !НЕВЫВОДИТЬСООБЩЕНИЯ ) СООБЩЕНИЕ( ТекстСообщения, "Создание чека из документа" );
+	RETURN false;
+}
+
+IF ( !НЕВЫВОДИТЬСООБЩЕНИЯ ) СООБЩЕНИЕ( "Чек был успешно создан.", "Создание чека из документа" );
+RETURN true;

@@ -1,0 +1,56 @@
+
+try
+{
+	DriverPayCard = CreateObject( "AddIn.PayCARD", 1 );
+}
+catch()
+{
+	DriverPayCard = false;
+}
+IF ( TYPE("DriverPayCard") <> "O")
+{
+	Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки драйвера.","Ошибка загрузки драйвера ПС");
+	RETURN false;
+}
+_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
+IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
+	НомерЛУПлатежнойСистемы = VAL( ЗАПРОС("SELECT psnumber FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") );
+	
+DriverPayCard.CurrentDeviceNumber = НомерЛУПлатежнойСистемы;
+DriverPayCard.ReportType = 0;
+IF ( !ФР.ПСАТОЛ_ДобавитьДанныеВОтчет() )
+{
+	DriverPayCard.ResetState();
+	СООБЩЕНИЕ ( "Ошибка при закрытии банковского дня" );
+	RETURN false;
+}
+ELSE
+{
+	Ind = 0;		
+	СлипЧек = "";
+	WHILE ( Ind < DriverPayCard.TextCount )
+	{
+		DriverPayCard.TextIndex = Ind;
+		//ФР.АТОЛДТО10_ДобавитьСтрокуЧека( ПозицииЧека, DriverPayCard.Text, false, "text", "left", "words", _ШРИФТТЕКСТАДЛЯНЕФИСКАЛЬНОЙПЕЧАТИ);	
+		СлипЧек += DriverPayCard.Text + CHR(13) + CHR(10);
+		Ind = Ind + 1;
+	}
+	
+	try
+	{
+		ЗАПРОС( "INSERT INTO paycardtrans ( equipment, TransType, slip, fr_code )
+			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
+							+ ТипЧека + ", "
+							+ STDF( СлипЧек ) + "', '"
+							+ ФРКОДОБОРУДОВАНИЯ + 
+							"' )" );
+	}
+	catch()
+	{
+		СООБЩЕНИЕ("Ошибка записи данных сверки итогов в базу", ФР.ИМЯОБОРУДОВАНИЯ());
+	}
+	
+}
+DriverPayCard = false;
+
+RETURN true;

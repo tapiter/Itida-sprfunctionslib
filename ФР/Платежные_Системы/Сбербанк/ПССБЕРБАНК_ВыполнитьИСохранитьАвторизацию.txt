@@ -1,0 +1,77 @@
+IF ( ТипЧека == 0 OR ТипЧека == 6 )
+{
+	ОтветПС = DriverPayCard.NFun(4000);
+}
+ELSE IF ( ТипЧека == 1 )
+{
+	/*
+	IF ( СООБЩЕНИЕ("Выполнить отмену транзакции или возврат?" + CHR(13) + "Да - ОТМЕНА, Нет - ВОЗВРАТ", "АЙТИДА-СБЕРБАНК", 4) == 6 )
+	{
+		ОтветПС = DriverPayCard.NFun(4003);
+	}
+	ELSE
+	{
+		ОтветПС = DriverPayCard.NFun(4002);
+	}
+	*/
+	ОтветПС = DriverPayCard.NFun(4002);
+}
+	
+IF ( ОтветПС <> 0 )
+{
+	СООБЩЕНИЕ( "Ошибка платежной системы: " + ОтветПС + "." + CHR(13) + "Чек не будет пробит на ККМ." );
+	RETURN false;
+}
+
+IF ( ПЕРЕМЕННАЯ("_ИСПОЛЬЗОВАТЬНЕПОДТВЕРЖДЕННЫЕТРАНЗАКЦИИ", false) == true )
+{
+	//включаем возможность аварийной отмены
+	//для этого устанавливаем у транзакции статус "неподтвержденной"
+	СуммаОплатыПС					= _ККТСУММАБЕЗНАЛ*100;
+	DriverPayCard.SParam ("Amount", СуммаОплатыПС);
+	ОтветПС = DriverPayCard.NFun(6003);
+}
+
+IF ( ОтветПС == 0 )
+{
+	ПозицииЧека = "";
+	
+	/*
+	IF ( TYPE("КОДОБОРУДОВАНИЯ") == "U" )
+		КОДОБОРУДОВАНИЯ = ФРКОДОБОРУДОВАНИЯ;
+	*/
+	
+	//получаем слип-чек и добавляем в чек
+	СлипЧек = DriverPayCard.GParamString("Cheque");
+	
+	НОМЕРССЫЛКИ = DriverPayCard.GParamString("RRN");
+	КОЛИЧЕСТВОСЛИПОВ = ЗАПРОС("SELECT slipcount FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'");
+
+	ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, AuthCode, TransType, OperationType, Sum, CardNumber, SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, slip, slipcount, fr_code )
+			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
+							+ _UNCONFIRMEDID + "', '" 
+							+ DriverPayCard.GParamString("AuthCode") + "', " 
+							+ DriverPayCard.GParamString("CardType") + ", " 
+							+ DriverPayCard.GParamString("MerchantTSN") + ", " 
+							+ DriverPayCard.GParamString("Amount")+ ", '" 
+							+ DriverPayCard.GParamString("ClientCard") + "', " 
+							+ DriverPayCard.GParamString("MerchantBatchNum") + ", '" 
+							+ DriverPayCard.GParamString("TrxDate") + "', '" 
+							+ DriverPayCard.GParamString("TrxTime") + "', " 
+							+ DriverPayCard.GParamString("MerchantTSN") + ", '" 
+							+ DriverPayCard.GParamString("TermNum") + "', '" 
+							+ НОМЕРССЫЛКИ + "', '" 
+							+ STDF( СлипЧек ) + "', '"
+							+ КОЛИЧЕСТВОСЛИПОВ + "', '" 
+							+ ФРКОДОБОРУДОВАНИЯ + 
+							"' )" );
+	
+}		
+ELSE
+{
+	СООБЩЕНИЕ( "Ошибка платежной системы: " + ОтветПС + "." + CHR(13) + "Чек не будет пробит на ККМ." );
+	//возвращаем ошибку
+	RETURN false;
+}
+
+RETURN true;

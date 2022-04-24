@@ -1,3 +1,19 @@
+try
+{
+	DriverPayCard = CreateObject( "AddIn.PayCARD", 1 );
+}
+catch()
+{
+	DriverPayCard = false;
+}
+IF ( TYPE("DriverPayCard") <> "O")
+{
+	Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки драйвера.","Ошибка загрузки драйвера ПС");
+	RETURN false;
+}
+
 DriverPayCard.ShowProperties();
-	
+
+DriverPayCard = false;
+
 RETURN true;

@@ -1,0 +1,99 @@
+ТекстЧека = "";
+ЗаголовокЧека = "";
+ПозицииЧека = "";
+БанковскиеПозицииЧека = "";
+IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.PrepareOnLineAuthorization( ) ) )
+	RETURN false;
+IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.ReferenceNumber ) )
+{
+	// Запрашиваем значение реквизита Ссылочный номер
+	ОТПРАВИТЬСООБЩЕНИЕ( _ГЛАВНОЕОКНОПРИЛОЖЕНИЯ, _СООБЩЕНИЕВЫПОЛНИТЬКОМАНДУ, "ЗАПРОСПАРАМЕТРОВ", "'ССЫЛОЧНЫЙНОМЕР'" );
+	IF ( !_РЕЗУЛЬТАТВВОДАПАРАМЕТРОВ ) RETURN false;
+	DriverPayCard.ReferenceNumber	= ССЫЛОЧНЫЙНОМЕР;
+	// Повторно авторизуемся
+	IF ( ФР.ПСАТОЛ_Ошибка( DriverPayCard.PrepareOnLineAuthorization( ) ) ) RETURN false;
+	
+	IF ( DriverPayCard.NeedReferenceNumber <> 0 AND ПУСТО( DriverPayCard.ReferenceNumber ) )
+	{
+		СООБЩЕНИЕ ( "Неверно указан номер ссылки для возврата." + CHR( 13 ) + "Прерываем авторизацию" );
+		RETURN false;
+	}
+}
+IF ( DriverPayCard.NeedReaderEntryDataTracks <> 0 )
+{
+	СООБЩЕНИЕ ( "Необходимо прочитать номер карты ридером магнитных карт." + CHR( 13 ) + "Прерываем авторизацию" );
+	RETURN false;
+}
+IF ( DriverPayCard.NeedKeyboardEntryDataTracks <> 0 )
+{
+	СООБЩЕНИЕ ( "Необходимо ввести номер карты." + CHR( 13 ) + "Прерываем авторизацию" );
+	RETURN false;
+}
+IF ( ТИП( "_МРППЕЧАТАТЬКЛИШЕНАСЛИПЕ" ) == "U" )
+{
+	_МРППЕЧАТАТЬКЛИШЕНАСЛИПЕ	= true;
+}
+DriverPayCard.ECRSessionNumber	= НомерСмены;
+DriverPayCard.ECRReceiptNumber	= НомерЧека;
+DriverPayCard.CharLineLength 	= _КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ;
+Результат 						= DriverPayCard.OnLineAuthorization();
+IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Результат > -11000 ) )
+{
+	//получаем слип-чек и добавляем в чек	
+	НОМЕРССЫЛКИ = DriverPayCard.ReferenceNumber;
+	КОЛИЧЕСТВОСЛИПОВ = ЗАПРОС("SELECT slipcount FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'");
+
+	НОМЕРКОПИИСЛИПА				= 0;
+	//обработка ситуаций с Автоотменой и "Не оплачено"
+	СтрокаНеявныхОшибокПС		= "АВТООТМЕНА,НЕ ОПЛАЧИВАТЬ";
+	ЕстьНеявныеОшибкиПС			= false;
+	
+	СлипЧек = "";
+	WHILE ( НОМЕРКОПИИСЛИПА < КОЛИЧЕСТВОСЛИПОВ )
+	{
+		Ind 					= 0;
+		WHILE ( Ind < DriverPayCard.TextCount )
+		{
+			DriverPayCard.TextIndex = Ind;
+			IF (!ПУСТО( ALLTRIM( DriverPayCard.Text ) ) )
+			{
+				IF ( ATC( СтрокаНеявныхОшибокПС, UPPER( ALLTRIM( DriverPayCard.Text ) ) ) > 0 AND UPPER( ALLTRIM( DriverPayCard.Text ) )  <> "ОТМЕНА" )
+				{
+					ЕстьНеявныеОшибкиПС	= true;
+				}
+			}
+			
+			СлипЧек += DriverPayCard.Text + CHR(13) + CHR(10);
+			Ind = Ind + 1;
+		}
+		
+		НОМЕРКОПИИСЛИПА++;
+	}	
+	
+	
+	ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, TransType, AuthCode, OperationType, Sum, CardNumber, 
+										SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, ResponseCod, slip, slipcount, fr_code )
+			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
+							+ _UNCONFIRMEDID + "', '" 
+							+ ТипЧека + ", "
+							+ DriverPayCard.AuthCode + "', " 							 
+							+ DriverPayCard.OperationType + ", " 
+							+ DriverPayCard.Sum + ", '" 
+							+ DriverPayCard.CardNumber + "', " 
+							+ DriverPayCard.SlipNumber + ", '" 
+							+ DriverPayCard.TransDate + "', '" 
+							+ DriverPayCard.TransTime + "', " 
+							+ DriverPayCard.MsgNumber + ", '" 
+							+ DriverPayCard.TerminalID + "', '" 
+							+ НОМЕРССЫЛКИ + "', '" 
+							+ DriverPayCard.ResponseCode + "', '" 
+							+ STDF( СлипЧек ) + "', '"
+							+ КОЛИЧЕСТВОСЛИПОВ + "', '" 
+							+ ФРКОДОБОРУДОВАНИЯ + 
+							"' )" );
+							
+}
+IF ( ФР.ПСАТОЛ_Ошибка( Результат ) )
+	RETURN false;
+
+RETURN true;

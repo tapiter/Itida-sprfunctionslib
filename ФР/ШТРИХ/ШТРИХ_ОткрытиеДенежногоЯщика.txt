@@ -1,0 +1,9 @@
+//Открыть денежный ящик.
+	
+IF ( !фР.ШТРИХ_ОткрытьФР( КОДОБОРУДОВАНИЯ, "Открытие денежного ящика" ) ) RETURN false;
+
+driverKKM.Password		= FROperatorProfile;
+driverKKM.DrawerNumber	= 1;
+driverKKM.OpenDrawer( );
+
+RETURN ФР.ШТРИХ_ЗакрытьФРСПроверкойНаОшибки( "Открытие денежного ящика" );

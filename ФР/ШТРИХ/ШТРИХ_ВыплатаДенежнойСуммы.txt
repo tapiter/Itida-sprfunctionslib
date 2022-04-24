@@ -1,0 +1,40 @@
+// Выплата наличных
+
+// Параметры - 
+// Сумма число вещественное, сумма вносимых наличных денег.
+IF ( !ФР.ШТРИХ_ОткрытьФР( КОДОБОРУДОВАНИЯ, "Выплата наличных" ) ) RETURN false;
+
+_ИМЯКАССИРА = ЗАПРОС( "SELECT name, inn FROM sprempl WHERE code = '" + froperator + "'", "name" );
+_ИННКАССИРА = ЗАПРОС( "", "inn" );
+
+driverKKM.Password 	= FROperatorProfile;
+
+// печать картинки
+driverKKM.FirstLineNumber		= 1;
+driverKKM.LastLineNumber		= 100;
+driverKKM.DrawEx();
+// конец печати картинки
+// печать псевдо-клишке
+//driverKKM.StringForPrinting	= ClicheString1;
+//driverKKM.PrintString( );
+//driverKKM.StringForPrinting	= ClicheString2;
+//driverKKM.PrintString( );
+//driverKKM.StringForPrinting	= "";
+//driverKKM.PrintString( );
+// конец печати псевдо-клишке
+
+driverKKM.summ1		= Сумма;
+_ERROR				= driverKKM.CashOutcome( ) <> 0;
+
+IF ( _ERROR )
+{
+	// Вывод ошибки
+	MessageBox( "Ошибка " + driverKKM.ResultCode + " при выплате денежной суммы. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
+	_ОШИБКАВЫПОЛНЕНИЯ				= true;
+	RETURN false;	
+}	
+
+driverKKM.cutType	= true;
+driverKKM.CutCheck( );
+		
+RETURN ФР.ШТРИХ_ЗакрытьФРСПроверкойНаОшибки( "Выплата наличных" );

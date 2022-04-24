@@ -1,0 +1,20 @@
+	
+//Окончание работы с ФР.
+НомерЧекаККМ				= 0;
+НомерСменыККМ 				= 0;
+ОтсоединятьсяОтУстройства	= ЗАПРОС("SELECT f_disconnect FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") == 1;
+
+driverKKM = _МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ];
+IF ( ТИП( "driverKKM" ) <> "O" )
+{
+	RETURN true;
+}
+IF ( driverKKM.Connected == true )
+	driverKKM.Disconnect();
+	
+// Уничтожаем объект драйвера	
+driverKKM = false;
+
+//_МАССИВККТ[ VAL(КОДОБОРУДОВАНИЯ) ] = driverKKM;
+
+RETURN true;

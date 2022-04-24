@@ -1,0 +1,34 @@
+IF ( ПУСТО( ФР.ИМЯОБОРУДОВАНИЯ() ) )
+{
+	СООБЩЕНИЕ( "Ошибка работы с ФР (" + МестоВызова + ")." + CHR( 13 ) +"Не определен код оборудования", ФР.ИМЯОБОРУДОВАНИЯ() );
+	RETURN false;
+}
+
+//отключение от ФР.
+ОтсоединятьсяОтУстройства	= ЗАПРОС( "SELECT f_disconnect FROM sprequipment WHERE code = '" + ФР.КОДОБОРУДОВАНИЯ() + "'" ) == 1;
+
+driverKKM = _МАССИВККТ[ VAL( ФР.КОДОБОРУДОВАНИЯ() ) ];
+// Если возникла ошибка, то фиксируем ее
+IF ( driverKKM.ResultCode <> 0 )
+{
+	// Вывод ошибки
+	MessageBox( "(" + МестоВызова + ") Ошибка " + driverKKM.ResultCode + " при работе с ККМ. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
+	_ОШИБКАВЫПОЛНЕНИЯ				= true;
+	RETURN false;
+}
+
+IF ( ОтсоединятьсяОтУстройства )
+{
+	driverKKM.Disconnect();
+	IF ( driverKKM.ResultCode <> 0 )
+	{
+		// Вывод ошибки
+		MessageBox( "(" + МестоВызова + ") Ошибка " + driverKKM.ResultCode + " при разрыве связи с ККМ. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
+		_ОШИБКАВЫПОЛНЕНИЯ				= true;
+		RETURN false;
+	}
+}
+
+//driverKKM = false;
+
+RETURN true;

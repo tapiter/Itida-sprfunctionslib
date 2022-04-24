@@ -1,0 +1,13 @@
+// Количество зарегестрированных устройств в драйвере ФР
+IF ( TYPE("driverKKM") <> "O")
+	driverKKM			= СоздатьОбъект( "Addin.DrvFR", 1 );
+	
+IF ( TYPE("driverKKM") <> "O")
+{
+	Сообщение("Не удалось создать объект драйвера.");
+	RETURN 0;
+}
+
+driverKKM.GetCountLD();
+deviceCount			= driverKKM.LDCount;
+RETURN deviceCount;

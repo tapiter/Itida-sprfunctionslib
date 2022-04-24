@@ -1,0 +1,29 @@
+// Печать X-отчета
+// Параметр - FROperatorProfile число, профиль из карточки сотрудника
+IF ( !ФР.ШТРИХ_ОткрытьФР( КОДОБОРУДОВАНИЯ, "XОтчет" ) ) RETURN false;
+	
+//Контроль даты и времени в ККМ
+IF ( _КОНТРОЛИРОВАТЬРАСХОЖДЕНИЕДАТЫВРЕМЕНИ )
+{
+	IF ( !ФР.ШТРИХ_ПроверкаДатыККМ( ) ) RETURN false;
+}
+
+// Вводим пароль оператора ККМ, входим в режим снятия X-отчетов
+driverKKM.Password = FROperatorProfile;
+
+// Снимаем отчет
+_ERROR = driverKKM.PrintReportWithoutCleaning( ) <> 0;
+
+IF ( _ERROR )
+{
+	// Вывод ошибки
+	MessageBox( "Ошибка " + driverKKM.ResultCode + " при снятии X-отчета. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
+	_ОШИБКАВЫПОЛНЕНИЯ				= true;
+	RETURN false;	
+}
+
+// Частичная отрезка чека
+driverKKM.CutType = TRUE; //TRUE – неполная отрезка, FALSE – полная отрезка.
+driverKKM.CutCheck();
+
+RETURN ФР.ШТРИХ_ЗакрытьФРСПроверкойНаОшибки( "XОтчет" );

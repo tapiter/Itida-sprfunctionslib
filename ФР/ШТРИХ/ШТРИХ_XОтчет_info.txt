@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ ШТРИХ_XОТЧЕТ (КОДОБОРУДОВАНИЯ, FROPERATOR)","note":"Печать X отчета","isLocal":true}

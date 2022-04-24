@@ -1,0 +1,19 @@
+ВерсияБиблиотеки = "v.6.2";	
+// Имя устройства ФР
+
+deviceName = "ФР ШТРИХ";
+
+IF ( TYPE("driverKKM") <> "O")
+	driverKKM			= СоздатьОбъект( "Addin.DrvFR", 1 );
+	
+IF ( TYPE("driverKKM") <> "O")
+	deviceName = "(" + ВерсияБиблиотеки + ") Не удалось создать объект драйвера."
+ELSE
+{
+	driverKKM.LDNumber			= ИНДЕКСУСТРОЙСТВА+1;
+	driverKKM.GetParamLD( );
+	deviceName					= "(" + ВерсияБиблиотеки + ")" + driverKKM.LDName;
+	driverKKM					= false;
+}
+
+RETURN deviceName;

@@ -1,0 +1,509 @@
+//driverKKM						= CreateObject( "AddIn.DRvFR", 1 );
+driverKKM.LDNumber				= ИНДЕКСУСТРОЙСТВАККМ;
+driverKKM.SetActiveLD();
+driverKKM.Connect();
+
+driverKKM.Password				= FROperatorProfile; // Пароль
+
+IF ( driverKKM.ResultCode <> 0 )
+{
+	// Вывод ошибки и отмена чека
+	ОписаниеОшибки			= driverKKM.ResultCodeDescription;
+	КодОшибки				= driverKKM.ResultCode;
+	_ОШИБКАВЫПОЛНЕНИЯ		= true;
+	СООБЩЕНИЕ( ОписаниеОшибки, "Ошибка установки связи с ККМ " + КодОшибки );
+	RETURN false;
+}
+
+ОстатокОплаты				= 0;
+ТипОплаты					= 0;
+
+ДОБАВИТЬКОНТЕКСТ( "SELECT * FROM " + ИмяТаблицыСтрокЧека + " ORDER BY identity_column", "КомандыЧека" );
+WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
+{
+	IF ( КомандыЧека.operation == "ЕГАИС слип" )
+	{
+		driverKKM.GetECRStatus( );
+		driverKKM.PrintCliche( );
+		
+		driverKKM.UseReceiptRibbon = TRUE;
+		driverKKM.UseJournalRibbon = FALSE;
+		
+		driverKKM.StringForPrinting			= "";
+		driverKKM.PrintString( );
+
+		//------- Опредяляем общие реквизиты чека
+		КОДУТМ				= КомандыЧека.utm_code;
+		ЕГАИССКЛАД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_SKLAD" + КОДУТМ + "'" );
+		ЕГАИСФИРМА			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_FIRM" + КОДУТМ + "'" );
+
+		ЧЕКИНН				= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+		ЧЕККПП				= ЗАПРОС( "SELECT kpp FROM sprskl WHERE code = '" + ЕГАИССКЛАД + "'" );
+		IF ( ПУСТО( ЧЕККПП ) )
+			ЧЕККПП			= ЗАПРОС( "SELECT kpp FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+		ЧЕКНАИМЕНОВАНИЕ		= ЗАПРОС( "SELECT name FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+		ЧЕКАДРЕС			= ЗАПРОС( "SELECT address FROM sprskl WHERE code = '" + ЕГАИССКЛАД + "'" );
+		IF ( ПУСТО( ЧЕКАДРЕС ) )
+			ЧЕКАДРЕС		= ЗАПРОС( "SELECT adress FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+
+		ЧЕККАССА					= ЗАПРОС( "SELECT serialnumber FROM sprequipment WHERE code = '" + ФРКОДОБОРУДОВАНИЯ + "'" );
+		ЧЕКСМЕНА					= driverKKM.SessionNumber;
+		ЧЕКНОМЕР					= driverKKM.OpenDocumentNumber;
+		
+		driverKKM.StringForPrinting	= ЧЕКНАИМЕНОВАНИЕ;
+		
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= PADR( "ИНН: " + ЧЕКИНН, 20 ) + "КПП: " + ЧЕККПП;
+		
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= PADR( "КАССА: " + ЧЕККАССА, 20 ) + "СМЕНА: " + ЧЕКСМЕНА;
+		
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= PADR( "ЧЕК: " + ЧЕКНОМЕР, 14 ) + "ДАТА: " + LEFT( TTOC( ДАТАВРЕМЯ( ) ), 16 );
+		
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= "";
+		driverKKM.PrintString( );
+		
+		Способ = 1;
+		КоэффициентШК = 4;
+		IF ( Способ == 1 )
+		{
+			driverKKM.BarcodeType				= 3;//QR Code
+			driverKKM.BarcodeDataLength			= LEN( ALLTRIM( КомандыЧека.egais_url ) );
+			driverKKM.BarcodeStartBlockNumber	= 0;
+			driverKKM.BarCode 					= ALLTRIM(КомандыЧека.egais_url);
+			driverKKM.BarcodeAlignment			= 0;  //0 baCenter по центру; 1 baLeft влево; 2 baRight вправо
+			driverKKM.BarcodeParameter1 		= 0;
+			driverKKM.BarcodeParameter2			= 0;
+			driverKKM.BarcodeParameter3			= КоэффициентШК;
+			driverKKM.BarcodeParameter4			= 0;
+			driverKKM.BarcodeParameter5			= 1;
+			driverKKM.LoadAndPrint2DBarcode();
+			//driverKKM.Print2DBarcode();
+			driverKKM.Barcode = ""; //освободим память, занятую штрихкодом
+		}
+		ELSE
+		{
+			driverKKM.BarCode = ALLTRIM(КомандыЧека.egais_url);
+			driverKKM.BarcodeType = 3;
+			driverKKM.BarWidth = КоэффициентШК;
+			driverKKM.LineNumber = 130*КоэффициентШК;
+			//driverKKM.FirstLineNumber = 1;
+			driverKKM.PrintBarcodeText = 0; //печатать символы ШК
+			driverKKM.BarcodeAlignment = 0; //по центру
+			driverKKM.Password = FROperatorProfile;
+			driverKKM.PrintBarcodeGraph();
+			driverKKM.Barcode = ""; //освободим память, занятую штрихкодом
+		}
+		
+		driverKKM.StringForPrinting	= "";
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= КомандыЧека.egais_url;
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= "";
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= КомандыЧека.egais_sign;
+		driverKKM.PrintString( );
+
+		driverKKM.StringForPrinting	= "";
+		driverKKM.PrintString( );
+		
+		driverKKM.WaitForPrinting( );
+		//driverKKM.FeedDocument( );
+	}
+	IF ( КомандыЧека.operation == "Открыть чек" )
+	{
+		IF ( КомандыЧека.checktype >= 0 )
+		{
+			//запрограммируем возможность использования скидок
+			//в ФФД 1.05 на ККМ Штрих скидки носят лишь информационный характер и работа возможно только при правильно настроенной 17й таблице
+			Значение = 2;
+			ФР.ШТРИХ_ПрограммированиеТаблицККТ("Запись",17,1,3,0,Значение);
+			
+			//установим имя кассира в таблице
+			IF ( !ПУСТО( _ИМЯКАССИРА ) )
+			{
+				ФР.ШТРИХ_ПрограммированиеТаблицККТ("Запись",2,FROperatorProfile,2,1,LEFT(_ИМЯКАССИРА,64));
+			}
+			
+			//после программирования таблиц заново установим пароль кассира
+			driverKKM.Password	= FROperatorProfile; // Пароль
+			driverKKM.CheckType	= КомандыЧека.checktype;
+			//driverKKM.CheckMode	= ЕСЛИ( ЭЛЕКТРОННЫЙЧЕК, 0, 1 );
+			_ERROR				= driverKKM.OpenCheck( ) <> 0;
+			
+			IF ( !_ERROR )
+			{
+				// После откртыия чека, если есть фискальный накопитель, то передаем в него 4 параметра
+				// 1 - e-mail/телефон
+				// 2 - имя кассира
+				// 3 - инн кассира
+				// 4 - признак электронного чека
+				
+				НомерАтрибута				= 0;
+				try 
+				{
+					IF ( !ПУСТО( ПОЧТА ) )
+					{
+						driverKKM.CustomerEmail	= ПОЧТА;
+						//driverKKM.TagNumber		= 1008;
+						НомерАтрибута			= 1008;
+						driverKKM.FNSendCustomerEmail( );
+						IF ( driverKKM.ResultCode <> 0 ) throw( 1008 );
+					}
+					
+					IF ( !ПУСТО( _ИМЯКАССИРА ) )
+					{	
+						НомерАтрибута			= 1021;
+						ФР.ШТРИХ_УстановитьТэг(FROperatorProfile,НомерАтрибута,_ИМЯКАССИРА);
+						IF ( driverKKM.ResultCode <> 0 ) throw( 1021 );
+					}
+					
+					IF ( !ПУСТО ( _КАССИР) )
+					{
+						_ИННКАССИРА = ЗАПРОС("SELECT inn FROM sprempl WHERE code = " + _КАССИР);
+						IF ( !ПУСТО(_ИННКАССИРА) )
+						{
+							НомерАтрибута			= 1203;
+							ФР.ШТРИХ_УстановитьТэг(FROperatorProfile,НомерАтрибута,_ИННКАССИРА);
+							IF ( driverKKM.ResultCode <> 0 ) throw( 1203 );							
+						}
+					}
+					
+					IF ( !ПУСТО( ЭЛЕКТРОННЫЙЧЕК ) )
+					{
+						Значение = ЕСЛИ( ЭЛЕКТРОННЫЙЧЕК, 1, 0 );
+						ФР.ШТРИХ_ПрограммированиеТаблицККТ("Запись",17,1,7,0,Значение);
+					}
+					
+					//покупатель
+					НаименованиеКлиента = "";
+					ИННКлиента = "";
+					IF (!ПУСТО(КомандыЧека.clientcode))
+					{
+						ДОБАВИТЬКОНТЕКСТ("SELECT priz, name, inn FROM sprclient WHERE code = '" + ALLTRIM(КомандыЧека.clientcode) + "'", "ДанныеКлиента", 1);
+						ТипКлиента = VAL(ДанныеКлиента.priz);
+						IF (ТипКлиента == 1 OR ТипКлиента == 3)
+						{
+							НаименованиеКлиента = XMLTRANS(ДанныеКлиента.name);
+							ИННКлиента = ДанныеКлиента.inn;
+						}
+						УДАЛИТЬКОНТЕКСТ("ДанныеКлиента");
+					}
+					
+					IF (!ПУСТО(НаименованиеКлиента))
+					{
+						НомерАтрибута			= 1227;
+						ФР.ШТРИХ_УстановитьТэг(FROperatorProfile,НомерАтрибута,НаименованиеКлиента);
+					}
+					IF (!ПУСТО(ИННКлиента))
+					{
+						НомерАтрибута			= 1228;
+						ФР.ШТРИХ_УстановитьТэг(FROperatorProfile,НомерАтрибута,ИННКлиента);
+					}						
+				}
+				catch ( НомерПрерывания )
+				{
+					// Вывод ошибки
+					//_ОШИБКАВЫПОЛНЕНИЯ		= true;
+					//СООБЩЕНИЕ( "Установка значения атрибута " + НомерАтрибута + " " + driverKKM.ResultCode + " " + driverKKM.ResultCodeDescription, "Установка значения атрибута " + НомерАтрибута );
+					//driverKKM.CancelCheck( );
+					//driverKKM					= false;
+					//УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
+					RETURN true;
+				}
+			}//IF ( !_ERROR )
+		}//IF ( КомандыЧека.checktype >= 0 )
+		
+		//добавим информацию о бонусах в чек
+		IF (_ВЫВОДИТЬИНФОРМАЦИЮОБОНУСАХНАЧЕКЕ == true AND !ПУСТО( НОМЕРКАРТЫ ) )
+		{
+			ТИПБОНУСА= ЗАПРОС( "SELECT bonusalias FROM sprbonus WHERE code IN ( SELECT bonus FROM sprmcard WHERE cardn = '" + НОМЕРКАРТЫ + "' )" );
+			ОПЛАЧЕНОБОНУСОМ = STR( ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫ + "' AND priz= '-' AND chequeic= " + ИДОбъекта ), 10, 2);
+			НАЧИСЛЕНОБОНУСОВ = STR( ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫ + "' AND priz= '+' AND chequeic= " + ИДОбъекта ), 10, 2);
+			ОСТАТОКБОНУСОВ = STR( ЗАПРОС( "SELECT dbo.fn_calccard_bonus( '" + НОМЕРКАРТЫ + "', '" + ТИПБОНУСА + "', DEFAULT );" ), 10, 2);
+			
+			driverKKM.CarryStrings = false;
+			driverKKM.StringForPrinting = "---------------------------------------------";
+			driverKKM.PrintString( );
+			driverKKM.StringForPrinting = "Списано бонусов:   " + ОПЛАЧЕНОБОНУСОМ;
+			driverKKM.PrintString( );
+			driverKKM.StringForPrinting = "Начислено бонусов: " + НАЧИСЛЕНОБОНУСОВ;
+			driverKKM.PrintString( );
+			driverKKM.StringForPrinting = "Остаток бонусов:   " + ОСТАТОКБОНУСОВ;
+			driverKKM.PrintString( );
+			driverKKM.StringForPrinting = "---------------------------------------------";
+			driverKKM.PrintString( );
+		}
+	}
+	ELSE IF ( КомандыЧека.operation == "Печать строки" )
+	{
+		IF ( КомандыЧека.mode == 0 )
+		{
+			driverKKM.CarryStrings = false;
+			СтрокаПечати = LEFT(КомандыЧека.name, ЕСЛИ(ШИРИНАЧЕКОВОЙЛЕНТЫ<>0,ШИРИНАЧЕКОВОЙЛЕНТЫ,32));
+		}
+		ELSE
+		{
+			driverKKM.CarryStrings = true;
+			СтрокаПечати = КомандыЧека.name;
+		}
+			
+		driverKKM.StringForPrinting			= СтрокаПечати;
+		driverKKM.PrintString( );
+	}
+	ELSE IF ( КомандыЧека.operation == "Регистрация" OR КомандыЧека.operation == "Возврат" )
+	{
+		//driverKKM.TEXTWRAP			= 1;
+		driverKKM.Summ1Enabled = 1;
+		driverKKM.TaxValueEnabled = 0;
+		driverKKM.CheckType	= ШТРИХ_ПолучитьВидОперациивЧеке( ТипЧекаККМ ); //Тип операции (1 - Приход, 2 - Возврат прихода, 3 - расход, 4 - возврат расхода)
+		
+		IF (TYPE ("_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ") == "U")
+			_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ = false;  //признак необходимости выводить букву [М] для товарной позиции в чеке средствами профиля. По умолчанию отключено (значение false),
+															//т.к. ожидается что буква [М] будет выводиться средствами прошивки
+		
+		НаименованиеТовараВЧеке = ЕСЛИ(_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ == true AND !ПУСТО( КомандыЧека.markbc ), "[М] ","") + ALLTRIM(КомандыЧека.name);
+									
+		driverKKM.StringForPrinting	= НаименованиеТовараВЧеке;
+		СуммаПозиции = КомандыЧека.summa - КомандыЧека.discountvalue;			
+		driverKKM.Price				= ROUND( СуммаПозиции/КомандыЧека.quantity , 2);
+		driverKKM.Quantity			= КомандыЧека.quantity;
+		driverKKM.Department		= КомандыЧека.department;
+		
+		IF ( _ПЕЧАТАТЬНАЛОГИ )
+		{
+			driverKKM.Tax1			= КомандыЧека.kodn;
+			//driverKKM.Tax2			= 0;
+			//driverKKM.Tax3			= 0;
+			//driverKKM.Tax4			= 0;
+		}
+		IF ( КомандыЧека.discountvalue <> 0 )
+		{
+			IF ( КомандыЧека.discountvalue > 0 )
+			{
+				driverKKM.DiscountValue = КомандыЧека.discountvalue;
+				driverKKM.ChargeValue = 0;
+			}
+			ELSE IF ( КомандыЧека.discountvalue < 0 )
+			{
+				driverKKM.DiscountValue = 0;
+				driverKKM.ChargeValue = -КомандыЧека.discountvalue;
+			}
+		}
+		IF (ВСЕГОКРЕДИТ > 0)
+		{
+			IF (ВСЕГОКРЕДИТ < СуммаЧека)
+			{
+				driverKKM.PaymentTypeSign	= 5; //частичный расчет и кредит
+			}
+			ELSE
+			{
+				driverKKM.PaymentTypeSign	= 6; //передача в кредит
+			}
+		}
+		ELSE
+		{
+			driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;
+		}
+		driverKKM.PaymentItemSign = КомандыЧека.rsubject;				
+		
+		driverKKM.Summ1 = СуммаПозиции;
+		
+		//IF ( КомандыЧека.discountvalue <> 0 )
+		//	driverKKM.FNDiscountOperation();
+		//ELSE
+			driverKKM.FNOperation();
+			
+		//Маркировка
+		IF (TYPE ("_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162") == "U")
+			_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 = false; //признак необходимости использовать старый формат тэга 1162 для чеков. По умолчанию равен false, т.е. используется новый формат
+			
+		IF ( !ПУСТО( КомандыЧека.markbc ) )
+		{
+			ДлинаКодаМаркировки = 0;
+			gtin = "";
+			serial = "";
+			new_marktype = 17485; //для табака, обуви и прочих, кроме шуб
+			marktype = КомандыЧека.marktype;
+			markbc = КомандыЧека.markbc;
+			ДлинаКодаМаркировки = ПолучитьДлиннуШтрихкодаМаркировки(markbc, marktype, gtin, serial);
+			
+			IF ( VAL( marktype ) == 2 AND _ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 == true ) //меховые изделия
+				new_marktype = 21062;
+			
+			IF (TYPE ("_ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ") == "U")
+				_ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ = true; //признак необходимости передавать весь код маркировки в составе реквизитов чека
+			
+			IF ( _ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ == false AND ДлинаКодаМаркировки > 0	)
+				markbc = LEFT( КомандыЧека.markbc, ДлинаКодаМаркировки );
+							
+			IF (_СПОСОБФОРМИРОВАНИЯТЭГА1162 == 2)
+			{
+				driverKKM.BarCode = ALLTRIM( markbc );
+				driverKKM.FNSendItemBarcode();
+			}
+			ELSE
+			{
+				IF (!ПУСТО(gtin) AND !ПУСТО(serial))
+				{
+					driverKKM.MarkingType = ЕСЛИ(_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 == true, VAL(marktype), new_marktype);
+					driverKKM.SerialNumber = serial;
+					driverKKM.GTIN = gtin;
+					driverKKM.FNSendItemCodeData();
+				}
+			}
+		}
+		
+	}							
+	ELSE IF ( КомандыЧека.operation == "Оплата" )
+	{
+		IF (КомандыЧека.closetype == 1) //наличные
+		{
+			driverKKM.Summ1		= ROUND( КомандыЧека.price, 2 );
+		}
+		ELSE IF	(КомандыЧека.closetype == 2) //банк. карта
+		{
+			driverKKM.Summ2		= ROUND( КомандыЧека.price, 2 );
+		}
+		ELSE IF	(КомандыЧека.closetype == 14) //сертификаты (предоплата/аванс)
+		{
+			driverKKM.Summ14	= ROUND( КомандыЧека.price, 2 );
+		}
+		ELSE IF	(КомандыЧека.closetype == 15) //последующая оплата (кредит)
+		{
+			driverKKM.Summ15	= ROUND( КомандыЧека.price, 2 );
+		}
+		ELSE IF	(КомандыЧека.closetype == 16) //встречное предоставление (прочая)
+		{
+			driverKKM.Summ16	= ROUND( КомандыЧека.price, 2 );
+		}
+		driverKKM.Summ3					= 0;
+		driverKKM.Summ4					= 0;
+		driverKKM.Summ5					= 0;
+		driverKKM.Summ6					= 0;
+		driverKKM.Summ7					= 0;
+		driverKKM.Summ8					= 0;
+		driverKKM.Summ9					= 0;
+		driverKKM.Summ10				= 0;
+		driverKKM.Summ11				= 0;
+		driverKKM.Summ12				= 0;
+		driverKKM.Summ13				= 0;			
+	}	
+	ELSE IF ( КомандыЧека.operation == "Закрытие чека" )
+	{
+		driverKKM.RoundingSumm = 0;
+		driverKKM.TaxValue1Enabled = 0;
+		driverKKM.TaxValue2Enabled = 0;
+		driverKKM.TaxValue3Enabled = 0;
+		driverKKM.TaxValue4Enabled = 0;
+		driverKKM.TaxValue5Enabled = 0;
+		driverKKM.TaxValue6Enabled = 0;
+		СистемаНО = ЗАПРОС( "SELECT taxtype FROM sprequipment WHERE code = '" + ФРКОДОБОРУДОВАНИЯ + "'" );
+		IF ( VAL( СистемаНО ) > 0 )
+		{
+			driverKKM.TaxType = VAL( СистемаНО );
+		}
+		// строка, которая будет напечатана при закрытии
+		driverKKM.StringForPrinting		= "";
+		//закрываем чек
+		driverKKM.FNCloseCheckEx();
+		
+		IF ( driverKKM.ResultCode <> 0 )
+		{
+			// Вывод ошибки и отмена чека
+			ОписаниеОшибки			= driverKKM.ResultCodeDescription;
+			КодОшибки				= driverKKM.ResultCode;
+			Операция				= КомандыЧека.operation;
+			driverKKM.SysAdminCancelCheck();
+			//driverKKM					= false;
+			_ОШИБКАВЫПОЛНЕНИЯ		= true;
+			УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
+			
+			СООБЩЕНИЕ( ОписаниеОшибки, "Ошибка метода " + Операция + " " + КодОшибки );
+			RETURN false;
+		}
+		
+		// Получаем состояние ФР. Пока находимся в состоянии печати нельзя произвести отрезку чека
+		driverKKM.GetShortECRStatus( );
+		advancedMode					= driverKKM.ECRAdvancedMode;
+		startTime						= TIME( );
+		
+		// Ждем 20 секунд или пока напечатается чек
+		WHILE ( TIME( ) - startTime < 20 AND advancedMode <> 0 )
+		{
+			WAIT(1000);
+			driverKKM.GetShortECRStatus( );
+			advancedMode				= driverKKM.ECRAdvancedMode;
+			// Если закончилась бумага и ее вставили, то подаем команду продолжить печать
+			IF ( advancedMode == 3 ) driverKKM.ContinuePrint( );
+			IF ( advancedMode == 1 OR advancedMode == 2 ) MessageBox( "В ККМ закончилась чековая лента.\nПожалуйста, заправьте новую чековую ленту.");
+		}
+		
+		//обнулим суммы в драйвере, чтобы не распространялись на следующий чек
+		driverKKM.Summ1					= 0;
+		driverKKM.Summ2					= 0;
+		driverKKM.Summ3					= 0;
+		driverKKM.Summ4					= 0;
+		driverKKM.Summ5					= 0;
+		driverKKM.Summ6					= 0;
+		driverKKM.Summ7					= 0;
+		driverKKM.Summ8					= 0;
+		driverKKM.Summ9					= 0;
+		driverKKM.Summ10				= 0;
+		driverKKM.Summ11				= 0;
+		driverKKM.Summ12				= 0;
+		driverKKM.Summ13				= 0;
+		driverKKM.Summ14				= 0;
+		driverKKM.Summ15				= 0;
+		driverKKM.Summ16				= 0;
+		
+		//driverKKM.FeedDocument( );
+		
+		IF ( ПЕЧАТАТЬКОПИЮ )
+			driverKKM.RepeatDocument( );
+	}
+	ELSE IF ( КомандыЧека.operation == "Отрезать чек" )
+	{
+		n=1;
+		WHILE (n <= _КОЛИЧЕСТВОСТРОКПЕРЕДОТРЕЗОМСЛИПА)
+		{
+			driverKKM.StringForPrinting = "";
+			driverKKM.PrintString( );
+			n++;
+		}
+		driverKKM.CutType = true; //TRUE – неполная отрезка, FALSE – полная отрезка.
+		driverKKM.CutCheck();
+	}
+
+	IF ( driverKKM.ResultCode <> 0 )
+	{
+		// Вывод ошибки и отмена чека
+		ОписаниеОшибки			= driverKKM.ResultCodeDescription;
+		КодОшибки				= driverKKM.ResultCode;
+		Операция				= КомандыЧека.operation;
+		driverKKM.SysAdminCancelCheck();
+		//driverKKM					= false;
+		_ОШИБКАВЫПОЛНЕНИЯ		= true;
+		УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
+
+		СООБЩЕНИЕ( ОписаниеОшибки, "Ошибка метода " + Операция + " " + КодОшибки );
+		RETURN false;
+	}
+	ПРОПУСТИТЬ( 1, "КомандыЧека" );
+}
+УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
+
+//driverKKM						= false;
+
+// Удаляем временную таблицу
+ЗАПРОС( "DROP TABLE " + ИмяТаблицыСтрокЧека );
+RETURN true;

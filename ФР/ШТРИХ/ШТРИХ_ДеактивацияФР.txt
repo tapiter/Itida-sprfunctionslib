@@ -1,0 +1,22 @@
+//Деактивация ФР.
+НомерЧекаККМ = 0;
+НомерСменыККМ = 0;
+ОтсоединятьсяОтУстройства	= ЗАПРОС( "SELECT f_disconnect FROM sprequipment WHERE code = '" + ФР.КОДОБОРУДОВАНИЯ() + "'" ) == 1;
+
+IF ( ОтсоединятьсяОтУстройства )
+{
+	driverKKM = _МАССИВККТ[ VAL( ФР.КОДОБОРУДОВАНИЯ() ) ];
+	driverKKM.Disconnect();
+
+	// Если возникла ошибка, то фиксируем ее
+	IF ( driverKKM.ResultCode <> 0 )
+	{
+		// Вывод ошибки
+		MessageBox( "Ошибка " + driverKKM.ResultCode + " при отключении от ККМ. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
+		_ОШИБКАВЫПОЛНЕНИЯ				= true;
+		RETURN false;
+	}
+	//driverKKM = false;
+}
+
+RETURN true;

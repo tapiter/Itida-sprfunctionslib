@@ -1,0 +1,4 @@
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, name )
+		 VALUES ( 'PRINTSTRING', '" + STDF( СтрокаДляПечати ) + "' )" );
+
+RETURN true;

@@ -33,8 +33,8 @@ IF ( ТИП( "_МРППЕЧАТАТЬКЛИШЕНАСЛИПЕ" ) == "U" )
 {
 	_МРППЕЧАТАТЬКЛИШЕНАСЛИПЕ	= true;
 }
-DriverPayCard.ECRSessionNumber	= НомерСмены;
-DriverPayCard.ECRReceiptNumber	= НомерЧека;
+DriverPayCard.ECRSessionNumber	= НомерСменыККМ;
+DriverPayCard.ECRReceiptNumber	= НомерЧекаККМ;
 DriverPayCard.CharLineLength 	= _КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ;
 Результат 						= DriverPayCard.OnLineAuthorization();
 IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Результат > -11000 ) )
@@ -70,12 +70,13 @@ IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Резу�
 		НОМЕРКОПИИСЛИПА++;
 	}	
 	
-	
-	ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, TransType, AuthCode, OperationType, Sum, CardNumber, 
-										SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, ResponseCod, slip, slipcount, fr_code )
+	try
+	{
+		ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, TransType, AuthCode, OperationType, Sum, CardNumber, 
+										SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, ResponseCode, slip, slipcount, fr_code )
 			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
 							+ _UNCONFIRMEDID + "', '" 
-							+ ТипЧека + ", "
+							+ ТипЧека + "', '"
 							+ DriverPayCard.AuthCode + "', " 							 
 							+ DriverPayCard.OperationType + ", " 
 							+ DriverPayCard.Sum + ", '" 
@@ -91,6 +92,11 @@ IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Резу�
 							+ КОЛИЧЕСТВОСЛИПОВ + "', '" 
 							+ ФРКОДОБОРУДОВАНИЯ + 
 							"' )" );
+	}
+	catch()
+	{
+		СООБЩЕНИЕ("Ошибка сохранения банковской транзакции", ФР.ИМЯОБОРУДОВАНИЯ());
+	}
 							
 }
 IF ( ФР.ПСАТОЛ_Ошибка( Результат ) )

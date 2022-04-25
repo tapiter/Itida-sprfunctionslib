@@ -36,11 +36,14 @@ ELSE
 		Ind = Ind + 1;
 	}
 	
+	ТипТранзакции = 10;
+	
 	try
 	{
-		ЗАПРОС( "INSERT INTO paycardtrans ( equipment, TransType, slip, fr_code )
+		ЗАПРОС( "INSERT INTO paycardtrans ( equipment, TransType, transdate, slip, fr_code )
 			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
-							+ ТипЧека + ", "
+							+ ТипТранзакции + "', '"
+							+ ДАТА() + "', '"
 							+ STDF( СлипЧек ) + "', '"
 							+ ФРКОДОБОРУДОВАНИЯ + 
 							"' )" );

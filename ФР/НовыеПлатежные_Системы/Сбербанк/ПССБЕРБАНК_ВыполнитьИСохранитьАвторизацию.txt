@@ -16,10 +16,16 @@ ELSE IF ( ТипЧека == 1 )
 	*/
 	ОтветПС = DriverPayCard.NFun(4002);
 }
+ELSE
+{
+	СООБЩЕНИЕ( "Недопустимый вид операции", ФР.ИМЯОБОРУДОВАНИЯ() );
+	RETURN false;
+}
 	
 IF ( ОтветПС <> 0 )
 {
-	СООБЩЕНИЕ( "Ошибка платежной системы: " + ОтветПС + "." + CHR(13) + "Чек не будет пробит на ККМ." );
+	СООБЩЕНИЕ( "Ошибка платежной системы: " + ОтветПС + "." + CHR(13) + CHR(10) +
+	ФР.ПССБЕРБАНК_ПолучитьОписаниеОшибки( ОтветПС ), ФР.ИМЯОБОРУДОВАНИЯ() );
 	RETURN false;
 }
 
@@ -50,7 +56,7 @@ IF ( ОтветПС == 0 )
 	ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, TransType, AuthCode, OperationType, Sum, CardNumber, SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, slip, slipcount, fr_code )
 			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
 							+ _UNCONFIRMEDID + "', '" 
-							+ ТипЧека + ", "
+							+ ТипЧека + "', '"
 							+ DriverPayCard.GParamString("AuthCode") + "', " 							 
 							+ DriverPayCard.GParamString("MerchantTSN") + ", " 
 							+ DriverPayCard.GParamString("Amount")+ ", '" 
@@ -69,8 +75,8 @@ IF ( ОтветПС == 0 )
 }		
 ELSE
 {
-	СООБЩЕНИЕ( "Ошибка платежной системы: " + ОтветПС + "." + CHR(13) + "Чек не будет пробит на ККМ." );
-	//возвращаем ошибку
+	СООБЩЕНИЕ( "Ошибка платежной системы: " + ОтветПС + "." + CHR(13) + CHR(10) +
+	ФР.ПССБЕРБАНК_ПолучитьОписаниеОшибки( ОтветПС ), ФР.ИМЯОБОРУДОВАНИЯ() );
 	RETURN false;
 }
 

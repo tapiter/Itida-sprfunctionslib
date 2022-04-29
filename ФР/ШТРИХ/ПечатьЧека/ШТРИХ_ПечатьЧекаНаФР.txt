@@ -299,6 +299,8 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 				driverKKM.ChargeValue = -КомандыЧека.discountvalue;
 			}
 		}
+		
+		/*
 		IF (ВСЕГОКРЕДИТ > 0)
 		{
 			IF (ВСЕГОКРЕДИТ < СуммаЧека)
@@ -314,6 +316,8 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 		{
 			driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;
 		}
+		*/
+		driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;		
 		driverKKM.PaymentItemSign = КомандыЧека.rsubject;				
 		
 		driverKKM.Summ1 = СуммаПозиции;

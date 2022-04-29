@@ -15,6 +15,7 @@ IF ( ТИП( "fptr" ) <> "O" )
 {
 	RETURN "(" + ВерсияБиблиотеки + ") ДРАЙВЕР ККТ АТОЛ v.10 НЕ УСТАНОВЛЕН";
 }
+ВерсияДрайвера	= fptr.version();
 НастройкиККТ = ЗАПРОС("SELECT value FROM param_ex WHERE param = 'ATOLKKTSETTINGS" + КОДОБОРУДОВАНИЯ + "'");
 
 IF ( !ПУСТО( НастройкиККТ ) )
@@ -80,7 +81,7 @@ IF ( fptr.errorCode( ) == 0 )
 		СтрокаСтатусСмены = "Смена > 24ч";
 	ELSE
 		СтрокаСтатусСмены = "";
-	deviceName = "(" + ВерсияБиблиотеки + ") " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true" OR fiscal == true, "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
+	deviceName = "(" + ВерсияБиблиотеки + ") дрв. " + ВерсияДрайвера + " " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true" OR fiscal == true, "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
 	
 	УДАЛИТЬКОНТЕКСТ("ДанныеСтатусККТ");
 	УДАЛИТЬКОНТЕКСТ("ДанныеИнфоККТ");

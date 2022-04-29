@@ -1,6 +1,19 @@
 
 // Свойства драйвера ФР.
-driverKKM					= СоздатьОбъект( "Addin.DrvFR", 1 );
+try
+{
+	driverKKM					= СоздатьОбъект( "Addin.DrvFR", 1 );
+}
+catch()
+{
+	driverKKM = false;
+}
+
+IF ( ТИП(driverKKM) == "L" )
+{
+	СООБЩЕНИЕ("Не удалось создать объект драйвера", ФР.ИМЯОБОРУДОВАНИЯ() );
+	RETURN false;
+}
 
 ВерсияДрайвера = ALLTRIM(driverKKM.DriverVersion);
 СовместимаяВерсия = "4.15";

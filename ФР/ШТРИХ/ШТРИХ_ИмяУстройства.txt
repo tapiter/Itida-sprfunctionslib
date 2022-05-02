@@ -1,4 +1,3 @@
-ВерсияБиблиотеки = "v.6.2";	
 // Имя устройства ФР
 
 deviceName = "ФР ШТРИХ";
@@ -14,13 +13,13 @@ catch()
 	
 IF ( ТИП(driverKKM) == "L" )
 {
-	deviceName = "(" + ВерсияБиблиотеки + ") Не удалось создать объект драйвера."
+	deviceName = "(" + ФР.ВерсияБиблиотекиФР() + ") Не удалось создать объект драйвера."
 }
 ELSE
 {
 	driverKKM.LDNumber			= ИНДЕКСУСТРОЙСТВА+1;
 	driverKKM.GetParamLD( );
-	deviceName					= "(" + ВерсияБиблиотеки + ") дрв. " + driverKKM.DriverVersion + " - " + driverKKM.LDName;
+	deviceName					= "(" + ФР.ВерсияБиблиотекиФР() + ") дрв. " + driverKKM.DriverVersion + " - " + driverKKM.LDName;
 	driverKKM					= false;
 }
 

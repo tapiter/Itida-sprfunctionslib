@@ -1,4 +1,3 @@
-ВерсияБиблиотеки = "v.6.1";	
 // Имя устройства ФР
 COMPARAMORDER( false );
 deviceName = "ККМ АТОЛ";
@@ -13,7 +12,7 @@ catch( )
 }
 IF ( ТИП( "fptr" ) <> "O" )
 {
-	RETURN "(" + ВерсияБиблиотеки + ") ДРАЙВЕР ККТ АТОЛ v.10 НЕ УСТАНОВЛЕН";
+	RETURN "(" + ФР.ВерсияБиблиотекиФР() + ") ДРАЙВЕР ККТ АТОЛ v.10 НЕ УСТАНОВЛЕН";
 }
 ВерсияДрайвера	= fptr.version();
 НастройкиККТ = ЗАПРОС("SELECT value FROM param_ex WHERE param = 'ATOLKKTSETTINGS" + КОДОБОРУДОВАНИЯ + "'");
@@ -81,21 +80,17 @@ IF ( fptr.errorCode( ) == 0 )
 		СтрокаСтатусСмены = "Смена > 24ч";
 	ELSE
 		СтрокаСтатусСмены = "";
-	deviceName = "(" + ВерсияБиблиотеки + ") дрв. " + ВерсияДрайвера + " " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true" OR fiscal == true, "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
-	
+	deviceName = "(" + ФР.ВерсияБиблиотекиФР() + ") дрв." + ВерсияДрайвера + " " + modelName + ", №" + serial + ", v." + configurationVersion + ", " + ЕСЛИ(fiscal == "true" OR fiscal == true, "ФИСК", "НЕФИСК") + " " + СтрокаСтатусСмены;
+		
 	УДАЛИТЬКОНТЕКСТ("ДанныеСтатусККТ");
 	УДАЛИТЬКОНТЕКСТ("ДанныеИнфоККТ");
 }
 
 //закрываем соединение с ККТ
 IF ( fptr.isOpened( ) )
-{
 	fptr.close( );
-}
 ELSE
-{
-	deviceName = "(" + ВерсияБиблиотеки + ") Ошибка (" + fptr.errorCode( ) + "): " + fptr.errorDescription( );
-}
+	deviceName = "(" + ФР.ВерсияБиблиотекиФР() + ") дрв." + ВерсияДрайвера + " Ошибка (" + fptr.errorCode( ) + "): " + fptr.errorDescription( );
 
 fptr	= false;
 

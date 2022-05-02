@@ -7,7 +7,7 @@
 IF ( !ФР.ШТРИХ_ОткрытьФР( КОДОБОРУДОВАНИЯ, "Открытие смены" ) ) RETURN false;
 
 //Проверим возраст буфера чеков
-ФР.ШТРИХ_ПроверкаВозрастаБуфера( );
+ФР.ШТРИХ_ПроверкаВозрастаБуфера( false );
 
 driverKKM.Password		= FROperatorProfile;
 driverKKM.FNGetCurrentSessionParams(); //получаем параметры смены

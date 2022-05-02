@@ -18,7 +18,7 @@ IF ( ТИП( "driverKKM" ) <> "O" )
 // Если не получмлось создать объект драйера, то ошибка
 IF ( ТИП( "driverKKM" ) <> "O" )	
 {
-	СООБЩЕНИЕ( "Ошибка работы с ФР (" + МестоВызова + ")." + CHR( 13 ) +"Не удалось создать объект драйвера.");
+	СООБЩЕНИЕ( "Ошибка работы с ФР (" + МестоВызова + ")." + CHR( 13 ) +"Не удалось создать объект драйвера.", ФР.ИМЯОБОРУДОВАНИЯ() );
 	RETURN false;
 }
 	
@@ -45,7 +45,7 @@ resultCode 			= driverKKM.ResultCode;
 IF ( resultCode <> 0 )
 {
 	// Вывод ошибки
-	MessageBox( driverKKM.ResultCodeDescription, "Ошибка " + driverKKM.ResultCode + " при установке связи с ККМ" );
+	MessageBox( "Ошибка " + driverKKM.ResultCode + " при установке связи с ККМ. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
 	_ОШИБКАВЫПОЛНЕНИЯ				= true;
 	RETURN false;
 }

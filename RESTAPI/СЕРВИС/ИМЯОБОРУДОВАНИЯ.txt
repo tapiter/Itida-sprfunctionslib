@@ -1,0 +1,1 @@
+RETURN ALLTRIM( ЗАПРОС( "SELECT name FROM sprequipment WHERE code = '" + RESTAPI.КОДОБОРУДОВАНИЯ() + "'" ) );

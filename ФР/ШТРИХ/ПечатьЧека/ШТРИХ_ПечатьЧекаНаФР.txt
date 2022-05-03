@@ -121,7 +121,11 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 	}
 	IF ( КомандыЧека.operation == "Открыть чек" )
 	{
-		IF ( КомандыЧека.checktype >= 0 )
+		IF ( КомандыЧека.checktype == "ПРЕЧЕК" )
+		{
+			_ERROR				= driverKKM.OpenNonFiscalDocument() <> 0;
+		}
+		ELSE IF ( КомандыЧека.checktype >= 0 )
 		{
 			//запрограммируем возможность использования скидок
 			//в ФФД 1.05 на ККМ Штрих скидки носят лишь информационный характер и работа возможно только при правильно настроенной 17й таблице
@@ -404,76 +408,83 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 	}	
 	ELSE IF ( КомандыЧека.operation == "Закрытие чека" )
 	{
-		driverKKM.RoundingSumm = 0;
-		driverKKM.TaxValue1Enabled = 0;
-		driverKKM.TaxValue2Enabled = 0;
-		driverKKM.TaxValue3Enabled = 0;
-		driverKKM.TaxValue4Enabled = 0;
-		driverKKM.TaxValue5Enabled = 0;
-		driverKKM.TaxValue6Enabled = 0;
-		СистемаНО = ЗАПРОС( "SELECT taxtype FROM sprequipment WHERE code = '" + ФР.КОДОБОРУДОВАНИЯ() + "'" );
-		IF ( VAL( СистемаНО ) > 0 )
+		IF ( КомандыЧека.checktype == "ПРЕЧЕК" )
 		{
-			driverKKM.TaxType = VAL( СистемаНО );
+			_ERROR				= driverKKM.CloseNonFiscalDocument() <> 0;
 		}
-		// строка, которая будет напечатана при закрытии
-		driverKKM.StringForPrinting		= "";
-		//закрываем чек
-		driverKKM.FNCloseCheckEx();
-		
-		IF ( driverKKM.ResultCode <> 0 )
+		ELSE
 		{
-			// Вывод ошибки и отмена чека
-			ОписаниеОшибки			= driverKKM.ResultCodeDescription;
-			КодОшибки				= driverKKM.ResultCode;
-			Операция				= КомандыЧека.operation;
-			driverKKM.SysAdminCancelCheck();
-			//driverKKM					= false;
-			_ОШИБКАВЫПОЛНЕНИЯ		= true;
-			УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
+			driverKKM.RoundingSumm = 0;
+			driverKKM.TaxValue1Enabled = 0;
+			driverKKM.TaxValue2Enabled = 0;
+			driverKKM.TaxValue3Enabled = 0;
+			driverKKM.TaxValue4Enabled = 0;
+			driverKKM.TaxValue5Enabled = 0;
+			driverKKM.TaxValue6Enabled = 0;
+			СистемаНО = ЗАПРОС( "SELECT taxtype FROM sprequipment WHERE code = '" + ФР.КОДОБОРУДОВАНИЯ() + "'" );
+			IF ( VAL( СистемаНО ) > 0 )
+			{
+				driverKKM.TaxType = VAL( СистемаНО );
+			}
+			// строка, которая будет напечатана при закрытии
+			driverKKM.StringForPrinting		= "";
+			//закрываем чек
+			driverKKM.FNCloseCheckEx();
 			
-			СООБЩЕНИЕ( "Ошибка метода " + Операция + " " + КодОшибки + CHR(13) + CHR(10) + "Описание ошибки: " + ОписаниеОшибки, ФР.ИМЯОБОРУДОВАНИЯ() );
-			RETURN false;
-		}
-		
-		// Получаем состояние ФР. Пока находимся в состоянии печати нельзя произвести отрезку чека
-		driverKKM.GetShortECRStatus( );
-		advancedMode					= driverKKM.ECRAdvancedMode;
-		startTime						= TIME( );
-		
-		// Ждем 20 секунд или пока напечатается чек
-		WHILE ( TIME( ) - startTime < 20 AND advancedMode <> 0 )
-		{
-			WAIT(1000);
+			IF ( driverKKM.ResultCode <> 0 )
+			{
+				// Вывод ошибки и отмена чека
+				ОписаниеОшибки			= driverKKM.ResultCodeDescription;
+				КодОшибки				= driverKKM.ResultCode;
+				Операция				= КомандыЧека.operation;
+				driverKKM.SysAdminCancelCheck();
+				//driverKKM					= false;
+				_ОШИБКАВЫПОЛНЕНИЯ		= true;
+				УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
+				
+				СООБЩЕНИЕ( "Ошибка метода " + Операция + " " + КодОшибки + CHR(13) + CHR(10) + "Описание ошибки: " + ОписаниеОшибки, ФР.ИМЯОБОРУДОВАНИЯ() );
+				RETURN false;
+			}
+			
+			// Получаем состояние ФР. Пока находимся в состоянии печати нельзя произвести отрезку чека
 			driverKKM.GetShortECRStatus( );
-			advancedMode				= driverKKM.ECRAdvancedMode;
-			// Если закончилась бумага и ее вставили, то подаем команду продолжить печать
-			IF ( advancedMode == 3 ) driverKKM.ContinuePrint( );
-			IF ( advancedMode == 1 OR advancedMode == 2 ) MessageBox( "В ККМ закончилась чековая лента.\nПожалуйста, заправьте новую чековую ленту.", ФР.ИМЯОБОРУДОВАНИЯ() );
+			advancedMode					= driverKKM.ECRAdvancedMode;
+			startTime						= TIME( );
+			
+			// Ждем 20 секунд или пока напечатается чек
+			WHILE ( TIME( ) - startTime < 20 AND advancedMode <> 0 )
+			{
+				WAIT(1000);
+				driverKKM.GetShortECRStatus( );
+				advancedMode				= driverKKM.ECRAdvancedMode;
+				// Если закончилась бумага и ее вставили, то подаем команду продолжить печать
+				IF ( advancedMode == 3 ) driverKKM.ContinuePrint( );
+				IF ( advancedMode == 1 OR advancedMode == 2 ) MessageBox( "В ККМ закончилась чековая лента.\nПожалуйста, заправьте новую чековую ленту.", ФР.ИМЯОБОРУДОВАНИЯ() );
+			}
+			
+			//обнулим суммы в драйвере, чтобы не распространялись на следующий чек
+			driverKKM.Summ1					= 0;
+			driverKKM.Summ2					= 0;
+			driverKKM.Summ3					= 0;
+			driverKKM.Summ4					= 0;
+			driverKKM.Summ5					= 0;
+			driverKKM.Summ6					= 0;
+			driverKKM.Summ7					= 0;
+			driverKKM.Summ8					= 0;
+			driverKKM.Summ9					= 0;
+			driverKKM.Summ10				= 0;
+			driverKKM.Summ11				= 0;
+			driverKKM.Summ12				= 0;
+			driverKKM.Summ13				= 0;
+			driverKKM.Summ14				= 0;
+			driverKKM.Summ15				= 0;
+			driverKKM.Summ16				= 0;
+			
+			//driverKKM.FeedDocument( );
+			
+			IF ( ПЕЧАТАТЬКОПИЮ )
+				driverKKM.RepeatDocument( );
 		}
-		
-		//обнулим суммы в драйвере, чтобы не распространялись на следующий чек
-		driverKKM.Summ1					= 0;
-		driverKKM.Summ2					= 0;
-		driverKKM.Summ3					= 0;
-		driverKKM.Summ4					= 0;
-		driverKKM.Summ5					= 0;
-		driverKKM.Summ6					= 0;
-		driverKKM.Summ7					= 0;
-		driverKKM.Summ8					= 0;
-		driverKKM.Summ9					= 0;
-		driverKKM.Summ10				= 0;
-		driverKKM.Summ11				= 0;
-		driverKKM.Summ12				= 0;
-		driverKKM.Summ13				= 0;
-		driverKKM.Summ14				= 0;
-		driverKKM.Summ15				= 0;
-		driverKKM.Summ16				= 0;
-		
-		//driverKKM.FeedDocument( );
-		
-		IF ( ПЕЧАТАТЬКОПИЮ )
-			driverKKM.RepeatDocument( );
 	}
 	ELSE IF ( КомандыЧека.operation == "Отрезать чек" )
 	{
@@ -499,7 +510,8 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 		_ОШИБКАВЫПОЛНЕНИЯ		= true;
 		УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
 
-		СООБЩЕНИЕ( ОписаниеОшибки, "Ошибка метода " + Операция + " " + КодОшибки );
+		СООБЩЕНИЕ( "Ошибка метода " + Операция + " " + КодОшибки + CHR(13) + CHR(10) +
+		"Описание ошибки: " + ОписаниеОшибки, ФР.КОДОБОРУДОВАНИЯ() );
 		RETURN false;
 	}
 	ПРОПУСТИТЬ( 1, "КомандыЧека" );

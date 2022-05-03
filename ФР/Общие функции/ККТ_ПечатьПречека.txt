@@ -1,0 +1,49 @@
+ИмяТаблицыСтрокЧека						= "##" + УНИКАЛЬНОЕИМЯ( );
+ЗАПРОС( "CREATE TABLE " + ИмяТаблицыСтрокЧека + " ( operation varchar( 20 ), password varchar( 50 ), mode int, checktype varchar( 20 ), kodn varchar( 20 ),
+													name varchar( 1024 ), quantity float, price float, summa float, _price_u float, department int, destination int, 
+													discounttype float, discountvalue float, closetype varchar( 20 ), echeque bit DEFAULT 0,
+													utm_code char( 10 ), egais_url varchar( 250 ), egais_sign varchar( 250 ), identity_column int IDENTITY( 1, 1 ), 
+													rsubject varchar( 20 ), rvariant varchar( 20 ), marktype char(10), markbc varchar(max), clientcode varchar(10), ffd_version varchar(10), kmcheckresult varchar(1000))" );
+
+ТипЧекаПечать = "ПРЕЧЕК";
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, name, quantity, price, destination, echeque )
+		 VALUES ( 'Открыть чек', '" + STDF( FROperatorProfile )+ "', 1, '" + ТипЧекаПечать + "', '', 0, 0, 0, 0 )" );
+
+СтрокаТипЧека = ФР.ФормированиеСтрокиДляНефискальнойПечати("ОПЕРАЦИЯ", "LR", "", "" + ТипЧекаПечать + "", "");
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, name, quantity, price, destination)
+		 VALUES ( 'Печать строки', '', '', 0, '" + СтрокаТипЧека + "', 0, 0, 0 )" );
+
+Сервис.РМККоманда( "ВЫБРАТЬ", "РЕГИСТРАЦИЯ" );
+Сервис.РМККоманда( "ПЕРЕЙТИВНАЧАЛО" );
+_КОНЕЦФАЙЛА			= false;
+РазделительСтрок	= CHR(13) + CHR(10);
+
+WHILE ( !_КОНЕЦФАЙЛА )
+{
+    Сервис.РМККоманда( "ПОЛУЧИТЬЗНАЧЕНИЕПОЛЯВСТРОКЕ", "nn");
+    Сервис.РМККоманда( "ПОЛУЧИТЬЗНАЧЕНИЕПОЛЯВСТРОКЕ", "cena");
+	Сервис.РМККоманда( "ПОЛУЧИТЬЗНАЧЕНИЕПОЛЯВСТРОКЕ", "kolp");
+	Сервис.РМККоманда( "ПОЛУЧИТЬЗНАЧЕНИЕПОЛЯВСТРОКЕ", "summa_wd");
+	Сервис.РМККоманда( "ПОЛУЧИТЬЗНАЧЕНИЕПОЛЯВСТРОКЕ", "name");
+	Сервис.РМККоманда( "ПОЛУЧИТЬЗНАЧЕНИЕПОЛЯВСТРОКЕ", "printgroup");
+    
+
+	ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, checktype, name, quantity, price, summa )
+		 VALUES ( 'Печать строки', '" + ТипЧекаПечать + "', '" + STDF( name ) + "', " + STR( kolp, 16, 3 ) + ", " + STR( cena, 16, 2 ) + ", " + STR( summa_wd, 16, 5 ) + ")" );
+		 
+		 
+	Сервис.РМККоманда( "ПРОПУСТИТЬ" );
+}
+
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, checktype, price )
+			VALUES ( 'Закрытие чека', '" + ТипЧекаПечать + "', " + STR( 0, 16, 2 ) + " )" );
+			
+			
+IF ( МОДЕЛЬОБОРУДОВАНИЯ == "АТОЛДТО10" )
+	РезультатПечатиПречека = ФР.АТОЛДТО10_ПечатьНефискальногоЧекаНаФР();
+ELSE IF ( МОДЕЛЬОБОРУДОВАНИЯ == "МЕРКУРИЙ" )
+	РезультатПечатиПречека = ФР.МЕРКУРИЙФР_ПечатьЧекаНаФР();
+ELSE IF ( МОДЕЛЬОБОРУДОВАНИЯ == "ШТРИХ" )
+	РезультатПечатиПречека = ФР.ШТРИХ_ПечатьЧекаНаФР();	
+	
+RETURN РезультатПечатиПречека;

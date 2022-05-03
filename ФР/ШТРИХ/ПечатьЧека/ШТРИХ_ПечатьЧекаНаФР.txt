@@ -123,7 +123,10 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 	{
 		IF ( КомандыЧека.checktype == "ПРЕЧЕК" )
 		{
-			_ERROR				= driverKKM.OpenNonFiscalDocument() <> 0;
+			//_ERROR				= driverKKM.OpenNonFiscalDocument() <> 0;
+			//команда не поддерживается в современных моделях ККТ
+			
+			_ERROR = false;
 		}
 		ELSE IF ( КомандыЧека.checktype >= 0 )
 		{
@@ -266,107 +269,119 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 	}
 	ELSE IF ( КомандыЧека.operation == "Регистрация" OR КомандыЧека.operation == "Возврат" )
 	{
-		//driverKKM.TEXTWRAP			= 1;
-		driverKKM.Summ1Enabled = 1;
-		driverKKM.TaxValueEnabled = 0;
-		driverKKM.CheckType	= ФР.ШТРИХ_ПолучитьВидОперациивЧеке( ТипЧека ); //Тип операции (1 - Приход, 2 - Возврат прихода, 3 - расход, 4 - возврат расхода)
-		
-		IF (TYPE ("_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ") == "U")
-			_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ = false;  //признак необходимости выводить букву [М] для товарной позиции в чеке средствами профиля. По умолчанию отключено (значение false),
-															//т.к. ожидается что буква [М] будет выводиться средствами прошивки
-		
-		НаименованиеТовараВЧеке = ЕСЛИ(_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ == true AND !ПУСТО( КомандыЧека.markbc ), "[М] ","") + ALLTRIM(КомандыЧека.name);
-									
-		driverKKM.StringForPrinting	= НаименованиеТовараВЧеке;
-		СуммаПозиции = КомандыЧека.summa - КомандыЧека.discountvalue;			
-		driverKKM.Price				= ROUND( СуммаПозиции/КомандыЧека.quantity , 2);
-		driverKKM.Quantity			= КомандыЧека.quantity;
-		driverKKM.Department		= КомандыЧека.department;
-		
-		IF ( _ПЕЧАТАТЬНАЛОГИ )
+		IF ( КомандыЧека.checktype == "ПРЕЧЕК" )
 		{
-			driverKKM.Tax1			= КомандыЧека.kodn;
-			//driverKKM.Tax2			= 0;
-			//driverKKM.Tax3			= 0;
-			//driverKKM.Tax4			= 0;
-		}
-		IF ( КомандыЧека.discountvalue <> 0 )
-		{
-			IF ( КомандыЧека.discountvalue > 0 )
-			{
-				driverKKM.DiscountValue = КомандыЧека.discountvalue;
-				driverKKM.ChargeValue = 0;
-			}
-			ELSE IF ( КомандыЧека.discountvalue < 0 )
-			{
-				driverKKM.DiscountValue = 0;
-				driverKKM.ChargeValue = -КомандыЧека.discountvalue;
-			}
-		}
-		
-		/*
-		IF (ВСЕГОКРЕДИТ > 0)
-		{
-			IF (ВСЕГОКРЕДИТ < СуммаЧека)
-			{
-				driverKKM.PaymentTypeSign	= 5; //частичный расчет и кредит
-			}
-			ELSE
-			{
-				driverKKM.PaymentTypeSign	= 6; //передача в кредит
-			}
+			driverKKM.StringForPrinting	= ALLTRIM(КомандыЧека.name);
+			driverKKM.PrintString( );
+			
+			СтрокаКоличествоСумма = ФР.ФормированиеСтрокиДляНефискальнойПечати("" + ALLTRIM( STR( КомандыЧека.price, 16, 2 ) + " * " + КомандыЧека.quantity + " = " + STR( КомандыЧека.summa, 16, 2 ) ) + "", "R", "", "", "" );
+			driverKKM.StringForPrinting	= СтрокаКоличествоСумма;
+			driverKKM.PrintString( );
 		}
 		ELSE
 		{
-			driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;
-		}
-		*/
-		driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;		
-		driverKKM.PaymentItemSign = КомандыЧека.rsubject;				
-		
-		driverKKM.Summ1 = СуммаПозиции;
-		
-		//IF ( КомандыЧека.discountvalue <> 0 )
-		//	driverKKM.FNDiscountOperation();
-		//ELSE
-			driverKKM.FNOperation();
+			//driverKKM.TEXTWRAP			= 1;
+			driverKKM.Summ1Enabled = 1;
+			driverKKM.TaxValueEnabled = 0;
+			driverKKM.CheckType	= ФР.ШТРИХ_ПолучитьВидОперациивЧеке( ТипЧека ); //Тип операции (1 - Приход, 2 - Возврат прихода, 3 - расход, 4 - возврат расхода)
 			
-		//Маркировка
-		IF (TYPE ("_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162") == "U")
-			_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 = false; //признак необходимости использовать старый формат тэга 1162 для чеков. По умолчанию равен false, т.е. используется новый формат
+			IF (TYPE ("_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ") == "U")
+				_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ = false;  //признак необходимости выводить букву [М] для товарной позиции в чеке средствами профиля. По умолчанию отключено (значение false),
+																//т.к. ожидается что буква [М] будет выводиться средствами прошивки
 			
-		IF ( !ПУСТО( КомандыЧека.markbc ) )
-		{
-			ДлинаКодаМаркировки = 0;
-			gtin = "";
-			serial = "";
-			new_marktype = 17485; //для табака, обуви и прочих, кроме шуб
-			marktype = КомандыЧека.marktype;
-			markbc = КомандыЧека.markbc;
-			ДлинаКодаМаркировки = ПолучитьДлиннуШтрихкодаМаркировки(markbc, marktype, gtin, serial);
+			НаименованиеТовараВЧеке = ЕСЛИ(_ВЫВОДИТЬПРИЗНАКМАРКИРОВКИВБУМАЖНОМЧЕКЕ == true AND !ПУСТО( КомандыЧека.markbc ), "[М] ","") + ALLTRIM(КомандыЧека.name);
+										
+			driverKKM.StringForPrinting	= НаименованиеТовараВЧеке;
+			СуммаПозиции = КомандыЧека.summa - КомандыЧека.discountvalue;			
+			driverKKM.Price				= ROUND( СуммаПозиции/КомандыЧека.quantity , 2);
+			driverKKM.Quantity			= КомандыЧека.quantity;
+			driverKKM.Department		= КомандыЧека.department;
 			
-			IF ( VAL( marktype ) == 2 AND _ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 == true ) //меховые изделия
-				new_marktype = 21062;
-			
-			IF (TYPE ("_ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ") == "U")
-				_ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ = true; //признак необходимости передавать весь код маркировки в составе реквизитов чека
-			
-			IF ( _ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ == false AND ДлинаКодаМаркировки > 0	)
-				markbc = LEFT( КомандыЧека.markbc, ДлинаКодаМаркировки );
-							
-			IF (_СПОСОБФОРМИРОВАНИЯТЭГА1162 == 2)
+			IF ( _ПЕЧАТАТЬНАЛОГИ )
 			{
-				driverKKM.BarCode = ALLTRIM( markbc );
-				driverKKM.FNSendItemBarcode();
+				driverKKM.Tax1			= КомандыЧека.kodn;
+				//driverKKM.Tax2			= 0;
+				//driverKKM.Tax3			= 0;
+				//driverKKM.Tax4			= 0;
+			}
+			IF ( КомандыЧека.discountvalue <> 0 )
+			{
+				IF ( КомандыЧека.discountvalue > 0 )
+				{
+					driverKKM.DiscountValue = КомандыЧека.discountvalue;
+					driverKKM.ChargeValue = 0;
+				}
+				ELSE IF ( КомандыЧека.discountvalue < 0 )
+				{
+					driverKKM.DiscountValue = 0;
+					driverKKM.ChargeValue = -КомандыЧека.discountvalue;
+				}
+			}
+			
+			/*
+			IF (ВСЕГОКРЕДИТ > 0)
+			{
+				IF (ВСЕГОКРЕДИТ < СуммаЧека)
+				{
+					driverKKM.PaymentTypeSign	= 5; //частичный расчет и кредит
+				}
+				ELSE
+				{
+					driverKKM.PaymentTypeSign	= 6; //передача в кредит
+				}
 			}
 			ELSE
 			{
-				IF (!ПУСТО(gtin) AND !ПУСТО(serial))
+				driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;
+			}
+			*/
+			driverKKM.PaymentTypeSign		= КомандыЧека.rvariant;		
+			driverKKM.PaymentItemSign = КомандыЧека.rsubject;				
+			
+			driverKKM.Summ1 = СуммаПозиции;
+			
+			//IF ( КомандыЧека.discountvalue <> 0 )
+			//	driverKKM.FNDiscountOperation();
+			//ELSE
+				driverKKM.FNOperation();
+				
+			//Маркировка
+			IF (TYPE ("_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162") == "U")
+				_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 = false; //признак необходимости использовать старый формат тэга 1162 для чеков. По умолчанию равен false, т.е. используется новый формат
+				
+			IF ( !ПУСТО( КомандыЧека.markbc ) )
+			{
+				ДлинаКодаМаркировки = 0;
+				gtin = "";
+				serial = "";
+				new_marktype = 17485; //для табака, обуви и прочих, кроме шуб
+				marktype = КомандыЧека.marktype;
+				markbc = КомандыЧека.markbc;
+				ДлинаКодаМаркировки = ПолучитьДлиннуШтрихкодаМаркировки(markbc, marktype, gtin, serial);
+				
+				IF ( VAL( marktype ) == 2 AND _ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 == true ) //меховые изделия
+					new_marktype = 21062;
+				
+				IF (TYPE ("_ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ") == "U")
+					_ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ = true; //признак необходимости передавать весь код маркировки в составе реквизитов чека
+				
+				IF ( _ККТПЕРЕДАВАТЬПОЛНЫЙКОДМАРКИРОВКИ == false AND ДлинаКодаМаркировки > 0	)
+					markbc = LEFT( КомандыЧека.markbc, ДлинаКодаМаркировки );
+								
+				IF (_СПОСОБФОРМИРОВАНИЯТЭГА1162 == 2)
 				{
-					driverKKM.MarkingType = ЕСЛИ(_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 == true, VAL(marktype), new_marktype);
-					driverKKM.SerialNumber = serial;
-					driverKKM.GTIN = gtin;
-					driverKKM.FNSendItemCodeData();
+					driverKKM.BarCode = ALLTRIM( markbc );
+					driverKKM.FNSendItemBarcode();
+				}
+				ELSE
+				{
+					IF (!ПУСТО(gtin) AND !ПУСТО(serial))
+					{
+						driverKKM.MarkingType = ЕСЛИ(_ИСПОЛЬЗОВАТЬСТАРЫЙФОРМАТТЭГА1162 == true, VAL(marktype), new_marktype);
+						driverKKM.SerialNumber = serial;
+						driverKKM.GTIN = gtin;
+						driverKKM.FNSendItemCodeData();
+					}
 				}
 			}
 		}
@@ -410,7 +425,11 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 	{
 		IF ( КомандыЧека.checktype == "ПРЕЧЕК" )
 		{
-			_ERROR				= driverKKM.CloseNonFiscalDocument() <> 0;
+			//_ERROR				= driverKKM.CloseNonFiscalDocument() <> 0;
+			//команда не поддерживается в современных моделях ККТ
+			
+			//завершаем документ
+			_ERROR = driverKKM.FinishDocument();
 		}
 		ELSE
 		{
@@ -511,7 +530,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 		УДАЛИТЬКОНТЕКСТ( "КомандыЧека" );
 
 		СООБЩЕНИЕ( "Ошибка метода " + Операция + " " + КодОшибки + CHR(13) + CHR(10) +
-		"Описание ошибки: " + ОписаниеОшибки, ФР.КОДОБОРУДОВАНИЯ() );
+		"Описание ошибки: " + ОписаниеОшибки, ФР.ИМЯОБОРУДОВАНИЯ() );
 		RETURN false;
 	}
 	ПРОПУСТИТЬ( 1, "КомандыЧека" );

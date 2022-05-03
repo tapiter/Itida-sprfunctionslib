@@ -9,7 +9,7 @@
 ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, name, quantity, price, destination, echeque )
 		 VALUES ( 'Открыть чек', '" + STDF( FROperatorProfile )+ "', 1, '" + ТипЧекаПечать + "', '', 0, 0, 0, 0 )" );
 
-СтрокаТипЧека = ФР.ФормированиеСтрокиДляНефискальнойПечати("ОПЕРАЦИЯ", "LR", "", "" + ТипЧекаПечать + "", "");
+СтрокаТипЧека = ФР.ФормированиеСтрокиДляНефискальнойПечати("" + ТипЧекаПечать + "", "C", "", "", "");
 ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, password, mode, checktype, name, quantity, price, destination)
 		 VALUES ( 'Печать строки', '', '', 0, '" + СтрокаТипЧека + "', 0, 0, 0 )" );
 
@@ -29,11 +29,18 @@ WHILE ( !_КОНЕЦФАЙЛА )
     
 
 	ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, checktype, name, quantity, price, summa )
-		 VALUES ( 'Печать строки', '" + ТипЧекаПечать + "', '" + STDF( name ) + "', " + STR( kolp, 16, 3 ) + ", " + STR( cena, 16, 2 ) + ", " + STR( summa_wd, 16, 5 ) + ")" );
+		 VALUES ( 'Регистрация', '" + ТипЧекаПечать + "', '" + STDF( name ) + "', " + STR( kolp, 16, 3 ) + ", " + STR( cena, 16, 2 ) + ", " + STR( summa_wd, 16, 5 ) + ")" );
 		 
+	ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, checktype, name )
+		 VALUES ( 'Печать строки', '" + ТипЧекаПечать + "', '" + REPLICATE("-", 32) + "')" );	 
 		 
 	Сервис.РМККоманда( "ПРОПУСТИТЬ" );
 }
+
+/*
+ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, checktype, name )
+		 VALUES ( 'Печать строки', '" + ТипЧекаПечать + "', '" + REPLICATE("-", 32) + "')" );	
+*/
 
 ЗАПРОС( "INSERT INTO " + ИмяТаблицыСтрокЧека + " ( operation, checktype, price )
 			VALUES ( 'Закрытие чека', '" + ТипЧекаПечать + "', " + STR( 0, 16, 2 ) + " )" );

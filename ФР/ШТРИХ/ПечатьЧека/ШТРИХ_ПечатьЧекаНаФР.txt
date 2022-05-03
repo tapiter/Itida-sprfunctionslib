@@ -130,6 +130,24 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 		}
 		ELSE IF ( КомандыЧека.checktype >= 0 )
 		{
+			//обнулим суммы оплат
+			driverKKM.Summ1					= 0;
+			driverKKM.Summ2					= 0;
+			driverKKM.Summ3					= 0;
+			driverKKM.Summ4					= 0;
+			driverKKM.Summ5					= 0;
+			driverKKM.Summ6					= 0;
+			driverKKM.Summ7					= 0;
+			driverKKM.Summ8					= 0;
+			driverKKM.Summ9					= 0;
+			driverKKM.Summ10				= 0;
+			driverKKM.Summ11				= 0;
+			driverKKM.Summ12				= 0;
+			driverKKM.Summ13				= 0;
+			driverKKM.Summ14				= 0;
+			driverKKM.Summ15				= 0;
+			driverKKM.Summ16				= 0;
+			
 			//запрограммируем возможность использования скидок
 			//в ФФД 1.05 на ККМ Штрих скидки носят лишь информационный характер и работа возможно только при правильно настроенной 17й таблице
 			Значение = 2;
@@ -389,37 +407,26 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 	}							
 	ELSE IF ( КомандыЧека.operation == "Оплата" )
 	{
-		IF (КомандыЧека.closetype == 1) //наличные
+		IF ( VAL( КомандыЧека.closetype ) == 1) //наличные
 		{
 			driverKKM.Summ1		= ROUND( КомандыЧека.price, 2 );
 		}
-		ELSE IF	(КомандыЧека.closetype == 2) //банк. карта
+		ELSE IF	( VAL( КомандыЧека.closetype ) == 2) //банк. карта
 		{
 			driverKKM.Summ2		= ROUND( КомандыЧека.price, 2 );
 		}
-		ELSE IF	(КомандыЧека.closetype == 14) //сертификаты (предоплата/аванс)
+		ELSE IF	( VAL( КомандыЧека.closetype ) == 14) //сертификаты (предоплата/аванс)
 		{
 			driverKKM.Summ14	= ROUND( КомандыЧека.price, 2 );
 		}
-		ELSE IF	(КомандыЧека.closetype == 15) //последующая оплата (кредит)
+		ELSE IF	( VAL( КомандыЧека.closetype ) == 15) //последующая оплата (кредит)
 		{
 			driverKKM.Summ15	= ROUND( КомандыЧека.price, 2 );
 		}
-		ELSE IF	(КомандыЧека.closetype == 16) //встречное предоставление (прочая)
+		ELSE IF	( VAL( КомандыЧека.closetype ) == 16) //встречное предоставление (прочая)
 		{
 			driverKKM.Summ16	= ROUND( КомандыЧека.price, 2 );
-		}
-		driverKKM.Summ3					= 0;
-		driverKKM.Summ4					= 0;
-		driverKKM.Summ5					= 0;
-		driverKKM.Summ6					= 0;
-		driverKKM.Summ7					= 0;
-		driverKKM.Summ8					= 0;
-		driverKKM.Summ9					= 0;
-		driverKKM.Summ10				= 0;
-		driverKKM.Summ11				= 0;
-		driverKKM.Summ12				= 0;
-		driverKKM.Summ13				= 0;			
+		}					
 	}	
 	ELSE IF ( КомандыЧека.operation == "Закрытие чека" )
 	{

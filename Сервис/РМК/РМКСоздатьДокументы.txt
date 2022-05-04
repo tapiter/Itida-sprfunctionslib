@@ -50,13 +50,14 @@ try
 																				 date >= list.date AND fr_code= list.fr_code )", "" ) );
 	IF ( _ERRORCODE != 0 ) throw;
 			 
-	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT list.fr_code, list.ndok, list.date, list.firm, list.cur, ISNULL( eq.sklad, list.sklad ) AS sklad, list.empl, 
-									CASE WHEN list.doccode IN ( '008', '046' ) THEN SPACE( 7 ) ELSE list.partner END AS client, dbo.fn_chartoint( list.checktype ) AS checktype, 
-									list.doccode, list.total, list.cash, list.noncash + list.credit + list.sert AS cashless, list.bonus, list.f_separatedoc,
-									list.shiftnumber, list.cardnumber, list.identity_column, list.kskod,
+	IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT list.fr_code, list.ndok, list.date, list.firm, list.cur, CASE WHEN ISNULL( eq.sklad, '' ) = '' THEN list.sklad ELSE eq.sklad END AS sklad, list.empl, 
+									CASE WHEN list.doccode IN ( '008', '046' ) AND NOT list.checktype IN ( 11, 12 ) THEN SPACE( 7 ) ELSE list.partner END AS client, 
+									dbo.fn_chartoint( list.checktype ) AS checktype, list.doccode, list.total, list.cash, list.noncash + list.credit + list.sert AS cashless, 
+									list.bonus, list.f_separatedoc, list.shiftnumber, list.cardnumber, list.identity_column, list.kskod,
 									CASE WHEN list.noncash <> 0 THEN '002' ELSE CASE WHEN list.credit <> 0 THEN '003' ELSE 
 									CASE WHEN list.sert <> 0 THEN '004' ELSE CASE WHEN list.bonus <> 0 THEN '005' ELSE '000' END END END END AS paytype, 
-									CASE WHEN dbo.fn_chartoint( list.checktype ) = 1 THEN '001' ELSE '000' END AS type
+									CASE dbo.fn_chartoint( list.checktype ) WHEN 1 THEN '001' WHEN 11 THEN '011' WHEN 2 THEN '008' WHEN 6 THEN '006'
+																			WHEN 3 THEN '009' WHEN 12 THEN '012' ELSE '000' END AS type
 							 FROM chequelist list
 							 INNER JOIN " + ТаблицаЧеков + " temp ON list.identity_column = temp.chequelist_ic
 							 LEFT OUTER JOIN sprequipment eq ON eq.code = list.fr_code
@@ -72,7 +73,10 @@ try
 	m_client 				= "";
 	m_frcode 				= "";
 	m_kskod 				= "";
-	m_mainsklad 			= ЗАПРОС( "SELECT sklad FROM specrmkschem WHERE code= '" + РМКСХЕМА + "' AND element_type = 1 AND rmk= '" + РМККОД + "'" );
+	m_mainsklad 			= ЛЕВСИМВ( СЖАТЬПРОБЕЛЫ( ЗАПРОС( "SELECT skladrmd FROM specrmkschem WHERE code= '" + РМКСХЕМА + "' AND element_type = 1 AND rmk= '" + РМККОД + "'" ) ), 3 );
+	IF ( ПУСТО( m_mainsklad ) )
+		m_mainsklad 		= ЗАПРОС( "SELECT sklad FROM specrmkschem WHERE code= '" + РМКСХЕМА + "' AND element_type = 1 AND rmk= '" + РМККОД + "'" );
+		
 	m_rmkname				= ЗАПРОС( "SELECT rmkname FROM specrmkschem WHERE code= '" + РМКСХЕМА + "' AND element_type = 1 AND rmk= '" + РМККОД + "'" );
 	
 	m_docic					= 0;
@@ -89,7 +93,7 @@ try
 		ИНДИКАТОР( СтрокОбработано, "Обработано строк" );
 		 
 		// Не чеки продажи/возврата/покупки/возврата покупки пропускаем
-		IF ( Чеки.checktype != 0 AND Чеки.checktype != 1 AND Чеки.checktype != 2 AND Чеки.checktype != 3 AND Чеки.checktype != 6 )
+		IF ( !ВСПИСКЕ( Чеки.checktype, 0, 1, 2, 3, 6, 11, 12 ) )
 		{
 			//------- Если нашли чек закрытия смены, и тип даты - закрытие смены, то ставим дату документов из этой смены равной дате чека закрытия
 			IF ( Чеки.checktype == 10 AND ИСТОЧНИКДАТЫ == 2 )
@@ -115,10 +119,24 @@ try
 			IF ( !ПУСТО( m_client ) )
 				m_doccode	= ЕСЛИ( Чеки.checktype == 0, "002", ЕСЛИ( Чеки.checktype == 1, "006", 
 							  ЕСЛИ( Чеки.checktype == 2, "001", ЕСЛИ( Чеки.checktype == 11 || Чеки.checktype == 12, "014", "055" ) ) ) );
+				
 			ELSE
 				m_doccode	= ЕСЛИ( Чеки.checktype == 0 || Чеки.checktype == 1 || Чеки.checktype == 11 || Чеки.checktype == 12, "008", 
 							  ЕСЛИ( Чеки.checktype == 2, "001", "055" ) );
 		}
+		
+		// Если указан контрагент, то для АВАНСА и ПРЕДОПЛАТЫ ПОСТАВЩИКУ дополнительно создаем документ 014
+		IF ( !ПУСТО( m_client ) && ( Чеки.checktype == 11 || Чеки.checktype == 12 ) && m_doccode != "014" ) 
+		{
+			ЗАПРОС( "INSERT INTO " + ТаблицаДокументов + " ( code, id, shiftnumber, date, firm, sklad, client, fr_code, kskod ) 
+					 VALUES ( '014', " + Чеки.identity_column + ", " + Чеки.shiftnumber + ", '" + TTOC( Чеки.date ) + "', '" + m_firm + "', 
+							  '" + m_sklad + "', '" + m_client + "', '" + Чеки.fr_code + "', '" + m_kskod + "' );" );
+			docic014		= ЗАПРОС( "SELECT MAX( identity_column ) FROM " + ТаблицаДокументов );
+			ЗАПРОС( "INSERT INTO " + ТаблицаСтрок + " ( spec_ic, docic, date, type, paytype, checktype ) 
+					 SELECT identity_column, " + docic014 + ", '" + m_date + "', '" + Чеки.type + "', '" + Чеки.paytype + "', '" + Чеки.checktype + "'
+					 FROM chequespec WHERE ic= " + Чеки.identity_column );
+		}
+							  
 		// Если нужен отдельный документ, то добавляем запись в список документов
 		IF ( Чеки.f_separatedoc ) 
 		{
@@ -131,28 +149,20 @@ try
 		}
 		// Достьаем состав чека
 		IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT spec.nn, spec.s_code, spec.nnname, spec.kolp, spec.cena, spec.cena_sale, spec.summa, spec.summa_sale, spec.summa_wd, spec.ed,
-										spec.koef_e, spec.koef_c, spec.identity_column AS spec_ic, modifiers
+										spec.koef_e, spec.koef_c, spec.identity_column AS spec_ic, spec.modifiers, g.sklad, g.firm
 								 FROM chequespec spec 
+								 LEFT OUTER JOIN sprres sprres ON spec.nn = sprres.code
+								 LEFT OUTER JOIN sprres_g g ON sprres.group_ = g.code												
 								 WHERE spec.ic = " + Чеки.identity_column + "
 								 ORDER BY spec.identity_column", "Строки" ) ) throw;
 		WHILE ( !КОНЕЦКОНТЕКСТА( "Строки" ) )
 		{
-			_ERRORCODE			= 0;
-			КодРесурса			= ЕСЛИ( ПУСТО( Строки.nn ), Строки.s_code, Строки.nn );
-			Наименование		= "<товар не указан>";
-			//------ Если получилось установить код товара, то определяем остальные его параметры 
-			IF ( !ПУСТО( КодРесурса ) )
-			{
-				//------ Достаем информацию о группе товара/услуги
-				IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT ISNULL( d.sklad, '' ) AS sklad, ISNULL( d.firm, '' ) AS firm			
-										 FROM sprres s																				
-										 LEFT OUTER JOIN sprres_g d ON s.group_ = d.code												
-										 WHERE s.code = '" + КодРесурса + "'", "ТОВАРИНФО" ) ) throw;
-					
-				m_sklad 	= IIF( EMPTY( ТОВАРИНФО.sklad ) OR !БРАТЬСКЛАДИЗГРУППЫ, m_sklad, ТОВАРИНФО.sklad );
-				m_firm		= IIF( EMPTY( ТОВАРИНФО.firm ) OR !БРАТЬФИРМУИЗГРУППЫ, m_firm, ТОВАРИНФО.firm );
-				УДАЛИТЬКОНТЕКСТ( "ТОВАРИНФО" );
-			}
+			_ERRORCODE		= 0;
+			КодРесурса		= ЕСЛИ( ПУСТО( Строки.nn ), Строки.s_code, Строки.nn );
+			m_sklad 		= IIF( !ПУСТО( Строки.sklad ) && БРАТЬСКЛАДИЗГРУППЫ && !Чеки.f_separatedoc, Строки.sklad, СкладЧека );
+			m_firm			= IIF( !ПУСТО( Строки.firm ) &&  БРАТЬФИРМУИЗГРУППЫ && !Чеки.f_separatedoc, Строки.firm, ФирмаЧека );
+			// Если не отдельный документ, определяем ИД документа по складу фирме и т.п.
+			IF  ( !Чеки.f_separatedoc ) m_docic= 0;
 			
 			// Определяем ИД документа, либо добавляем новый
 			IF ( m_docic == 0 )

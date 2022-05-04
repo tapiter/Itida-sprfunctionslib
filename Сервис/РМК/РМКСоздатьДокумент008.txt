@@ -76,17 +76,17 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "Строки" ) )
 	IF ( !ДОБАВИТЬКОНТЕКСТ( "INSERT INTO spec008 ( ic, type, paytype, nn, s_code, ed, kolp, koef_e, koef_c, cena, summa, cenasale, summasale, kodn, nnname )
 							 SELECT " + ИДНакладной + ", temp.type, temp.paytype, CASE WHEN temp.checktype IN ( 11,12 ) THEN '' ELSE spec.nn END, 
 									CASE WHEN temp.checktype IN ( 11,12 ) THEN '' ELSE spec.s_code END, spec.ed, 
-								    CASE WHEN temp.type = '000' THEN SUM( spec.kolp ) ELSE -SUM( spec.kolp ) END, spec.koef_e, spec.koef_c, " + ВыражениеЦена + ", 
-									CASE WHEN temp.type = '000' THEN SUM( spec.summa ) ELSE -SUM( spec.summa ) END, " + ВыражениеЦенаП + ", 
-									CASE WHEN temp.type = '000' THEN SUM( spec.summa_wd ) ELSE -SUM( spec.summa_wd ) END, ISNULL( sprres.kodn, '' ), 
-									LEFT( CASE WHEN temp.checktype IN ( 11,12 ) AND ISNULL( sprres.code, '' ) <> '' THEN 'Аванс за' ELSE '' END + 
+								    CASE WHEN temp.type IN ( '000', '006', '009', '011' ) THEN SUM( spec.kolp ) ELSE -SUM( spec.kolp ) END, spec.koef_e, spec.koef_c, " + ВыражениеЦена + ", 
+									CASE WHEN temp.type IN ( '000', '006', '009', '011' ) THEN SUM( spec.summa ) ELSE -SUM( spec.summa ) END, " + ВыражениеЦенаП + ", 
+									CASE WHEN temp.type IN ( '000', '006', '009', '011' ) THEN SUM( spec.summa_wd ) ELSE -SUM( spec.summa_wd ) END, ISNULL( sprres.kodn, '' ), 
+									LEFT( CASE WHEN temp.checktype IN ( 11,12 ) AND ISNULL( sprres.code, '' ) <> '' THEN 'Аванс за ' ELSE '' END + 
 										  CASE WHEN sprres.code IS NULL THEN spec.nnname ELSE dbo.fn_fullnnname( sprres.code ) END, 250 )
 							 FROM chequespec spec
 							 INNER JOIN " + ТаблицаСтрок + " temp ON temp.spec_ic = spec.identity_column
 							 LEFT OUTER JOIN sprres sprres ON (spec.nn <> '' AND spec.nn = sprres.code) OR (spec.s_code <> '' AND spec.s_code = sprres.code)
 							 WHERE temp.docic= " + ИДСПИСКА + " AND temp.spec_ic IN ( " + ИДСтрок + " )
 							 GROUP BY temp.type, temp.paytype, spec.nn, spec.s_code, spec.ed, spec.koef_e, spec.koef_c, 
-									  ROUND( spec.cena_wd, 2 ), ISNULL( sprres.kodn, '' ), spec.nnname, sprres.code", "Спецификация" ) ) RETURN -1;
+									  ROUND( spec.cena_wd, 2 ), ISNULL( sprres.kodn, '' ), spec.nnname, sprres.code, temp.checktype", "Спецификация" ) ) RETURN -1;
 	ИДСтроки	= Спецификация.ident;
 	УДАЛИТЬКОНТЕКСТ( "Спецификация" );
 

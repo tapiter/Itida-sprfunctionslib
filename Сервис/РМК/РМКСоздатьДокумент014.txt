@@ -3,14 +3,12 @@ _ERRORCODE				= 0;
 
 _ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
 Договор					= "";
-СкладСписания			= СкладДокумента;
 РСДокумента				= ЗАПРОС( "SELECT rs FROM sprrsfirm WHERE firm= '" + ФирмаДокумента + "' AND fmain= 1");
 АвторДокумента			= ЗАПРОС( "SELECT SUSER_SNAME( )" );
 ВалютаДокумента			= ЗАПРОС( "SELECT value FROM param WHERE param='cur'" );
+ФилиалДокумента			= ЗАПРОС( "SELECT value FROM param WHERE param = 'branchcode'" );
 КурсДокумента			= 1;
 НомерДокумента			= "";
-ФилиалДокумента			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code= '" + СкладДокумента + "'" );
-КатегорияЦены			= ЗАПРОС( "SELECT clev FROM sprskl WHERE code= '" + СкладДокумента + "'" );
 
 IF ( _ERRORCODE != 0 ) RETURN -1;
 // Формируем список учетов для нового документа
@@ -29,7 +27,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) )
 																	
 // Считаем сумму документа
 // Заполняем спецификацию нового документа. Для этого делаем выборку сгруппированных строк
-СуммаДокумента			= ЗАПРОС( "SELECT SUM( spec.summa_wd ) AS summa
+СуммаДокумента			= ЗАПРОС( "SELECT SUM( CASE WHEN temp.type IN ( '000', '006', '009', '011' ) THEN spec.summa_wd ELSE -spec.summa_wd END ) AS summa
 								   FROM chequespec spec
 								   INNER JOIN " + ТаблицаСтрок + " temp ON temp.spec_ic = spec.identity_column
 								   WHERE temp.docic= " + ИДСПИСКА );

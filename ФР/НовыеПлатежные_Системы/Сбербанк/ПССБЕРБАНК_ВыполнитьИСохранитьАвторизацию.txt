@@ -53,8 +53,10 @@ IF ( ОтветПС == 0 )
 	НОМЕРССЫЛКИ = DriverPayCard.GParamString("RRN");
 	КОЛИЧЕСТВОСЛИПОВ = ЗАПРОС("SELECT slipcount FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'");
 
-	ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, TransType, AuthCode, OperationType, Sum, CardNumber, SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, slip, slipcount, fr_code )
-			 VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
+	try
+	{
+		ЗАПРОС( "INSERT INTO paycardtrans ( equipment, owner, TransType, AuthCode, OperationType, Sum, CardNumber, SlipNumber, TransDate, TransTime, MsgNumber, TerminalID, ReferenceNumber, slip, slipcount, fr_code )
+				VALUES ( '"	+ КОДОБОРУДОВАНИЯ + "', '" 
 							+ _UNCONFIRMEDID + "', '" 
 							+ ТипЧека + "', '"
 							+ DriverPayCard.GParamString("AuthCode") + "', " 							 
@@ -71,7 +73,22 @@ IF ( ОтветПС == 0 )
 							+ КОЛИЧЕСТВОСЛИПОВ + "', '" 
 							+ ФРКОДОБОРУДОВАНИЯ + 
 							"' )" );
+	}
+	catch()
+	{
+		СООБЩЕНИЕ("Ошибка записи данных сверки итогов в базу", ФР.ПСИМЯОБОРУДОВАНИЯ());
+	}
 	
+	//печатаем сверку
+	IF ( Сервис.РМККоманда( "ОБОРУДОВАНИЕ", "ФР" ) )
+	{
+		IF ( ATC(_ОБОРУДОВАНИЕ, ФРКОДОБОРУДОВАНИЯ ) > 0 )
+			КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ = ФРКОДОБОРУДОВАНИЯ;
+		ELSE
+			КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ = ЛЕВСИМВ( _ОБОРУДОВАНИЕ, 3 );
+		
+		Сервис.РМККоманда( "ВЫПОЛНИТЬКОМАНДУПРОФИЛЯ", КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ + "|116|ЭтоБанковскийСлип=true" );
+	}
 }		
 ELSE
 {

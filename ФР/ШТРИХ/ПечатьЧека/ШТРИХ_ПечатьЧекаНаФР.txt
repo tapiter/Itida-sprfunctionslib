@@ -521,8 +521,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "КомандыЧека" ) )
 			driverKKM.PrintString( );
 			n++;
 		}
-		driverKKM.CutType = true; //TRUE – неполная отрезка, FALSE – полная отрезка.
-		driverKKM.CutCheck();
+		ФР.ШТРИХ_ОтрезатьЧек();
 	}
 
 	IF ( driverKKM.ResultCode <> 0 )

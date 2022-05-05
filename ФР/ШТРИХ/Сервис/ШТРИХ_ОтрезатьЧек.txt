@@ -1,0 +1,9 @@
+//ожидание окончания печати до 10 секунд
+driverKKM.WaitForPrintingDelay = 10000;
+driverKKM.WaitForPrinting();
+//промотка одной строки после отрезки
+driverKKM.FeedLineCount = 1;
+driverKKM.FeedAfterCut = true;
+driverKKM.cutType	= false;
+//отрезка чека
+driverKKM.CutCheck( );

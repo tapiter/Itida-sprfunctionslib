@@ -36,9 +36,8 @@ ELSE
 
 //открываем смену
 driverKKM.OpenSession();
-//отрезка
-driverKKM.cutType	= true;
-driverKKM.CutCheck( );
+
+ФР.ШТРИХ_ОтрезатьЧек();
 
 IF ( !ФР.ШТРИХ_ЗакрытьФРСПроверкойНаОшибки( "Открытие смены" ) )
 	RETURN false;

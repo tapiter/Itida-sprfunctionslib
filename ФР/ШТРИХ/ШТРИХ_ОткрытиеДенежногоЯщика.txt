@@ -6,4 +6,4 @@ driverKKM.Password		= FROperatorProfile;
 driverKKM.DrawerNumber	= 0;
 driverKKM.OpenDrawer( );
 
-RETURN ФР.ШТРИХ_ЗакрытьФРСПроверкойНаОшибки( "Открытие денежного ящика" );
+RETURN ФР.ШТРИХ_ЗакрытьФРСПроверкойНаОшибки( КОДОБОРУДОВАНИЯ, "Открытие денежного ящика" );

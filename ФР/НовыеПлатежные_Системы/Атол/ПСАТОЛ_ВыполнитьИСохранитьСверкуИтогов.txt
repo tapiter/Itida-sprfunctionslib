@@ -12,11 +12,10 @@ IF ( TYPE("DriverPayCard") <> "O")
 	Сообщение("Не удалось создать объект драйвера платежных систем." + CHR(13) + "Проверьте корректность установки драйвера.", ФР.ИМЯОБОРУДОВАНИЯ());
 	RETURN false;
 }
-_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ = VAL(ЗАПРОС("SELECT CASE WHEN EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE (TABLE_NAME = N'sprequipment') AND (COLUMN_NAME = N'psnumber')) THEN 1 ELSE 0 END"));
-IF (_ЕСТЬНОМЕРЛУПЛАТЕЖНОЙСИСТЕМЫ == 1)
-	НомерЛУПлатежнойСистемы = VAL( ЗАПРОС("SELECT psnumber FROM sprequipment WHERE code = '" + ALLTRIM(КОДОБОРУДОВАНИЯ) + "'") );
-	
-DriverPayCard.CurrentDeviceNumber = НомерЛУПлатежнойСистемы;
+
+DriverPayCard.CurrentDeviceNumber = НОМЕРУСТРОЙСТВА;
+
+//сверка итогов
 DriverPayCard.ReportType = 0;
 IF ( !ФР.ПСАТОЛ_ДобавитьДанныеВОтчет() )
 {
@@ -62,7 +61,7 @@ ELSE
 			КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ = ЛЕВСИМВ( _ОБОРУДОВАНИЕ, 3 );
 		
 		ТипОтчета = -1;
-		КОЛИЧЕСТВОСЛИПОВ = ЗАПРОС("SELECT slipcount FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'");
+		КОЛИЧЕСТВОСЛИПОВ = 1;
 		Сервис.РМККоманда( "ВЫПОЛНИТЬКОМАНДУПРОФИЛЯ", КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ + "|116|ЭтоБанковскийСлип=true" );
 	}
 	

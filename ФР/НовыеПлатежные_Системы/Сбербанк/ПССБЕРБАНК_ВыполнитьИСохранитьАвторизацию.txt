@@ -1,6 +1,7 @@
 IF ( ТипЧека == 0 OR ТипЧека == 6 )
 {
-	ОтветПС = DriverPayCard.NFun(4000);
+	НомерОперации = 4000;
+	ОтветПС = DriverPayCard.NFun(НомерОперации);
 }
 ELSE IF ( ТипЧека == 1 )
 {
@@ -14,7 +15,9 @@ ELSE IF ( ТипЧека == 1 )
 		ОтветПС = DriverPayCard.NFun(4002);
 	}
 	*/
-	ОтветПС = DriverPayCard.NFun(4002);
+		
+	НомерОперации = 4002;
+	ОтветПС = DriverPayCard.NFun(НомерОперации);
 }
 ELSE
 {
@@ -60,8 +63,8 @@ IF ( ОтветПС == 0 )
 							+ _UNCONFIRMEDID + "', '" 
 							+ ТипЧека + "', '"
 							+ DriverPayCard.GParamString("AuthCode") + "', " 							 
-							+ DriverPayCard.GParamString("MerchantTSN") + ", " 
-							+ DriverPayCard.GParamString("Amount")+ ", '" 
+							+ НомерОперации + ", " 
+							+ VAL( DriverPayCard.GParamString("Amount") ) / 100 + ", '" 
 							+ DriverPayCard.GParamString("ClientCard") + "', " 
 							+ DriverPayCard.GParamString("MerchantBatchNum") + ", '" 
 							+ DriverPayCard.GParamString("TrxDate") + "', '" 
@@ -88,8 +91,7 @@ IF ( ОтветПС == 0 )
 			КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ = ЛЕВСИМВ( _ОБОРУДОВАНИЕ, 3 );
 		
 		//СООБЩЕНИЕ("Выполняем команду ФР с кодом " + КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ, ФР.ПСИМЯОБОРУДОВАНИЯ() );
-		ТипОтчета = -1;
-		КОЛИЧЕСТВОСЛИПОВ = ЗАПРОС("SELECT slipcount FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'");
+		ТипОтчета = -1;		
 		Сервис.РМККоманда( "ВЫПОЛНИТЬКОМАНДУПРОФИЛЯ", КОДОБОРУДОВАНИЯДЛЯПЕЧАТИ + "|116|ЭтоБанковскийСлип=true" );
 	}
 }		

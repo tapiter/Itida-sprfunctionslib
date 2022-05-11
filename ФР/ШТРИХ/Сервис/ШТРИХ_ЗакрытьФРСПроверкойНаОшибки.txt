@@ -19,6 +19,7 @@ IF ( driverKKM.ResultCode <> 0 )
 
 IF ( ОтсоединятьсяОтУстройства )
 {
+	driverKKM.LDNumber 	= ПЕРЕМЕННАЯ( "НомерУстройства", ЗАПРОС("SELECT devicenumber FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'") ); // Номер логического устройства
 	driverKKM.Disconnect();
 	IF ( driverKKM.ResultCode <> 0 )
 	{

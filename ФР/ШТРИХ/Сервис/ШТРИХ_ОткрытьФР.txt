@@ -28,7 +28,7 @@ IF ( ТИП( "driverKKM" ) <> "O" )
 driverKKM.ComLogFile	= ИмяФайлаЛога;
 driverKKM.LogOn = true;
 
-driverKKM.LDNumber 	= НомерУстройства; // Номер логического устройства
+driverKKM.LDNumber 	= ПЕРЕМЕННАЯ( "НомерУстройства", ЗАПРОС("SELECT devicenumber FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'") ); // Номер логического устройства
 // Загружаем параметры логического устройсва в поля драйвера
 //driverKKM.GetParamLD( );
 driverKKM.SetActiveLD();

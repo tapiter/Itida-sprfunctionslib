@@ -3,11 +3,18 @@ IF ( !Обмен1С.ВыгружатьТипДокумента("009") )
 	
 IF ( VAL( ВариантВыгрузкиВыпускаПродукции ) == 0 )
 	RETURN "";
+	
+IF ( !ПУСТО( СвойПрефиксДляНомеровДокументов ) )
+{
+	ОстатокОтНомера = _1С_ОГРАНИЧЕНИЕДЛИНЫНОМЕРАДОКУМЕНТА - LEN( ALLTRIM(СвойПрефиксДляНомеровДокументов) );
+	НомерДокумента = "'" + СвойПрефиксДляНомеровДокументов + "'" + " + RIGHT( RTRIM( LTRIM( s.ndok ) ), " + ОстатокОтНомера + ")";
+}
+ELSE
+	НомерДокумента = "RTRIM( LTRIM( s.ndok ) ) + '/' + (SELECT maincode FROM sprres WHERE code= spec.nn )";
 
 ТЕКСТЗАПРОСА = "SELECT s000.code + s000.maindb + CONVERT( char(10), s000.mainic ) AS Ref, s000.f_deleted AS DeletionMark,
 			s.date AS Date, a.transacted AS Posted, 
-			LTRIM( RTRIM( s.ndok ) ) + '/' + (SELECT maincode FROM sprres WHERE code= spec.nn ) AS Number,
-		
+			" + НомерДокумента + "									AS Number,		
 			" + КодФирмы + " 									    AS Организация, 
 			'Разукомплектация'										AS ВидОперации, 
 			s.note 													AS Комментарий, 

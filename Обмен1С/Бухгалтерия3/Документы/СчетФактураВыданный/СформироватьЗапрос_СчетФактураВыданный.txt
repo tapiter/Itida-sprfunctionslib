@@ -1,8 +1,17 @@
 IF ( !Обмен1С.ВыгружатьТипДокумента("022") )
 	RETURN "";
 
+
+IF ( !ПУСТО( СвойПрефиксДляНомеровДокументов ) )
+{
+	ОстатокОтНомера = _1С_ОГРАНИЧЕНИЕДЛИНЫНОМЕРАДОКУМЕНТА - LEN( ALLTRIM(СвойПрефиксДляНомеровДокументов) );
+	НомерДокумента = "'" + СвойПрефиксДляНомеровДокументов + "'" + " + RIGHT( RTRIM( LTRIM( s.ndok ) ), " + ОстатокОтНомера + ")";
+}
+ELSE
+	НомерДокумента = "RTRIM( LTRIM( s.ndok ) )";
+
 ТЕКСТЗАПРОСА = "SELECT s000.code + s000.maindb + CONVERT( char(10), s000.mainic ) AS Ref, s000.f_deleted AS DeletionMark,
-			s.date AS Date, s.ndok AS Number, a.transacted AS Posted, 
+			s.date AS Date, " + НомерДокумента + " AS Number, a.transacted AS Posted, 
 			f.ex_code 										 		 AS Организация, 
 			(SELECT ex_code FROM sprclient WHERE code = s.client) 	 AS Контрагент,
 			s.contract 												 AS ДоговорКонтрагента,

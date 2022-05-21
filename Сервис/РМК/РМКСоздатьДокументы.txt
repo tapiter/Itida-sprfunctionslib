@@ -185,7 +185,6 @@ try
 					 VALUES ( " + Строки.spec_ic + ", " + m_docic + ", '" + m_date + "', '" + Чеки.type + "', '" + Чеки.paytype + "', '" + Чеки.checktype + "')" );
 			// Проставляем сумму безнала
 			m_cashless			= ЕСЛИ( Чеки.total != 0, Чеки.cashless * Строки.summa_wd / ( Чеки.total + Чеки.bonus ), 0 );
-			IF ( Чеки.checktype == 1 || Чеки.checktype == 5 ) m_cashless= -m_cashless;
 			ЗАПРОС( "UPDATE " + ТаблицаДокументов + " SET cashless = cashless + " + STR( m_cashless, 20, 8 ) + " WHERE identity_column = " + m_docic );
 			IF ( _ERRORCODE != 0 ) throw;
 			
@@ -261,9 +260,6 @@ try
 		ELSE IF ( Документы.code == "014" ) ИДСозданного= Сервис.РМКСоздатьДокумент014( Документы.identity_column, Документы.date, Документы.firm, Документы.client, ТаблицаСтрок );
 		
 		IF ( ИДСозданного <= 0 ) throw;
-		
-		// Выполняем скрипт проверки
-		Сервис.ВыполнитьСкриптПроверкиПередЗаписью( Документы.code, ИДСозданного, "" );
 		
 		IF 		( Документы.code == "001" ) Создано001++;
 		ELSE IF ( Документы.code == "002" ) Создано002++;

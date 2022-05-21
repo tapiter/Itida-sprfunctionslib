@@ -1,18 +1,4 @@
-АдресТСД = RESTAPI.МАРКСКАН_АдресТСД( КОДОБОРУДОВАНИЯ );
-IF ( ПУСТО(АдресТСД) )
-{
-	СООБЩЕНИЕ("Не определить адрес ТСД. Проверьте правильность указания адреса в карточке оборудования в строке соединения.", RESTAPI.ИМЯОБОРУДОВАНИЯ() );
-	RETURN false;
-}
-
-ТокенМаркСкан = RESTAPI.МАРКСКАН_Авторизация( АдресТСД );
-
-IF ( ПУСТО(ТокенМаркСкан) )
-{
-	СООБЩЕНИЕ("Не удалось получить токен авторизации", RESTAPI.ИМЯОБОРУДОВАНИЯ() );
-	RETURN false;
-}
-
+ВыгруженоТоваров = 0;
 
 IF ( !ПУСТО( _ИМЯТАБЛИЦЫ ) )
 	ДОБАВИТЬКОНТЕКСТ( "SELECT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, temp.cena, dbo.fn_getbarcodes_ex( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
@@ -24,7 +10,7 @@ IF ( !ПУСТО( _ИМЯТАБЛИЦЫ ) )
 					   INNER JOIN sprnn ON temp.nn = sprnn.nn
 					   INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' AND spectree.folder = 0 )
 					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer", "СписокТоваров" );
-ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND ПУСТО( СПИСОКДОКУМЕНТОВ ) AND ALLTRIM( КОДДОКУМЕНТА ) <> "MRK"  )
+ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND !ПУСТО( ИДДОКУМЕНТА ) AND ALLTRIM( КОДДОКУМЕНТА ) <> "MRK"  )
 	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, spec.cena, dbo.fn_getbarcodes_ex( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
 	sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП, 
 	" + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( sprnn.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad_cena( sprnn.nn, '', '" + СКЛАД + "', '001' )") + " AS ЦенаСклада,
@@ -35,7 +21,7 @@ ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND ПУСТО( СПИСОКД
 					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer
 					   INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' AND spectree.folder = 0 )
 					   WHERE spec.ic = " + ИДДОКУМЕНТА, "СписокТоваров" );
-ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND ПУСТО( СПИСОКДОКУМЕНТОВ ) AND ALLTRIM( КОДДОКУМЕНТА ) == "MRK"  )
+ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND !ПУСТО( ИДДОКУМЕНТА ) AND ALLTRIM( КОДДОКУМЕНТА ) == "MRK"  )
 	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode AS maincode, spec.ed, spec.nn, spec.name, spec.cena, dbo.fn_getbarcodes_ex( spec.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем,
 						sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес, sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, '' AS Производитель, spr.vendorname AS ПроизводительИмя, spr.vendorinn AS ПроизводительИНН,
 						spr.vendorkpp AS ПроизводительКПП, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( spec.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad_cena( spec.nn, '', '" + СКЛАД + "', '001' )") + " AS ЦенаСклада,
@@ -96,12 +82,19 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 			ДеталиОтправляемогоПакета = "{" + """type"":""" + ТипДанных + """" + ", " + МассивСтрокТовара + "}";			
 			ОтправляемыйПакет = "{ ""document"": { ""name"": """ + ИмяПакета + """, ""protocol"": ""atolmsk"", ""barcodesymbol"": 0, ""details"": [" + ДеталиОтправляемогоПакета + "] } }";
 						
-			ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( АдресТСД, "/v3/packet?token=" + ТокенМаркСкан + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+			ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( RESTAPI.МАРКСКАН_АдресТСД( RESTAPI.КОДОБОРУДОВАНИЯ() ), "/v3/packet?token=" + RESTAPI.МАРКСКАН_ПолучитьТокен( RESTAPI.КОДОБОРУДОВАНИЯ() ) + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+			
+			IF ( ОТВЕТ == false )
+			{
+				СООБЩЕНИЕ("Выгружено товаров: " + ВыгруженоТоваров + " из " + КоличествоТоваровОбщее, RESTAPI.ИМЯОБОРУДОВАНИЯ() );
+				RETURN false;
+			}
 			
 			//обнуление строк и счетчика
 			МассивСтрокТовара = "";
 			СтрокиТоваров = "";
-			КоличествоТоваров=0;
+			ВыгруженоТоваров += КоличествоТоваров;
+			КоличествоТоваров=0;			
 		}
 	}
 	
@@ -188,7 +181,10 @@ IF ( !ПУСТО(СтрокиТоваров) )
 	ДеталиОтправляемогоПакета = "{" + """type"":""" + ТипДанных + """" + ", " + МассивСтрокТовара + "}";			
 	ОтправляемыйПакет = "{ ""document"": { ""name"": """ + ИмяПакета + """, ""protocol"": ""atolmsk"", ""barcodesymbol"": 0, ""details"": [" + ДеталиОтправляемогоПакета + "] } }";
 
-	ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( АдресТСД, "/v3/packet?token=" + ТокенМаркСкан + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+	ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( RESTAPI.МАРКСКАН_АдресТСД( RESTAPI.КОДОБОРУДОВАНИЯ() ), "/v3/packet?token=" + RESTAPI.МАРКСКАН_ПолучитьТокен( RESTAPI.КОДОБОРУДОВАНИЯ() ) + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+	
+	IF ( ОТВЕТ == false )
+		RETURN false;
 }
 
 

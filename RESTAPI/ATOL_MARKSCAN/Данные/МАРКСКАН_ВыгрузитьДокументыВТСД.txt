@@ -1,260 +1,311 @@
+ВыгруженоДокументов = 0;
 //Выгрузка документов
 IF ( !ПУСТО( КОДДОКУМЕНТА ) OR !ПУСТО( СПИСОКДОКУМЕНТОВ ) ) 
 {
-	IF ( !ПУСТО( СПИСОКДОКУМЕНТОВ ) )
-		ДОБАВИТЬКОНТЕКСТ( "SELECT dbase, code, ic FROM " + СПИСОКДОКУМЕНТОВ, "СписокДокументов", 1 );
-	ELSE
-		ДОБАВИТЬКОНТЕКСТ( "SELECT DB_NAME( ) AS dbase, '" + КОДДОКУМЕНТА + "' AS code, " + ИДДОКУМЕНТА + " AS ic", "СписокДокументов", 1 );
-		
-	WHILE ( !КОНЕЦКОНТЕКСТА( "СписокДокументов" ) )
+	IF ( !ПУСТО( КОДДОКУМЕНТА ) AND !ПУСТО( ИДДОКУМЕНТА ) )
+		ДОБАВИТЬКОНТЕКСТ( "SELECT DB_NAME( ) AS dbase, '" + КОДДОКУМЕНТА + "' AS code, " + ИДДОКУМЕНТА + " AS ic", "ВыгружаемыеДокументы", 1 );			
+	ELSE IF ( !ПУСТО( СПИСОКДОКУМЕНТОВ ) )
 	{
-		IF ( ВСПИСКЕ( СписокДокументов.code, "001", "002", "005", "007", "019", "045", "055", "MRK" ) )
+		ДОБАВИТЬКОНТЕКСТ( "SELECT dbase, code, ic FROM " + СПИСОКДОКУМЕНТОВ, "ВыгружаемыеДокументы", 1 );	
+		//очищаем список документов, чтобы не выгрузить повторно один и тот же список несколько раз
+		СПИСОКДОКУМЕНТОВ = "";
+	}	
+		
+	ВЫБРАТЬКОНТЕКСТ( "ВыгружаемыеДокументы" );
+	КоличествоДокументовОбщее = КОЛИЧЕСТВОСТРОК("ВыгружаемыеДокументы");
+	КоличествоДокументов = 0;
+	ИНДИКАТОР("Формирование списка документов для выгрузки", КоличествоДокументовОбщее);
+	ПЕРЕЙТИВНАЧАЛО( "ВыгружаемыеДокументы" );	
+	WHILE ( !КОНЕЦКОНТЕКСТА( "ВыгружаемыеДокументы" ) )
+	{
+		//индикатор
+		КоличествоДокументов++;
+		Индикатор( КоличествоДокументов, " Выгрузка документа ( " + КоличествоДокументов + " из " + КоличествоДокументовОбщее + " )" );
+		//индикатор
+		
+		ОбъектДокумента = "";
+		IF ( ВСПИСКЕ( ВыгружаемыеДокументы.code, "001", "002", "005", "007", "019", "045", "055", "MRK" ) )
 		{
 			АлкоДок = false;
 			НаименованиеДокумента = "";
 						
-			IF (СписокДокументов.code == "MRK")
+			IF (ВыгружаемыеДокументы.code == "MRK")
 			{
-				ДОБАВИТЬКОНТЕКСТ( "SELECT guid, ndok, date FROM mark_in WHERE identity_column= "  + ИДДОКУМЕНТА, "ДокументМаркировки" );
+				ДОБАВИТЬКОНТЕКСТ( "SELECT guid, ndok, date, vendorname AS supplier, '' AS customer FROM mark_in WHERE identity_column= "  + ВыгружаемыеДокументы.ic, "ДокументМаркировки" );
 				ВЫБРАТЬКОНТЕКСТ( "ДокументМаркировки" ); 
 				ИДДок		= ДокументМаркировки.guid;
 				НомерДок	= ДокументМаркировки.ndok;
 				ДатаДок		= ДокументМаркировки.date;
+				ПоставщикОтправитель = ДанныеДокумента.supplier;
+				Получатель = ДанныеДокумента.customer;
 				УДАЛИТЬКОНТЕКСТ( "ДокументМаркировки" );
-				ВЫБРАТЬКОНТЕКСТ( "СписокДокументов" );
+				ВЫБРАТЬКОНТЕКСТ( "ВыгружаемыеДокументы" );
 			}
 			ELSE
 			{
-				ДОБАВИТЬКОНТЕКСТ( "SELECT guid, ndok, date FROM spr000 WHERE code= '"  + СписокДокументов.code + "' AND ic= " + СписокДокументов.ic, "ДанныеДокумента" );
+				ДОБАВИТЬКОНТЕКСТ( "SELECT s0.rid, s0.ndok, s0.date, s0.code, 
+									CASE 
+										WHEN s0.code IN ('001','055') THEN ISNULL((SELECT shortname FROM sprclient WHERE code = s0.client), '')
+										WHEN s0.code = '019' THEN ISNULL((SELECT name FROM sprskl WHERE code = s0.sklad), '')
+										ELSE '' 
+									END AS supplier, 
+									CASE 
+										WHEN s0.code IN ('007', '045') THEN ISNULL((SELECT name FROM sprskl WHERE code = s0.sklad), '')
+										WHEN s0.code = '002' THEN ISNULL((SELECT shortname FROM sprclient WHERE code = s0.client), '')
+										WHEN s0.code = '019' THEN ISNULL((SELECT name FROM sprskl WHERE code = s0.sklad_d), '')
+										ELSE '' 
+									END AS customer 
+									FROM spr000 s0 
+									WHERE s0.code= '"  + ВыгружаемыеДокументы.code + "' AND s0.ic= " + ВыгружаемыеДокументы.ic, "ДанныеДокумента" );
 				ВЫБРАТЬКОНТЕКСТ( "ДанныеДокумента" );
 				ИДДок 		= ДанныеДокумента.rid;	
 				НомерДок	= ДанныеДокумента.ndok;
 				ДатаДок		= ДанныеДокумента.date;
+				ПоставщикОтправитель = ДанныеДокумента.supplier;
+				Получатель = ДанныеДокумента.customer;
 				УДАЛИТЬКОНТЕКСТ( "ДанныеДокумента" );
-				ВЫБРАТЬКОНТЕКСТ( "СписокДокументов" );
-			}
-			ТипДокумента = "";
-			ИдЕГАИС = "";
-			Отправлять_в_ЕГАИС = 0;
-			
-			IF ( ВСПИСКЕ( СписокДокументов.code, "001", "002", "003", "045" ) )
-				ИдЕГАИС		= ЗАПРОС( "SELECT egaisid FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
-				
-			IF ( ВСПИСКЕ( СписокДокументов.code, "001", "002" ) )
-			{
-				ТипДокумента = ЗАПРОС( "SELECT ttntype FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
-				Отправлять_в_ЕГАИС = ЗАПРОС( "SELECT egaisstatus FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
-			}
-			IF ( ВСПИСКЕ( СписокДокументов.code, "003" ) )
-			{
-				Отправлять_в_ЕГАИС = ЗАПРОС( "SELECT egaisstatus FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
-				ТипДокумента = ЗАПРОС( "SELECT f_income FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
+				ВЫБРАТЬКОНТЕКСТ( "ВыгружаемыеДокументы" );
 			}
 			
-			//определим тип документа в MobileSmarts по типу документа в Айтида
-			IF ( ВСПИСКЕ( СписокДокументов.code, "001", "MRK" ) ) //Поступление ТМЦ и Маркировка - приёмка
+			ТипДокумента = "";						
+			//определим тип документа в МаркСкан по типу документа в Айтиде
+			IF ( ВСПИСКЕ( ВыгружаемыеДокументы.code, "001", "MRK" ) ) //Поступление ТМЦ и Маркировка - приёмка
 				ТипДокумента = "accept"; //приёмка
-			ELSE IF ( СписокДокументов.code == "002" ) //Расходная накладная
+			ELSE IF ( ВыгружаемыеДокументы.code == "002" ) //Расходная накладная
 				ТипДокумента = "shipment"; //отгрузка				
-			ELSE IF ( СписокДокументов.code == "005" ) //Переоценка
+			ELSE IF ( ВыгружаемыеДокументы.code == "005" ) //Переоценка
 				ТипДокумента = "revaluation";
-			ELSE IF ( ВСПИСКЕ( СписокДокументов.code, "007", "045" ) ) //Инвентаризация ТМЦ и Инвентаризация ЕГАИС
+			ELSE IF ( ВСПИСКЕ( ВыгружаемыеДокументы.code, "007", "045" ) ) //Инвентаризация ТМЦ и Инвентаризация ЕГАИС
 				ТипДокумента = "stocktaking";
-			ELSE IF ( СписокДокументов.code == "019" ) //Внутреннее перемещение
+			ELSE IF ( ВыгружаемыеДокументы.code == "019" ) //Внутреннее перемещение
 				ТипДокумента = "transfer";
-			ELSE IF ( СписокДокументов.code == "055" ) //Возврат поставщику
+			ELSE IF ( ВыгружаемыеДокументы.code == "055" ) //Возврат поставщику
 				ТипДокумента = "return";
+				
+			ИсточникАлкоКода = "sprnn";			// по умолчанию источником алкокода товара является справочник (для документа инвентаризации)										
+			IF ( ВСПИСКЕ( ВыгружаемыеДокументы.code, "001", "002", "003", "045" ) )
+				ИсточникАлкоКода = "spec";			//для прихода, расхода и инвентаризации ЕГАИС Алкокод берем из спецификации документа
 						
 			//\\ определили тип документа
 			IF ( ПУСТО( ТипДокумента ) )
 			{
-				СООБЩЕНИЕ( "Не определен тип документа для выгрузки. Выгрузка документа произведена не будет", RESTAPI.ИМЯОБОРУДОВАНИЯ() );
-				RETURN false;
+				ОписаниеДокумента = ЗАПРОС("SELECT dbo.fn_getdocdescription('" + ВыгружаемыеДокументы.code + "'," + ВыгружаемыеДокументы.ic + ")");
+				СООБЩЕНИЕ( "Для документа: """ + ОписаниеДокумента + """ не определен тип документа в ТСД. Выгрузка документа произведена не будет", RESTAPI.ИМЯОБОРУДОВАНИЯ() );
+				ПРОПУСТИТЬ( 1, "ВыгружаемыеДокументы" );
+				CONTINUE;
 			}
 			
+			ТэгТипДокумента = ДАННЫЕ_JSON( "type", ТипДокумента );			
+			ЕстьКИ = false;
 			
+			ТэгДокументИД = ДАННЫЕ_JSON( "id", ИДДок );
+			ТэгДокументНомер = ДАННЫЕ_JSON("number", НомерДок );
+			ТэгДокументДата = ДАННЫЕ_JSON("datetime", ДатаДок );			
 			
-			IF ( СписокДокументов.code <> "MRK" )
+			ТэгДокументОтправитель = "";
+			IF ( !ПУСТО( ПоставщикОтправитель ) )
+				ТэгДокументОтправитель = ДАННЫЕ_JSON("supplier", ПЕРЕКОДИРОВАТЬ( ПоставщикОтправитель, "ANSI", "UTF-8" ) );
+				
+			ТэгДокументПолучатель = "";
+			IF ( !ПУСТО( Получатель ) )
+				ТэгДокументПолучатель = ДАННЫЕ_JSON("customer", ПЕРЕКОДИРОВАТЬ( Получатель, "ANSI", "UTF-8" ) );
+						
+						
+			IF (ВыгружаемыеДокументы.code == "MRK")
 			{
-				document.SetField("КонтрольКолва",ЗАПРОС( "SELECT dbo.fn_getfloat_ex('DOC','"+СписокДокументов.code+"','MS_контроль_количества',0,identity_column,0,'') FROM spr"+СписокДокументов.code+" WHERE identity_column = " + СписокДокументов.ic ));
-			}
-													//Контроль количества по заявке. 
-													//1 – контролируется, в документ нельзя принимать товары, которых нет в заявке, а также нельзя превышать количество товара, который в заявке есть
-													//0 – без контроля.
-													
-			IF (АлкоДок)
-			{
-				document.SetField("КонтрольМарок", true); //необходимость проверки старых марок, выгруженных в план документа				
-			}
-			СерверныйДокумент = "";
-			IF (СписокДокументов.code <> "MRK")
-			{
-				СерверныйДокумент = ЗАПРОС( "SELECT dbo.fn_getfloat_ex('DOC','"+СписокДокументов.code+"','MS_серверный_документ',0,identity_column,0,'') FROM spr"+СписокДокументов.code+" WHERE identity_column = " + СписокДокументов.ic );
-			}
-			IF (!ПУСТО(СерверныйДокумент)) document.ServerHosted = СерверныйДокумент;
-			
-			IF (СписокДокументов.code =="019") //Внутреннее перемещение
-			{
-				СкладОткуда = ЗАПРОС( "SELECT sklad FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
-				СкладКуда = ЗАПРОС( "SELECT sklad_d FROM spr"+СписокДокументов.code+" WHERE identity_column= " + СписокДокументов.ic );
-				ИмяСкладаОткуда = ЗАПРОС("SELECT name FROM sprskl WHERE code = '" + СкладОткуда + "'");
-				ИмяСкладаКуда = ЗАПРОС("SELECT name FROM sprskl WHERE code = '" + СкладКуда + "'");
-				document.SetField("ИдСклада1СОткуда", СкладОткуда);
-				document.SetField("ИдСклада1СКуда", СкладКуда);
-				document.SetField("ИмяСкладаОткуда", ИмяСкладаОткуда);
-				document.SetField("ИмяСкладаКуда", ИмяСкладаКуда);				
-			}
-			ИсточникАлкоКода = "sprres";			// по умолчанию источником алкокода товара является справочник ресурсов (для документа инвентаризации)										
-			IF (СписокДокументов.code =="001" OR СписокДокументов.code =="002" OR СписокДокументов.code =="003" OR СписокДокументов.code =="045")
-			{
-				//document.SetField("НомерЕГАИС", ИдЕГАИС);//Номер документа в системе ЕГАИС
-				ИсточникАлкоКода = "spec";			//для прихода, расхода и инвентаризации ЕГАИС Алкокод берем из спецификации документа
-			}
-			IF (ИмяДок == "ПоступлениеЕГАИС" OR ИмяДок == "Поступление")
-			{
-				ИмяПоляСЦеной = "ЦенаПриемки";				
+				ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT 
+										sprnn.maincode, 
+										spec.ed, 
+										spec.nn, 
+										spec.name AS name,
+										spec.kolp,
+										spec.cena, 
+										dbo.fn_getbarcodes_ex( spec.nn ) AS barcodes, 
+										sprnn.code AS Артикул, 
+										sprnn.nnvid AS nnvid, 
+										sprnn.d_litr AS d_litr,
+										sprnn.edd_litr AS ЕдиницаОбъема, 
+										sprnn.weight AS Вес, 
+										sprnn.a_proc AS Крепость, 
+										sprnn.alcocode AS Алкокод, 
+										sprnn.importer AS Производитель,
+										spr.vendorname AS ПроизводительИмя, 
+										spr.vendorinn AS ПроизводительИНН,
+										spr.vendorkpp AS ПроизводительКПП, 
+										" + ЕСЛИ(ПУСТО(СКЛАД), "0", "dbo.fn_calcsklad( spec.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток, 
+										spec.ic AS spec_ic, 
+										spec.identity_column, 
+										'' AS boxnumber,
+										sprnn.f_mark AS f_mark, 
+										sprnn.markgroup AS markgroup, 
+										spec.gtin AS gtin, 
+										dbo.fn_alcotype(sprnn.nnvid) AS alcotype,
+										spectree.uniqueid AS uniqueid
+									FROM mark_in spr
+									INNER JOIN mark_in_spec spec ON spr.identity_column = spec.ic
+									INNER JOIN sprnn sprnn ON spec.nn = sprnn.nn
+									INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' AND spectree.folder = 0 )
+									WHERE spr.identity_column = " + ВыгружаемыеДокументы.ic, "Спецификация" );
 			}
 			ELSE
 			{
-				ИмяПоляСЦеной = "";
+				ДОБАВИТЬКОНТЕКСТ( "SELECT 
+										sprnn.maincode, 
+										spec.ed,
+										spec.nn,
+										spec.nnname AS name, 
+										spec.kolp,										
+										spec.cena, 
+										dbo.fn_getbarcodes_ex( sprnn.nn ) AS barcodes, 
+										sprnn.code AS Артикул, 
+										sprnn.nnvid AS nnvid, 
+										sprnn.d_litr AS d_litr, 
+										sprnn.edd_litr AS ЕдиницаОбъема, 
+										sprnn.weight AS Вес, 
+										sprnn.a_proc AS Крепость, 
+										" + ИсточникАлкоКода + ".alcocode AS Алкокод, 
+										sprnn.importer AS Производитель,
+										'' AS ПроизводительИмя,
+										'' AS ПроизводительИНН,
+										'' AS ПроизводительКПП,
+										" + ЕСЛИ(ПУСТО(СКЛАД), "0", "dbo.fn_calcsklad( spec.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток,
+										spec.ic AS spec_ic, 
+										spec.identity_column, 
+										ISNULL((SELECT TOP 1 boxnumber FROM barcodes bc WHERE bc.code = '" + ВыгружаемыеДокументы.code + "' AND bc.ic = spec.ic AND bc.spec_ic = spec.identity_column), '') AS boxnumber,
+										sprnn.f_mark AS f_mark, 
+										sprnn.markgroup AS markgroup,
+										sprnn.gtin AS gtin,
+										dbo.fn_alcotype(sprnn.nnvid) AS alcotype,
+										spectree.uniqueid AS uniqueid
+									FROM spec" + ВыгружаемыеДокументы.code + " spec									
+									INNER JOIN sprnn sprnn ON spec.nn = sprnn.nn
+									INNER JOIN spectree spectree ON spectree.ic = sprnn.identity_column AND spectree.objtype = 'SPR' AND ( spectree.objcode = 'S02' OR spectree.objcode = 'S05' AND spectree.folder = 0 )
+									WHERE spec.ic = " + ВыгружаемыеДокументы.ic, "Спецификация" );				
 			}
 			
-						
-			IF (СписокДокументов.code =="MRK")
-			{
-				ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode AS maincode, spec.ed, spec.nn, spec.name, spec.cena, dbo.fn_getbarcodes_ex( spec.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем,
-						sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес, sprnn.a_proc AS Крепость, sprnn.alcocode AS Алкокод, '' AS Производитель, spr.vendorname AS ПроизводительИмя, spr.vendorinn AS ПроизводительИНН,
-						spr.vendorkpp AS ПроизводительКПП, " + ЕСЛИ(ПУСТО(СКЛАД),"0","dbo.fn_calcsklad( spec.nn, '', '" + СКЛАД + "', '001', '' )") + " AS Остаток
-						FROM mark_in spr
-						INNER JOIN mark_in_spec spec ON spr.identity_column = spec.ic
-						INNER JOIN sprnn sprnn ON spec.nn = sprnn.nn 
-						WHERE spr.identity_column = " + ИДДОКУМЕНТА, "Спецификация" );
-			}
-			ELSE
-			{
-				ДОБАВИТЬКОНТЕКСТ( "SELECT sprres.maincode, sprres.a_code, spec.nnname, spec.kolp, spec.nn, spec.cena, sprres.nnvid, sprres.d_litr, sprres.a_proc, "+ИсточникАлкоКода+".alcocode, sprres.importer,
-								spec.ic AS spec_ic, spec.identity_column AS identity_column, (SELECT TOP 1 boxnumber FROM barcodes bc WHERE bc.code = '" + СписокДокументов.code + "' AND bc.ic = spec.ic AND bc.spec_ic = spec.identity_column)  AS boxnumber
-							   FROM spec" + СписокДокументов.code + " spec
-							   INNER JOIN sprres ON sprres.code = spec.nn
-							   WHERE spec.ic = " + СписокДокументов.ic, "Спецификация" );				
-			}
-						
+			ВЫБРАТЬКОНТЕКСТ( "Спецификация" );
+			num = 1;
+			СтрокиДокумента = "";			
 			WHILE ( !КОНЕЦКОНТЕКСТА( "Спецификация" ) )
 			{
-				IF (СписокДокументов.code <> "MRK")
+				//определим основные тэги строки документа
+				ТоварМаркированный = Спецификация.f_mark == 1 AND !ПУСТО( Спецификация.markgroup );
+				ТегИДТовара = ДАННЫЕ_JSON("goodsid", Спецификация.uniqueid);
+				ТэгТипТовара = ДАННЫЕ_JSON("goodstype", ЕСЛИ( ТоварМаркированный, "mark", "simple") );
+				ТэгКоличество = ДАННЫЕ_JSON("quantity", VAL( STR( Спецификация.kolp, 16, 3) ) );
+				ТэгНомерПозиции = ДАННЫЕ_JSON("id", num );
+				num++;
+				
+				//определяем наличие марок в документе
+				IF (ВыгружаемыеДокументы.code == "MRK")
 				{
-					//марки
-					ДОБАВИТЬКОНТЕКСТ("SELECT barcode, boxnumber FROM barcodes WHERE ic = '" + Спецификация.spec_ic + "' AND spec_ic = '" + Спецификация.identity_column + "'", "Марки");
-					IF (КОЛИЧЕСТВОСТРОК("Марки") > 0)
-					{
-						WHILE (!КОНЕЦКОНТЕКСТА("Марки"))
-						{
-							Алкомарка = Марки.barcode;
-							
-							documentItem = СоздатьОбъект("Cleverence.Warehouse.DocumentItem",1);
-							КодТовара		= Спецификация.maincode;
-							Количество		= 1;
-							ЦенаТовара		= Спецификация.cena;
-							АлкоКодВ		= Спецификация.nnvid;
-							АлкоНаим		= ЗАПРОС( "SELECT name FROM sprnnvid WHERE code = '"+АлкоКодВ+"'");
-							Объем			= Спецификация.d_litr;
-							Крепость		= Спецификация.a_proc;
-							Алкокод			= Спецификация.alcocode;
-							Производитель	= Спецификация.importer;
-							ПроизводительИмя= ЗАПРОС( "SELECT shortname FROM sprclient WHERE code = '"+Производитель+"'");
-							ПроизводительИНН= ЗАПРОС( "SELECT inn FROM sprclient WHERE code = '"+Производитель+"'");
-							ПроизводительКПП= ЗАПРОС( "SELECT kpp FROM sprclient WHERE code = '"+Производитель+"'");
-							ШККоробки		= Марки.boxnumber;
-							
-							documentItem.ProductId = КодТовара;								//Идентификатор товара для которого описана данная позиция
-							documentItem.PackingId = КодТовара;								//Идентификатор упаковки для заданного товара
-							documentItem.CurrentQuantity = 0;								//Текущее количество твоара в позиции
-							documentItem.DeclaredQuantity = Количество;						//Заданное количество в позиции
-							//шк коробки
-							documentItem.SSCC = ШККоробки;									//коробка, паллета...
-							//documentItem.FirstStorageBarcode  = ШККоробки;
-							documentItem.SetField("ШтрихкодРодителя", ШККоробки);
-							
-							IF ( !ПУСТО(ИмяПоляСЦеной) )
-								documentItem.SetField(ИмяПоляСЦеной, STR(ЦенаТовара,10,2));		//Стоимость
-							
-							IF (АлкоКодВ <> "" AND АлкоДок == true)
-							{
-								documentItem.SetField("Алко", true);
-								documentItem.SetField("АлкоКодВ", АлкоКодВ); 			//Код вида алкогольной продукции
-								documentItem.SetField("АлкоНаим", АлкоНаим);			//Наименование вида алкогольной продукции
-								documentItem.SetField("АлкоОбъем", Объем);				//Объем
-								documentItem.SetField("АлкоКрепость", Крепость);		//Крепость
-								documentItem.SetField("Производитель", ПроизводительИмя);//Производитель
-								documentItem.SetField("ПроизвИНН", ПроизводительИНН);	//ИНН Производителя
-								documentItem.SetField("ПроизвКПП", ПроизводительКПП);	//КПП Производителя
-								documentItem.SetField("АлкоКод", Алкокод);				//Код алкогольной продукции	
-								documentItem.SetField("АлкоПДФ", Алкомарка);			//Марка
-							}
-							document.DeclaredItems.Add(documentItem);						
-							
-							ПРОПУСТИТЬ( 1, "Марки" );
-						}
-						УДАЛИТЬКОНТЕКСТ( "Марки" );	
-					}
-					
-					ELSE
-					{
-						Алкомарка = "";
-						documentItem = СоздатьОбъект("Cleverence.Warehouse.DocumentItem",1);
-						КодТовара		= Спецификация.maincode;
-						Количество		= Спецификация.kolp;
-						ЦенаТовара		= Спецификация.cena;
-						АлкоКодВ		= Спецификация.nnvid;
-						АлкоНаим		= ЗАПРОС( "SELECT name FROM sprnnvid WHERE code = '"+АлкоКодВ+"'");
-						Объем			= Спецификация.d_litr;
-						Крепость		= Спецификация.a_proc;
-						Алкокод			= Спецификация.alcocode;
-						Производитель	= Спецификация.importer;
-						ПроизводительИмя= ЗАПРОС( "SELECT shortname FROM sprclient WHERE code = '"+Производитель+"'");
-						ПроизводительИНН= ЗАПРОС( "SELECT inn FROM sprclient WHERE code = '"+Производитель+"'");
-						ПроизводительКПП= ЗАПРОС( "SELECT kpp FROM sprclient WHERE code = '"+Производитель+"'");
-						ШККоробки		= Спецификация.boxnumber;
-						
-						documentItem.ProductId = КодТовара;								//Идентификатор товара для которого описана данная позиция
-						documentItem.PackingId = КодТовара;								//Идентификатор упаковки для заданного товара
-						documentItem.CurrentQuantity = 0;								//Текущее количество твоара в позиции
-						documentItem.DeclaredQuantity = Количество;						//Заданное количество в позиции
-						documentItem.SSCC  = ШККоробки;									//коробка, паллета...
-						//documentItem.FirstStorageBarcode  = ШККоробки;
-						documentItem.SetField("ШтрихкодРодителя", ШККоробки);
-						
-						//передадим цену для поступления ЕГАИС и простого поступления
-						IF ( !ПУСТО( ИмяПоляСЦеной ) )
-							documentItem.SetField(ИмяПоляСЦеной, STR(ЦенаТовара,10,2));		//Стоимость
-						//ШтрихКоды		= ЗАМЕНИТЬ( ЗАПРОС( "SELECT dbo.fn_getbarcodes_ex( '" + Спецификация.nn + "' )" ), ",", "|" );
-						
-						IF (АлкоКодВ <> "" AND АлкоДок == true)
-						{
-							documentItem.SetField("Алко", true);
-							documentItem.SetField("АлкоКодВ", АлкоКодВ); 			//Код вида алкогольной продукции
-							documentItem.SetField("АлкоНаим", АлкоНаим);			//Наименование вида алкогольной продукции
-							documentItem.SetField("АлкоОбъем", Объем);				//Объем
-							documentItem.SetField("АлкоКрепость", Крепость);		//Крепость
-							documentItem.SetField("Производитель", ПроизводительИмя);//Производитель
-							documentItem.SetField("ПроизвИНН", ПроизводительИНН);	//ИНН Производителя
-							documentItem.SetField("ПроизвКПП", ПроизводительКПП);	//КПП Производителя
-							documentItem.SetField("АлкоКод", Алкокод);				//Код алкогольной продукции	
-							//documentItem.SetField("АлкоПДФ", Алкомарка);			//Марка
-						}
-						document.DeclaredItems.Add(documentItem);
-					}
-					ПРОПУСТИТЬ( 1, "Спецификация" );
+					ДОБАВИТЬКОНТЕКСТ("SELECT mark AS barcode, '' AS boxnumber FROM mark_in_marks WHERE ic = '" + ВыгружаемыеДокументы.ic + "' AND spec_ic = '" + Спецификация.identity_column + "'", "Марки");
+					ИмяТэгаМарки = "sn";
 				}
-			}
+				ELSE
+				{
+					ДОБАВИТЬКОНТЕКСТ("SELECT barcode, boxnumber FROM barcodes WHERE ic = '" + Спецификация.spec_ic + "' AND spec_ic = '" + Спецификация.identity_column + "'", "Марки");
+					ИмяТэгаМарки = "ci";
+				}
+				
+				//сформируем список марок
+				СписокМарок = "";
+				IF ( КОЛИЧЕСТВОСТРОК("Марки") > 0 )
+				{
+					ЕстьКИ = true;					
+					WHILE (!КОНЕЦКОНТЕКСТА("Марки"))
+					{
+						СписокМарок += ЕСЛИ( !ПУСТО( СписокМарок ), ",", "") + "{";
+						СписокМарок += ДАННЫЕ_JSON( ИмяТэгаМарки, ПЕРЕКОДИРОВАТЬ( Марки.barcode, "ANSI", "BASE64") );
+						СписокМарок += "}";
+						
+						ПРОПУСТИТЬ( 1, "Марки" );
+					}
+					УДАЛИТЬКОНТЕКСТ( "Марки" );	
+					ВЫБРАТЬКОНТЕКСТ("Спецификация");
+				}
+				
+				//соберем объект JSON позиции документа
+				ПозицияДокумента = "{""row"":{";				
+				ПозицияДокумента += ТэгНомерПозиции + ","; 	
+				ПозицияДокумента += ТегИДТовара + ","; 	
+				ПозицияДокумента += ТэгТипТовара + ","; 	
+				ПозицияДокумента += ТэгКоличество + "}";
+				
+				IF ( !ПУСТО( СписокМарок ) )
+				{
+					ПозицияДокумента += ",";
+					ПозицияДокумента += """serials"": [";
+					ПозицияДокумента += СписокМарок;
+					ПозицияДокумента += "]";					
+				}
+				ПозицияДокумента += "}";
+				
+				СтрокиДокумента += ЕСЛИ( !ПУСТО( СтрокиДокумента ), ",", "") + ПозицияДокумента;
+				
+				ПРОПУСТИТЬ( 1, "Спецификация" );
+			} //WHILE ( !КОНЕЦКОНТЕКСТА( "Спецификация" ) )
 			УДАЛИТЬКОНТЕКСТ( "Спецификация" );
 			
-			//добавление документа в коллекцию выгружаемых документов
-			outDocuments.Add(document);
+			ВЫБРАТЬКОНТЕКСТ("ВыгружаемыеДокументы");						
+			
+			//соберем объект JSON документа
+			ОбъектДокумента += "{";
+			ОбъектДокумента += ТэгТипДокумента + ",";
+			
+			ТэгПодтипДокумента = """subtype"": " + ЕСЛИ( ЕстьКИ, 1, 0);
+			ОбъектДокумента += ТэгПодтипДокумента + ",";
+			
+			//реквизиты документа
+			ОбъектДокумента += """cols"":{";
+			ОбъектДокумента += ТэгДокументИД + ",";
+			ОбъектДокумента += ТэгДокументНомер + ",";
+			ОбъектДокумента += ТэгДокументДата;
+			
+			IF ( !ПУСТО( ТэгДокументОтправитель ) )
+			{
+				ОбъектДокумента += ",";
+				ОбъектДокумента += ТэгДокументОтправитель;			
+			}
+			IF ( !ПУСТО( ТэгДокументПолучатель ) )
+			{
+				ОбъектДокумента += ",";
+				ОбъектДокумента += ТэгДокументПолучатель;			
+			}
+			ОбъектДокумента += "}" + ",";
+			
+			//массив позиций
+			ОбъектДокумента += """rows"": [";
+			ОбъектДокумента += СтрокиДокумента;
+			ОбъектДокумента += "]";
+			ОбъектДокумента += "}";
+			
+			//отправить документ в МаркСкан	
+			
+			ИмяПакета = "1c-documents";	
+			ИДПакета = УНИКАЛЬНОЕИМЯ();
+			ОтправляемыйПакет = "{ ""document"": { ""name"": """ + ИмяПакета + """, ""protocol"": ""atolmsk"", ""barcodesymbol"": 0, ""details"": [" + ОбъектДокумента + "] } }";
+
+			ОТВЕТ = RESTAPI.МАРКСКАН_POSTЗАПРОС( RESTAPI.МАРКСКАН_АдресТСД( RESTAPI.КОДОБОРУДОВАНИЯ() ), "/v3/packet?token=" + RESTAPI.МАРКСКАН_ПолучитьТокен( RESTAPI.КОДОБОРУДОВАНИЯ() ) + "&code=" + ИДПакета, ОтправляемыйПакет, "" );
+			
+			IF ( ОТВЕТ == false )
+			{
+				СООБЩЕНИЕ("Выгружено документов: " + ВыгруженоДокументов + " из " + КоличествоДокументовОбщее, RESTAPI.ИМЯОБОРУДОВАНИЯ() );
+				RETURN false;
+			}
+			ВыгруженоДокументов += КоличествоДокументов;
+
+		} //IF ( ВСПИСКЕ( ВыгружаемыеДокументы.code, "001", "002", "005", "007", "019", "045", "055", "MRK" ) )
+		ELSE
+		{
+			ОписаниеДокумента = ЗАПРОС("SELECT dbo.fn_getdocdescription('" + ВыгружаемыеДокументы.code + "'," + ВыгружаемыеДокументы.ic + ")");
+			СООБЩЕНИЕ( """" + ОписаниеДокумента + """ не подлежит выгрузке в АТОЛ Mark.Scan. Документ пропущен", RESTAPI.ИМЯОБОРУДОВАНИЯ() );
 		}
-		ПРОПУСТИТЬ( 1, "СписокДокументов" );
-	}
-	УДАЛИТЬКОНТЕКСТ( "СписокДокументов" );
-//выгрузка документов
-connector.SetDocuments(outDocuments);
+		
+		ПРОПУСТИТЬ( 1, "ВыгружаемыеДокументы" );
+		
+	} //WHILE ( !КОНЕЦКОНТЕКСТА( "ВыгружаемыеДокументы" ) )	
+	УДАЛИТЬКОНТЕКСТ( "ВыгружаемыеДокументы" );
+	//сбрасываем индикатор
+	ИНДИКАТОР( );
 }

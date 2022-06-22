@@ -16,7 +16,7 @@ DeleteRequest			= LEFT( Строка, 6 ) == "DELETE";
 OptionsRequest			= LEFT( Строка, 7 ) == "OPTIONS";
 status_code				= 200;
 
-ФайлЖурнала				= ФАЙЛОТКРЫТЬ( RESTAPI.DATAMOBILE_ИМЯФАЙЛАЖУРНАЛА( "E:\" ), 1, 1 );
+ФайлЖурнала				= ФАЙЛОТКРЫТЬ( RESTAPI.ИМЯФАЙЛАЖУРНАЛА( "E:\", "datamobile_httpserver_log" ), 1, 1 );
 ФАЙЛУСТАНОВИТЬУКАЗАТЕЛЬ( ФайлЖурнала, 0, 0, 2 );
 
 IF ( OptionsRequest )

@@ -1,0 +1,22 @@
+IF ( ПУСТО( ИДЕНТИФИКАТОРЧЕКА ) ) RETURN false;
+
+Локардс_Токен = RESTAPI.LOCARDS_TOKEN( НОМЕРКАРТЫ );
+IF ( ПУСТО(Локардс_Токен) )
+	RETURN false;
+	
+	
+УспешноеВыполнение = false;
+Локардс_АдресСервера = "https://api.lo.cards";
+
+АдресРесурса = "/v1/crm/sale/" + ИДЕНТИФИКАТОРЧЕКА;
+
+Заголовки[0] = "Authorization: Bearer " + ALLTRIM( Локардс_Токен );	
+Заголовки[1] = "Content-Type: application/json; charset=utf-8";	
+	
+ОТВЕТ_локардс = RESTAPI.LOCARDS_DELETEЗАПРОС( Локардс_АдресСервера, АдресРесурса, "Заголовки" );
+
+IF ( !ПУСТО( ОТВЕТ_локардс) AND ОТВЕТ_локардс != false )
+	УспешноеВыполнение = ПОЛЕ_JSON( ОТВЕТ_локардс, "success", false);
+	
+
+RETURN УспешноеВыполнение == true OR УспешноеВыполнение == "true";

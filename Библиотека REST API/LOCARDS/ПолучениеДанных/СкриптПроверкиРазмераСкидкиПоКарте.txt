@@ -1,0 +1,10 @@
+КАРТАКЛИЕНТА = "";
+IF ( UPPER( ALLTRIM( _ИМЯПОЛЯ ) ) == "CLIENT" )
+	КАРТАКЛИЕНТА = ЗАПРОС("SELECT cardn FROM sprmclient WHERE code = '" + STDF( _ЗНАЧЕНИЕПОЛЯ ) + "'");
+ELSE IF ( UPPER( ALLTRIM( _ИМЯПОЛЯ ) ) == "CARDN" )
+	КАРТАКЛИЕНТА = _ЗНАЧЕНИЕПОЛЯ;
+
+IF ( !ПУСТО( КАРТАКЛИЕНТА ) )
+	LOCARDS_РАЗМЕРСКИДКИПОКАРТЕ = RESTAPI.Locards_РазмерСкидки( КАРТАКЛИЕНТА, "", true);
+
+RETURN ПЕРЕМЕННАЯ( "LOCARDS_РАЗМЕРСКИДКИПОКАРТЕ", 0 );

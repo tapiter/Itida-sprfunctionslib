@@ -1,17 +1,30 @@
-IF ( ПУСТО( ИДЕНТИФИКАТОРЧЕКА ) OR ПУСТО( НОМЕРКАРТЫ ) ) RETURN false;
+IF ( ПУСТО( ИДЕНТИФИКАТОРЧЕКА ) )
+{
+	СООБЩЕНИЕ("Не определен идентификатор чека. " + CHR(13) + CHR(10) + "Отравка чека в Locards проведена не будет.", "Locards - отправка чека");
+	RETURN false;
+}
+
+IF  ( ПУСТО( НОМЕРКАРТЫ ) ) 
+{
+	СООБЩЕНИЕ("Не определен номер карты. " + CHR(13) + CHR(10) + "Отравка чека в Locards проведена не будет.", "Locards - отправка чека");
+	RETURN false;
+}
 
 Локардс_Токен = RESTAPI.LOCARDS_TOKEN( НОМЕРКАРТЫ );
 IF ( ПУСТО(Локардс_Токен) )
+{
+	СООБЩЕНИЕ("Не определен токен LOCARDS. " + CHR(13) + CHR(10) + "Отравка чека в Locards проведена не будет.", "Locards - отправка чека");
 	RETURN false;
+}
 
 //выберем данные шапки документа
 ДОБАВИТЬКОНТЕКСТ( "SELECT rid, date, firm, cur, sklad, kskod, client, partner, cardnumber, checktype, 
-				total, bonus, chequediscount, chequediscount_prc, telemail, author, shiftnumber, chequenumber, comment
+				subtotal, bonus, chequediscount, chequediscount_prc, telemail, author, shiftnumber, chequenumber, comment
 				FROM chequelist WHERE identity_column = '" + ИДЕНТИФИКАТОРЧЕКА + "'", "ДанныеДокумента" );
 ВЫБРАТЬКОНТЕКСТ("ДанныеДокумента");
 
 ЧЕКИДЕНТИФИКАТОР = ДанныеДокумента.rid;
-ДОКУМЕНТ_СУММАИТОГ = ДанныеДокумента.total;
+ДОКУМЕНТ_СУММАИТОГ = ДанныеДокумента.subtotal;
 ДОКУМЕНТ_СУММАБОНУС = ДанныеДокумента.bonus;
 ДОКУМЕНТ_СУММАСКИДКИ = ДанныеДокумента.chequediscount;
 ДОКУМЕНТ_СУММАСКИДКИПРОЦЕНТ = ДанныеДокумента.chequediscount_prc;

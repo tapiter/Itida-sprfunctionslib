@@ -23,7 +23,7 @@ ELSE IF ( ( TICKCOUNT( ) - ТокеныБифит.ВремяАвторизаци
 АдресСервера = "https://kassa.bifit.com";
 Заголовки[0] = "Content-Type: application/x-www-form-urlencoded";
 Заголовки[1] = "Accept: */*";
-Заголовки[2] = "Accept-Encoding: gzip, deflate, br";
+Заголовки[2] = "Accept-Encoding: deflate";
 
 try
 {

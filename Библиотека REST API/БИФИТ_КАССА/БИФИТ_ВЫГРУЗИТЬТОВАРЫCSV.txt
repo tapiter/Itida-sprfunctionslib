@@ -264,6 +264,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "СписокТоваров" ) )
 
 Заголовки[0] = "Content-Type: multipart/form-data; boundary=" + Граница;
 Заголовки[1] = "Authorization: bearer " + БифитТокен + "";
+Заголовки[2] = "Accept-Encoding: deflate";
 АдресСервера = "https://kassa.bifit.com";
 Ресурс = "/cashdesk-api/v1/protected/exchange/csv/upload?charset=UTF-8&organization_id=" + ОрганизацияИД;
 

@@ -3,6 +3,7 @@ IF (ПУСТО(ЗАГОЛОВКИ))
 {
 	Заголовки[0] = "Content-Type: application/json";
 	Заголовки[1] = "Authorization: bearer " + БифитТокен + "";
+	Заголовки[2] = "Accept-Encoding: deflate";
 }
 
 try

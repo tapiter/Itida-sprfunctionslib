@@ -21,9 +21,9 @@ IF ( fptr.errorCode() <> 0 )
 IF ( ФискальныйЧек )
 {
 	// Обработаем результат печати чека
-	РезультатПечатиЧека	= fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );
+	РезультатФискализацииЧека	= fptr.getParamString( fptr.LIBFPTR_PARAM_JSON_DATA );
 	
-	ЗАГРУЗИТЬJSON( "РезультатЗадания", РезультатПечатиЧека );
+	ЗАГРУЗИТЬJSON( "РезультатЗадания", РезультатФискализацииЧека );
 	ВЫБРАТЬКОНТЕКСТ( "РезультатЗадания" );
 	fiscalParams 	= "";
 	warnings 		= "";

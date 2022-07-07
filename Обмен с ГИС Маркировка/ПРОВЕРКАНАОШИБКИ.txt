@@ -28,7 +28,7 @@ ELSE IF ( AT( Ответ, "error_description" ) > 0 )
 	Ответ		= "Ошибка: " + ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error" ) + " " + ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_description" );
 	Результат	= false;
 }
-ELSE IF ( AT( Ответ, "fieldErrors" ) > 0 ) 
+ELSE IF ( AT( Ответ, "fieldErrors" ) > 0 && AT( Ответ, """fieldErrors"": null" ) == 0 ) 
 {
 	ЗАГРУЗИТЬJSON( "Ошибка", ПЕРЕКОДИРОВАТЬ( Ответ, "UTF-8", "ANSI" ) );
 	IF ( ТИПЗНАЧЕНИЯПОЛЯ( "Ошибка", "fieldErrors" ) == "C" )

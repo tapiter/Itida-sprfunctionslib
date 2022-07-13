@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ LOCARDS_ПОЛУЧЕНИЕСПИСКАКАРТ ()","note":"Функция получает список карт из Locards","isLocal":true}

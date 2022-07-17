@@ -21,24 +21,28 @@ IF ( !ПУСТО( СПИСОККАРТ ) )
 		ПРОПУСТИТЬ(1, "КартыЛокардс");
 	}	
 	
-	УСЛОВИЕПОКАРТАМ = " AND cardn not in ( SELECT cardNumber FROM " + ИмяТаблицы + ") AND REPLACE( REPLACE( REPLACE( telefon, '+', ''), '-', ''), ' ', '') not in ( SELECT phone FROM " + ИмяТаблицы + ")";
+	УСЛОВИЕПОКАРТАМ = " AND client.cardn not in ( SELECT cardNumber FROM " + ИмяТаблицы + ") AND REPLACE( REPLACE( REPLACE( client.telefon, '+', ''), '-', ''), ' ', '') not in ( SELECT phone FROM " + ИмяТаблицы + ")";
 	
 	УДАЛИТЬКОНТЕКСТ("КартыЛокардс");
 }
 
 //сформируем массив карт для выгрузки
 ДОБАВИТЬКОНТЕКСТ("SELECT
-					name, 
-					REPLACE( REPLACE( REPLACE( telefon, '+', ''), '-', ''), ' ', '') AS Телефон, 
-					cardn AS НомерКарты, 
-					birthdate AS ДеньРождения,
-					CASE WHEN sex = 0 THEN 1 ELSE sex END AS Пол,
+					client.name, 
+					REPLACE( REPLACE( REPLACE( client.telefon, '+', ''), '-', ''), ' ', '') AS Телефон, 
+					card.cardn AS НомерКарты, 
+					client.birthdate AS ДеньРождения,
+					CASE WHEN client.sex = 0 THEN 1 ELSE client.sex END AS Пол,
 					0 AS Накопления,
-					dbo.fn_calccard_bonus( cardn, 'БОНУС', GETDATE() ) AS Баланс,
-					dbo.fn_calccard_turnover( card, '', 0 ) AS ВсегоПотречено
-				FROM sprmclient
-				WHERE notavail = 0 AND cardn <> '' AND name <> '' AND telefon <> '' AND LEN(telefon) = 11 
-				AND datalength(RTRIM(name)) - datalength(replace(RTRIM(name), ' ', '')) > 0 " + УСЛОВИЕПОКАРТАМ, "СписокКартКлиентов");
+					dbo.fn_calccard_bonus( card.cardn, 'БОНУС', GETDATE() ) AS Баланс,
+					dbo.fn_calccard_turnover( card.code, '', 0 ) AS ВсегоПотречено,
+					card.discount, card.bonus,
+					(SELECT ctext FROM sprbonus WHERE code = card.bonus) AS КатегорияБонус,
+					(SELECT ctext FROM specmdiscount WHERE code = card.discount) AS КатегорияСкидка
+				FROM sprmclient client
+				INNER JOIN sprmcard card ON client.card = card.code OR card.client = client.code
+				WHERE client.notavail = 0 AND client.cardn <> '' AND client.name <> '' AND client.telefon <> '' AND LEN(client.telefon) = 11 
+				AND datalength(RTRIM(client.name)) - datalength(replace(RTRIM(client.name), ' ', '')) > 0  " + УСЛОВИЕПОКАРТАМ, "СписокКартКлиентов");
 
 ВсегоКартКлиентов = КОЛИЧЕСТВОСТРОК("СписокКартКлиентов");
 ИНДИКАТОР("Выгрузка карт клиентов", ВсегоКартКлиентов);
@@ -54,7 +58,7 @@ IF ( !ПУСТО( СПИСОККАРТ ) )
 	ДанныеКарты += ДАННЫЕ_JSON("lastName", ПЕРЕКОДИРОВАТЬ( ПОЛУЧИТЬСЛОВО( " " + СписокКартКлиентов.name + " ", " ", " ", 1 ) , "ANSI", "UTF-8" ) ) + ",";
 	ДанныеКарты += ДАННЫЕ_JSON("phone", ЕСЛИ( ЛЕВСИМВ( СписокКартКлиентов.Телефон, 1 ) == "8", "7" + ПРАВСИМВ( СписокКартКлиентов.Телефон, ДЛИНА( СписокКартКлиентов.Телефон ) - 1 ), СписокКартКлиентов.Телефон ) ) + ",";
 	ДанныеКарты += ДАННЫЕ_JSON("cardNumber", СписокКартКлиентов.НомерКарты ) + ",";
-	ДанныеКарты += ДАННЫЕ_JSON("categoryId", "1" ) + ",";
+	ДанныеКарты += ДАННЫЕ_JSON("categoryId", ПЕРЕКОДИРОВАТЬ( ЕСЛИ(!ПУСТО(СписокКартКлиентов.discount), СписокКартКлиентов.КатегорияСкидка, СписокКартКлиентов.КатегорияБонус ) , "ANSI", "UTF-8" ) ) + ",";
 	ДанныеКарты += """birthday"":""" + DTOC( СписокКартКлиентов.ДеньРождения, 7, "-" ) + """" + ",";
 	ДанныеКарты += ДАННЫЕ_JSON("gender", СписокКартКлиентов.Пол ) + ",";
 	ДанныеКарты += ДАННЫЕ_JSON("balance", ЕСЛИ( СписокКартКлиентов.Баланс < 0, 0, СписокКартКлиентов.Баланс ) );

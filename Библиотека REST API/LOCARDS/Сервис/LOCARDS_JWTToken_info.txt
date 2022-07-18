@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ LOCARDS_JWTTOKEN ()","note":"Получение JWT токена Локардс по учетным данным кабинета","isLocal":true}

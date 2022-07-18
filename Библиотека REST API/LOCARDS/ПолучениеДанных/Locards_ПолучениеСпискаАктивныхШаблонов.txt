@@ -1,0 +1,26 @@
+Локардс_JWTToken = RESTAPI.LOCARDS_JWTToken( );
+IF ( ПУСТО(Локардс_JWTToken) )
+{
+	СООБЩЕНИЕ("Ошибка получения списка шаблонов LoCards. " + CHR(13) + CHR(10) + "Не определен токен LOCARDS.", "Locards - получение списка шаблонов");
+	RETURN "";
+}
+
+СписокШаблонов = "";
+УспешноеПолучение = false;
+Локардс_АдресСервера = "https://api.lo.cards";
+
+АдресРесурса = "/v1/template/active";
+
+Заголовки[0] = "Authorization: Bearer " + ALLTRIM( Локардс_JWTToken );	
+Заголовки[1] = "Content-Type: application/json; charset=utf-8";	
+	
+ОТВЕТ_локардс = RESTAPI.LOCARDS_GETЗАПРОС( Локардс_АдресСервера, АдресРесурса, "Заголовки" );
+
+IF ( !ПУСТО( ОТВЕТ_локардс) AND ОТВЕТ_локардс != false )
+{
+	УспешноеПолучение = ПОЛЕ_JSON( ОТВЕТ_локардс, "success", false);
+	IF ( УспешноеПолучение == true OR УспешноеПолучение == "true" )
+		СписокШаблонов = ПОЛЕ_JSON( ОТВЕТ_локардс, "data", "");	
+}
+
+RETURN СписокШаблонов;

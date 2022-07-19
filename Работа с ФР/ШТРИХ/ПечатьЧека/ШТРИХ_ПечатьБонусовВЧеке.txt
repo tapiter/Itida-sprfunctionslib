@@ -1,0 +1,42 @@
+// Если карта не введена, то никаких начислений, бонусов и скидок нет
+IF ( КОЛИЧЕСТВОКАРТ <= 0 ) RETURN "";
+
+НПП = 0;
+WHILE ( НПП < КОЛИЧЕСТВОКАРТ )
+{
+	НОМЕРКАРТЫТЕКУЩЕЙ = КАРТЫ[ НПП ];
+	ТИПБОНУСА= ЗАПРОС( "SELECT bonusalias FROM sprbonus WHERE code IN ( SELECT bonus FROM sprmcard WHERE cardn = '" + НОМЕРКАРТЫТЕКУЩЕЙ + "' )" );
+
+	IF ( !ПУСТО( ТИПБОНУСА ) )
+	{
+		ОПЛАЧЕНОБОНУСОМ = ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫТЕКУЩЕЙ + "' AND priz= '-' AND chequeic= " + ИДОбъекта );
+		НАЧИСЛЕНОБОНУСОВ = ЗАПРОС( "SELECT SUM( summa ) FROM specmcard_bonus WHERE cardn ='" + НОМЕРКАРТЫТЕКУЩЕЙ + "' AND priz= '+' AND chequeic= " + ИДОбъекта );
+		ОСТАТОКБОНУСОВ = ЗАПРОС( "SELECT dbo.fn_calccard_bonus( '" + НОМЕРКАРТЫТЕКУЩЕЙ + "', '" + ТИПБОНУСА + "', DEFAULT );" );
+		
+		IF ( !ПУСТО( ОПЛАЧЕНОБОНУСОМ ) OR !ПУСТО( НАЧИСЛЕНОБОНУСОВ ) OR !ПУСТО( ОСТАТОКБОНУСОВ ) )
+		{
+			driverKKM.CarryStrings = false;
+			driverKKM.StringForPrinting = "---------------------------------------------";
+			driverKKM.PrintString( );
+			driverKKM.StringForPrinting = "Карта:   " + НОМЕРКАРТЫТЕКУЩЕЙ;
+			driverKKM.PrintString( );
+			IF ( !ПУСТО( ОПЛАЧЕНОБОНУСОМ ) ) 
+			{
+				driverKKM.StringForPrinting = "Списано бонусов:   " + STR( ОПЛАЧЕНОБОНУСОМ, 10, 2);
+				driverKKM.PrintString( );
+			}
+			IF ( !ПУСТО( НАЧИСЛЕНОБОНУСОВ ) ) 
+			{
+				driverKKM.StringForPrinting = "Начислено бонусов: " + STR( НАЧИСЛЕНОБОНУСОВ, 10, 2);
+				driverKKM.PrintString( );
+			}
+			driverKKM.StringForPrinting = "Остаток бонусов:   " + STR( ОСТАТОКБОНУСОВ, 10, 2);
+			driverKKM.PrintString( );
+			driverKKM.StringForPrinting = "---------------------------------------------";
+			driverKKM.PrintString( );
+		}
+	}
+	
+	НПП++;
+}
+RETURN true;

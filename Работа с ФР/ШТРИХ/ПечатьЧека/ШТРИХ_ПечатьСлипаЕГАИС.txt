@@ -1,0 +1,95 @@
+driverKKM.GetECRStatus( );
+driverKKM.PrintCliche( );
+
+driverKKM.UseReceiptRibbon = TRUE;
+driverKKM.UseJournalRibbon = FALSE;
+
+driverKKM.StringForPrinting			= "";
+driverKKM.PrintString( );
+
+//------- Опредяляем общие реквизиты чека
+КОДУТМ				= КомандыЧека.utm_code;
+ЕГАИССКЛАД			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_SKLAD" + КОДУТМ + "'" );
+ЕГАИСФИРМА			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'EGAIS_FIRM" + КОДУТМ + "'" );
+
+ЧЕКИНН				= ЗАПРОС( "SELECT inn FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+ЧЕККПП				= ЗАПРОС( "SELECT kpp FROM sprskl WHERE code = '" + ЕГАИССКЛАД + "'" );
+IF ( ПУСТО( ЧЕККПП ) )
+	ЧЕККПП			= ЗАПРОС( "SELECT kpp FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+ЧЕКНАИМЕНОВАНИЕ		= ЗАПРОС( "SELECT name FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+ЧЕКАДРЕС			= ЗАПРОС( "SELECT address FROM sprskl WHERE code = '" + ЕГАИССКЛАД + "'" );
+IF ( ПУСТО( ЧЕКАДРЕС ) )
+	ЧЕКАДРЕС		= ЗАПРОС( "SELECT adress FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
+
+ЧЕККАССА					= ЗАПРОС( "SELECT serialnumber FROM sprequipment WHERE code = '" + ФРКОДОБОРУДОВАНИЯ + "'" );
+ЧЕКСМЕНА					= driverKKM.SessionNumber;
+ЧЕКНОМЕР					= driverKKM.OpenDocumentNumber;
+
+driverKKM.StringForPrinting	= ЧЕКНАИМЕНОВАНИЕ;
+
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= PADR( "ИНН: " + ЧЕКИНН, 20 ) + "КПП: " + ЧЕККПП;
+
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= PADR( "КАССА: " + ЧЕККАССА, 20 ) + "СМЕНА: " + ЧЕКСМЕНА;
+
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= PADR( "ЧЕК: " + ЧЕКНОМЕР, 14 ) + "ДАТА: " + LEFT( TTOC( ДАТАВРЕМЯ( ) ), 16 );
+
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= "";
+driverKKM.PrintString( );
+
+Способ = 1;
+КоэффициентШК = 4;
+IF ( Способ == 1 )
+{
+	driverKKM.BarcodeType				= 3;//QR Code
+	driverKKM.BarcodeDataLength			= LEN( ALLTRIM( КомандыЧека.egais_url ) );
+	driverKKM.BarcodeStartBlockNumber	= 0;
+	driverKKM.BarCode 					= ALLTRIM(КомандыЧека.egais_url);
+	driverKKM.BarcodeAlignment			= 0;  //0 baCenter по центру; 1 baLeft влево; 2 baRight вправо
+	driverKKM.BarcodeParameter1 		= 0;
+	driverKKM.BarcodeParameter2			= 0;
+	driverKKM.BarcodeParameter3			= КоэффициентШК;
+	driverKKM.BarcodeParameter4			= 0;
+	driverKKM.BarcodeParameter5			= 1;
+	driverKKM.LoadAndPrint2DBarcode();
+	//driverKKM.Print2DBarcode();
+	driverKKM.Barcode = ""; //освободим память, занятую штрихкодом
+}
+ELSE
+{
+	driverKKM.BarCode = ALLTRIM(КомандыЧека.egais_url);
+	driverKKM.BarcodeType = 3;
+	driverKKM.BarWidth = КоэффициентШК;
+	driverKKM.LineNumber = 130*КоэффициентШК;
+	//driverKKM.FirstLineNumber = 1;
+	driverKKM.PrintBarcodeText = 0; //печатать символы ШК
+	driverKKM.BarcodeAlignment = 0; //по центру
+	driverKKM.Password = FROperatorProfile;
+	driverKKM.PrintBarcodeGraph();
+	driverKKM.Barcode = ""; //освободим память, занятую штрихкодом
+}
+
+driverKKM.StringForPrinting	= "";
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= КомандыЧека.egais_url;
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= "";
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= КомандыЧека.egais_sign;
+driverKKM.PrintString( );
+
+driverKKM.StringForPrinting	= "";
+driverKKM.PrintString( );
+
+driverKKM.WaitForPrinting( );
+//driverKKM.FeedDocument( );

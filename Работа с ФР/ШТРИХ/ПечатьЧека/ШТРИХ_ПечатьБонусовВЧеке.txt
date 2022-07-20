@@ -16,7 +16,7 @@ WHILE ( НПП < КОЛИЧЕСТВОКАРТ )
 		IF ( !ПУСТО( ОПЛАЧЕНОБОНУСОМ ) OR !ПУСТО( НАЧИСЛЕНОБОНУСОВ ) OR !ПУСТО( ОСТАТОКБОНУСОВ ) )
 		{
 			driverKKM.CarryStrings = false;
-			driverKKM.StringForPrinting = "---------------------------------------------";
+			driverKKM.StringForPrinting = LEFT( "---------------------------------------------", ПЕРЕМЕННАЯ( "_КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ", 32 ) );
 			driverKKM.PrintString( );
 			driverKKM.StringForPrinting = "Карта:   " + НОМЕРКАРТЫТЕКУЩЕЙ;
 			driverKKM.PrintString( );
@@ -32,7 +32,7 @@ WHILE ( НПП < КОЛИЧЕСТВОКАРТ )
 			}
 			driverKKM.StringForPrinting = "Остаток бонусов:   " + STR( ОСТАТОКБОНУСОВ, 10, 2);
 			driverKKM.PrintString( );
-			driverKKM.StringForPrinting = "---------------------------------------------";
+			driverKKM.StringForPrinting = LEFT( "---------------------------------------------", ПЕРЕМЕННАЯ( "_КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ", 32 ) );
 			driverKKM.PrintString( );
 		}
 	}

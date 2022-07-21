@@ -37,6 +37,9 @@ DriverPayCard.ECRSessionNumber	= ПЕРЕМЕННАЯ( "НомерСменыКК
 DriverPayCard.ECRReceiptNumber	= ПЕРЕМЕННАЯ( "НомерЧекаККМ", 0 );
 DriverPayCard.CharLineLength 	= _КОЛИЧЕСТВОСИМВОЛОВЧЕКОВОЙЛЕНТЫ;
 Результат 						= DriverPayCard.OnLineAuthorization();
+
+IF ( ФР.ПСАТОЛ_Ошибка( Результат ) ) RETURN false;
+	
 IF ( ( Результат >= 0 ) OR ( Результат <= -10000 AND Результат > -11000 ) )
 {
 	//получаем слип-чек и добавляем в чек	

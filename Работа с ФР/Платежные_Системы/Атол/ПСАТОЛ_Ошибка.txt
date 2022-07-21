@@ -5,5 +5,10 @@ IF ( Результат < 0 )
 	
 	RETURN true;
 }
+ELSE IF ( ВСПИСКЕ( VAL( Результат ), 992, 998, 999 ) )
+{
+	СООБЩЕНИЕ ( DriverPayCard.ResultDescription + " | " + DriverPayCard.ResultPrompt );
+	RETURN true;
+}
 ELSE
 	RETURN false;

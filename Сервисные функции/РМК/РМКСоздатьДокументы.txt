@@ -318,6 +318,21 @@ try
 	}
 	УДАЛИТЬКОНТЕКСТ( "Документы" );
 	
+	// В справочник оборудования записываем дату последней загрузки данных
+	ИмяВременнойТаблицы	= "##" + УНИКАЛЬНОЕИМЯ( );
+	__SQL( )
+	{
+		SELECT c.fr_code, MAX( c.date ) AS date INTO [[ ИмяВременнойТаблицы ]]
+		FROM chequelist c
+		INNER JOIN [[ ТаблицаЧеков ]] temp ON c.rid = temp.rid;
+		
+		UPDATE s
+		SET lastdownload = temp.date
+		FROM sprequipment s
+		INNER JOIN [[ ИмяВременнойТаблицы ]] temp ON s.code = temp.fr_code AND s.lastdownload < temp.date;
+		
+	}
+
 	ВтомЧисле			= "";
 	ВсегоСоздано		= Создано001 + Создано002 + Создано006 + Создано008 + Создано046 + Создано055 + Создано007 + Создано003 + Создано020 + Создано014;
 	IF ( Создано001 != 0 )

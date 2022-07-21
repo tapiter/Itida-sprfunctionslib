@@ -21,7 +21,7 @@
 			<tts:Identity>" + ДокументИнфо.wb_Identity + "</tts:Identity>
 			<tts:Header>
 				<tts:TransferNumber>" + ДокументИнфо.ndok + "</tts:TransferNumber>
-				<tts:TransferDate>" + DTOC( ДокументИнфо.date, 7, "-" ) + "</tts:TransferDate>
+				<tts:TransferDate>" + DTOC( ДАТА( ), 7, "-" ) + "</tts:TransferDate>
 			</tts:Header>	
 			<tts:Content>
 ";

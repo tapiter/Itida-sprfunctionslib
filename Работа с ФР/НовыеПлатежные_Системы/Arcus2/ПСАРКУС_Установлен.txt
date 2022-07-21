@@ -1,0 +1,7 @@
+IF ( !ФАЙЛ("C:\Arcus2\CommandLineTool\bin\CommandLineTool.exe", 0 ) )
+{
+	Сообщение("Не найдены файлы для работы с ПС Arcus2" + CHR(13) + CHR(10) + "Проверьте корректность установки ПО Arcus2.", "Ошибка загрузки драйвера ПС");
+	RETURN false;
+}
+
+RETURN true;

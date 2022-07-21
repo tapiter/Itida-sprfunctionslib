@@ -1,0 +1,11 @@
+ПараметрыОперации = "/o" + КодОперацииАркус;
+IF (!ПУСТО(СУММАОПЕРАЦИИ))
+	ПараметрыОперации += " /a" + СУММАОПЕРАЦИИ;
+IF (!ПУСТО(КОДВАЛЮТЫ))	
+	ПараметрыОперации += " /c" + КОДВАЛЮТЫ;
+	
+
+IF ( !ВЫПОЛНИТЬ("C:\Arcus2\CommandLineTool\bin\CommandLineTool.exe", ПараметрыОперации, "C:\Arcus2\CommandLineTool\bin\", "open", 2 ) )
+	RETURN false;
+	
+RETURN true;

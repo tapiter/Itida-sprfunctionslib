@@ -1,0 +1,1 @@
+RETURN ВСПИСКЕ( UPPER( ALLTRIM( ВКЛАДКА ) ), "INVENTORY", "GTIN", "REMARK" );

@@ -1,0 +1,1 @@
+RETURN ЕСЛИ( UPPER( ALLTRIM( ВКЛАДКА ) ) == "GTIN", 2, ЕСЛИ( UPPER( ALLTRIM( ВКЛАДКА ) ) == "INVENTORY",1, 3 ) );

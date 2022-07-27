@@ -1,1 +1,0 @@
-RETURN REPLICATE( CHR( 9 ), НОМЕР );

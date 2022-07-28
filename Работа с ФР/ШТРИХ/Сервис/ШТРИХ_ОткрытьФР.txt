@@ -45,8 +45,7 @@ resultCode 			= driverKKM.ResultCode;
 IF ( resultCode <> 0 )
 {
 	// Вывод ошибки
-	MessageBox( "Ошибка " + driverKKM.ResultCode + " при установке связи с ККМ. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );
-	_ОШИБКАВЫПОЛНЕНИЯ				= true;
+	MessageBox( "Ошибка " + driverKKM.ResultCode + " при установке связи с ККМ. Описание ошибки: " + driverKKM.ResultCodeDescription, ФР.ИМЯОБОРУДОВАНИЯ() );		
 	RETURN false;
 }
 RETURN true;

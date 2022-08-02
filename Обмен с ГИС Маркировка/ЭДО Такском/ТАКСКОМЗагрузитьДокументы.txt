@@ -38,7 +38,7 @@
 СЕРТИФИКАТ				= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_CERTIFICATE" + ПРЕДПРИЯТИЕ + "'" );
 ТЕСТОВЫЙКОНТУР			= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_APITEST" + ПРЕДПРИЯТИЕ + "'" ) ) != 0 ;
 ДАТАЗАГРУЗКИ			= CTOD( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIDOWNLOADDATE" + ПРЕДПРИЯТИЕ + "'" ) );
-ТОЛЬКОМАРКИРОВКА		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMARKING" + ПРЕДПРИЯТИЕ + "'" ) ) != 0;
+//ТОЛЬКОМАРКИРОВКА		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMARKING" + ПРЕДПРИЯТИЕ + "'" ) ) != 0;
 СКРИПТПРОВЕРКИ			= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDICHECKIN_EX" + ПРЕДПРИЯТИЕ + "'" );
 Фирма					= ЗАПРОС( "SELECT code FROM sprfirm WHERE code IN ( SELECT CONVERT( varchar( 10 ), value ) FROM param_ex WHERE param= 'MARK_FIRM" + ПРЕДПРИЯТИЕ + "')" );
 

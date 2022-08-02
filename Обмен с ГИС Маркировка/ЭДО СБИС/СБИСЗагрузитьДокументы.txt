@@ -1,6 +1,6 @@
 
 ДАТАЗАГРУЗКИ			= CTOD( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIDOWNLOADDATE" + ПРЕДПРИЯТИЕ + "'" ) );
-ТОЛЬКОМАРКИРОВКА		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMARKING" + ПРЕДПРИЯТИЕ + "'" ) ) != 0;
+//ТОЛЬКОМАРКИРОВКА		= VAL( ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDIMARKING" + ПРЕДПРИЯТИЕ + "'" ) ) != 0;
 СКРИПТПРОВЕРКИ			= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_EDICHECKIN_EX" + ПРЕДПРИЯТИЕ + "'" );
 IF ( РАЗНИЦАДАТ( ДАТАЗАГРУЗКИ, ДАТА( ), "day" ) > 30 )
 	ДАТАЗАГРУЗКИ		= ДОБАВИТЬДНИ( ДАТА( ), -30 );

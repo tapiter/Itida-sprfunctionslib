@@ -1,9 +1,10 @@
+/*
 IF ( ПУСТО( _ИМЯТАБЛИЦЫ ) )
 {
 	СООБЩЕНИЕ("Не определена таблица товаров для выгрузки");
 	RETURN false;
 }
-
+*/
 //признак необходимости замены алкокодов в товарах при выгрузке привязок алкокодов к товарам. true - заменять, false - добавлять
 _ЗАМЕНЯТЬАЛКОКОДЫВТОВАРАХ = false;
 
@@ -32,27 +33,27 @@ IF ( !ПУСТО( КОДОБОРУДОВАНИЯ ) )
 }
 	
 IF ( !ПУСТО( _ИМЯТАБЛИЦЫ ) )
-	ДОБАВИТЬКОНТЕКСТ( "SELECT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, dbo.fn_getbarcodes( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
+	ДОБАВИТЬКОНТЕКСТ( "SELECT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, dbo.fn_getbarcodes( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, dbo.fn_alcotype( sprnn.nnvid ) AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
 	sprnn.a_proc AS Крепость, dbo.fn_getalcocodes( sprnn.nn ) AS alcocodes, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП
 					   FROM "  + _ИМЯТАБЛИЦЫ + " temp
 					   INNER JOIN sprnn ON temp.nn = sprnn.nn
 					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer
-					   WHERE sprnn.nnvid > 0", "СписокТоваров" );
+					   WHERE dbo.fn_alcotype( sprnn.nnvid ) > 0", "СписокТоваров" );
 ELSE IF ( !ПУСТО( КОДДОКУМЕНТА ) AND ПУСТО( СПИСОКДОКУМЕНТОВ ) )
-	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, dbo.fn_getbarcodes( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
+	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, dbo.fn_getbarcodes( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, dbo.fn_alcotype( sprnn.nnvid ) AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
 	sprnn.a_proc AS Крепость, dbo.fn_getalcocodes( sprnn.nn ) AS alcocodes, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП
 					   FROM spec"  + КОДДОКУМЕНТА + " spec
 					   INNER JOIN sprnn ON spec.nn = sprnn.nn
 					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer
-					   WHERE spec.ic = " + ИДДОКУМЕНТА + " AND sprnn.nnvid > 0", "СписокТоваров" );
+					   WHERE spec.ic = " + ИДДОКУМЕНТА + " AND dbo.fn_alcotype( sprnn.nnvid ) > 0", "СписокТоваров" );
 ELSE IF ( !ПУСТО( СПИСОКДОКУМЕНТОВ ) )
-	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, dbo.fn_getbarcodes( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, sprnn.nnvid AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
+	ДОБАВИТЬКОНТЕКСТ( "SELECT DISTINCT sprnn.maincode, sprnn.ed, sprnn.nn, sprnn.name, dbo.fn_getbarcodes( sprnn.nn ) AS barcodes, sprnn.code AS Артикул, dbo.fn_alcotype( sprnn.nnvid ) AS ВидАлкоголя, sprnn.d_litr AS Объем, sprnn.edd_litr AS ЕдиницаОбъема, sprnn.weight AS Вес,
 	sprnn.a_proc AS Крепость, dbo.fn_getalcocodes( sprnn.nn ) AS alcocodes, sprnn.importer AS Производитель, sprclient.shortname AS ПроизводительИмя, sprclient.inn AS ПроизводительИНН, sprclient.kpp AS ПроизводительКПП
 					   FROM spec000 spec
 					   INNER JOIN " + СПИСОКДОКУМЕНТОВ + " temp ON temp.code = spec.code AND temp.ic = spec.ic
 					   INNER JOIN sprnn ON spec.nn = sprnn.nn
 					   LEFT OUTER JOIN sprclient sprclient ON sprclient.code = sprnn.importer
-					   WHERE sprnn.nnvid > 0", "СписокТоваров" );
+					   WHERE dbo.fn_alcotype( sprnn.nnvid ) > 0", "СписокТоваров" );
 					   
 АдресСервера = "";
 //АдресСервера = "https://localhost:8443";
@@ -76,7 +77,7 @@ IF ( ПУСТО(ЛОГИН) )
 IF ( ПУСТО(ПАРОЛЬ) )
 	ПАРОЛЬ = ПЕРЕМЕННАЯ( "_АЛКОЮНИТПАРОЛЬ", "moo" );
 	
-//выгружаем товары
+//1 - ВЫГРУЗКА ТОВАРОВ
 
 ТекстЗапроса = "";
 IF (КОЛИЧЕСТВОСТРОК("СписокТоваров") > 0 )
@@ -89,8 +90,8 @@ IF (КОЛИЧЕСТВОСТРОК("СписокТоваров") > 0 )
 ПЕРЕЙТИВНАЧАЛО("СписокТоваров");
 WHILE (!КОНЕЦКОНТЕКСТА("СписокТоваров"))
 {
-	mAlco			= VAL( СписокТоваров.ВидАлкоголя ) > 0 AND VAL( СписокТоваров.ВидАлкоголя ) < 500 AND !ВСПИСКЕ( VAL( СписокТоваров.ВидАлкоголя ), 261, 262, 263 );
-	ПивнаяПродукция	= VAL( СписокТоваров.ВидАлкоголя ) >= 500 OR ВСПИСКЕ( VAL( СписокТоваров.ВидАлкоголя ), 261, 262, 263 );
+	mAlco			= VAL( СписокТоваров.ВидАлкоголя ) == 1;
+	ПивнаяПродукция	= VAL( СписокТоваров.ВидАлкоголя ) == 2;
 
 	ТекстЗапросаТовар = "{";
 	ТекстЗапросаТовар += ДАННЫЕ_JSON("id", СписокТоваров.maincode) + ",";
@@ -119,6 +120,7 @@ IF (!ПУСТО(ТекстЗапроса))
 	//	СООБЩЕНИЕ("Ответ сервера Alcounit:" + CHR(13) + CHR(10) + Ответ);
 }
 
+//2 - ВЫГРУЗКА АЛКОКОДОВ ТОВАРОВ
 //пройдемся еще раз по контексту и выгрузим связи товаров с алкокодами
 ТекстЗапроса = "";
 IF (КОЛИЧЕСТВОСТРОК("СписокТоваров") > 0 )
@@ -151,13 +153,50 @@ IF (!ПУСТО(ТекстЗапроса))
 {
 	ТОКЕН = RESTAPI.ALCOUNIT_Авторизация(АдресСервера, ЛОГИН, ПАРОЛЬ);
 	IF ( _ЗАМЕНЯТЬАЛКОКОДЫВТОВАРАХ == false )
-		Ответ = RESTAPI.ALCOUNIT_POSTЗАПРОС(АдресСервера, "/products", ТекстЗапроса, ТОКЕН, "");
+		Ответ = RESTAPI.ALCOUNIT_POSTЗАПРОС(АдресСервера, "/product_alc_code", ТекстЗапроса, ТОКЕН, "");
 	ELSE
-		Ответ = RESTAPI.ALCOUNIT_PUTЗАПРОС(АдресСервера, "/products", ТекстЗапроса, ТОКЕН, "");
+		Ответ = RESTAPI.ALCOUNIT_PUTЗАПРОС(АдресСервера, "/product_alc_code", ТекстЗапроса, ТОКЕН, "");
 		
 	ТекстЗапроса = "";
 	//IF (!ПУСТО(Ответ))
 	//	СООБЩЕНИЕ("Ответ сервера Alcounit:" + CHR(13) + CHR(10) + Ответ);
 }
-
 УДАЛИТЬКОНТЕКСТ("СписокТоваров");
+
+//3 - ВЫГРУЗКА АЛКОМАРОК ИЗ ДОКУМЕНТА
+
+ВыгруженоДокументов = 0;
+//Выгрузка документов
+IF ( !ПУСТО( КОДДОКУМЕНТА ) OR !ПУСТО( СПИСОКДОКУМЕНТОВ ) ) 
+{
+	IF ( !ПУСТО( КОДДОКУМЕНТА ) AND !ПУСТО( ИДДОКУМЕНТА ) )
+		ДОБАВИТЬКОНТЕКСТ( "SELECT DB_NAME( ) AS dbase, '" + КОДДОКУМЕНТА + "' AS code, " + ИДДОКУМЕНТА + " AS ic", "ВыгружаемыеДокументы", 1 );			
+	ELSE IF ( !ПУСТО( СПИСОКДОКУМЕНТОВ ) )
+	{
+		ДОБАВИТЬКОНТЕКСТ( "SELECT dbase, code, ic FROM " + СПИСОКДОКУМЕНТОВ, "ВыгружаемыеДокументы", 1 );	
+		//очищаем список документов, чтобы не выгрузить повторно один и тот же список несколько раз
+		СПИСОКДОКУМЕНТОВ = "";
+	}	
+		
+	ВЫБРАТЬКОНТЕКСТ( "ВыгружаемыеДокументы" );
+	КоличествоДокументовОбщее = КОЛИЧЕСТВОСТРОК("ВыгружаемыеДокументы");
+	КоличествоДокументов = 0;
+	ИНДИКАТОР("Формирование списка документов для выгрузки", КоличествоДокументовОбщее);
+	ПЕРЕЙТИВНАЧАЛО( "ВыгружаемыеДокументы" );	
+	WHILE ( !КОНЕЦКОНТЕКСТА( "ВыгружаемыеДокументы" ) )
+	{
+		IF ( !ВСПИСКЕ( ВыгружаемыеДокументы.code, "001", "002", "007", "019", "045", "055" ) )
+		{
+			BREAK;
+		}
+		//индикатор
+		КоличествоДокументов++;
+		Индикатор( КоличествоДокументов, " Выгрузка документа ( " + КоличествоДокументов + " из " + КоличествоДокументовОбщее + " )" );
+		//индикатор
+		
+		ОбъектДокумента = "";
+		
+		ПРОПУСТИТЬ( 1, "ВыгружаемыеДокументы");
+	}
+}
+RETURN true;

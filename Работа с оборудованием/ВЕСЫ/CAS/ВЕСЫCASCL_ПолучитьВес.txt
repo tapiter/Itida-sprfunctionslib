@@ -1,0 +1,57 @@
+//Получить вес из ВЕСОВ БЕЗ ПЭ
+АдресВесов = ЗАПРОС("SELECT ip_addr FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'");
+
+try
+{	
+	SCALE =  СоздатьОбъект( "CAScentre_DLL_printScale.Scale", 1 );
+}
+catch
+{
+	messagebox("Не удалось создать объект драйвера");
+	RETURN 0;
+}
+
+
+
+try
+{
+	SCALE.IP =  АдресВесов;
+	SCALE.Port = 20304;
+	SCALE.Type = 3; //CAS CL 5000
+	SCALE.Open();
+	IF ( SCALE.Resultcode <> 0 ) THROW SCALE.Resultcode;
+}	
+catch(КодОшибки)
+{
+	messagebox("Ошибка установки связи с весами. Код ошибки: " + КодОшибки);
+	RETURN 0;
+}
+
+SCALE.ReadCurrentStatus();
+IF ( SCALE.Resultcode <> 0 )
+{
+	messagebox("Ошибка чтения статуса весов. Код ошибки: " + SCALE.Resultcode);
+	RETURN 0;
+}
+ВЕС = 0;
+ВесСтабилен = SCALE.statusStable;
+ВЕС = VAL(SCALE.statusWeight);
+ВремяОжиданияСтабилизации = 3000;
+НачалоОжиданияСтабилизации = TICKCOUNT();
+
+WHILE ( (TICKCOUNT() - НачалоОжиданияСтабилизации) <= ВремяОжиданияСтабилизации AND !ВесСтабилен )
+{
+	ВесСтабилен = SCALE.statusStable;
+	ВЕС = VAL(SCALE.statusWeight);	
+}
+
+/*
+СООБЩЕНИЕ("ВЕС = " + ВЕС + CHR(13) + CHR(10) +
+			"ВесСтабилен = " + ВесСтабилен + CHR(13) + CHR(10) +
+			"Код ошибки: " + SCALE.ResultCode);
+*/
+
+SCALE.close();
+SCALE	= false;
+
+RETURN ВЕС;

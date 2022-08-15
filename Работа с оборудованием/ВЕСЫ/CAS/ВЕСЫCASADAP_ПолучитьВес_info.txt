@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ ВЕСЫCASADAP_ПОЛУЧИТЬВЕС (КОДОБОРУДОВАНИЯ)","note":"","isLocal":true}

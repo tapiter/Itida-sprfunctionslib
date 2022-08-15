@@ -1,0 +1,36 @@
+//Инициализация драйвера
+
+МассаКВБПЭDriver		= СОЗДАТЬОБЪЕКТ( "TerminalMassaK.Driver", 1 );
+МассаКВБПЭDevice		= СОЗДАТЬОБЪЕКТ( "TerminalMassaK.Device", 1 );
+IF ( ТИП( "МассаКВБПЭDriver" ) != "O" OR ТИП( "МассаКВБПЭDevice" ) != "O" )
+{
+	_ERROR				= true;
+	МассаКВБПЭDevice	= false;
+	МассаКВБПЭDriver	= false;
+	СООБЩЕНИЕ("Не удалось создать объект драйвера.");
+}
+ELSE
+{
+	МассаКВБПЭDevice.GetFirst( );
+	_ERROR				= МассаКВБПЭDriver.ResultCode < 0;
+}
+
+IF ( _ERROR ) RETURN 0;
+
+//Получить вес из ВЕСОВ БЕЗ ПЭ
+
+МассаКВБПЭDevice.GetWeight( );
+
+IF ( МассаКВБПЭDriver.ResultCode < 0 )
+{
+	СООБЩЕНИЕ("Ошибка получения веса с весов: " + МассаКВБПЭDriver.ResultDescription);
+	RETURN 0;
+}
+
+ВЕС = МассаКВБПЭDevice.Weight / 1000.00;
+
+//Окончание работы с ВЕСАМИ БЕЗ ПЭ
+МассаКВБПЭDriver		= false;
+МассаКВБПЭDevice		= false;
+
+RETURN ВЕС;

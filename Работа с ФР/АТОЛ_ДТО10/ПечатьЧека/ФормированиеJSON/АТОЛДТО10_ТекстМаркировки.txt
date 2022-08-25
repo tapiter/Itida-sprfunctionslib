@@ -32,6 +32,10 @@ IF ( ALLTRIM(КомандыЧека.ffd_version) == "1.2" )
 {
 	markingCode = ПЕРЕКОДИРОВАТЬ( ALLTRIM( ШКМарки ), "", "BASE64" );
 	
+	//если потерялся результат проверки, то заполняем стандартным результатом с неизвестным статусом и буквой М в чеке
+	IF ( ПУСТО( РезультатПроверкиКМ ) )
+		РезультатПроверкиКМ = "{""ecrStandAloneFlag"":false,""imcCheckFlag"":false,""imcCheckResult"":false,""imcEstimatedStatusCorrect"":false,""imcStatusInfo"":false}";
+	
 	JSONДанныеПроверкиТовара = """itemInfoCheckResult"": " + РезультатПроверкиКМ;
 	JSONПланируемыйСтатусКМ = ЕСЛИ( КомандыЧека.operation == "Регистрация", "itemPieceSold", "itemPieceReturn" );
 		

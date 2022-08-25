@@ -25,4 +25,4 @@ _ИННКАССИРА 	= ЗАПРОС( "SELECT inn FROM sprempl WHERE code = '" 
 fptr.setParam( fptr.LIBFPTR_PARAM_JSON_DATA, ТекстЗапросаХОтчет );
 fptr.processJson( );
 
-RETURN ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки( "XОтчет" );
+RETURN ФР.АТОЛДТО10_ЗакрытьФРСПроверкойНаОшибки( "XОтчет", true );

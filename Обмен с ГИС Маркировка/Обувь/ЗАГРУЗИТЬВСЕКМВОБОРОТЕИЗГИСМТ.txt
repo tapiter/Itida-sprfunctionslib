@@ -96,10 +96,10 @@ try
 			}
 			
 			//находим строку с gtin
-			СтрокаИД = ЗАПРОС( "SELECT identity_column FROM mark_stock_spec WHERE ic=" + ИДДОКУМЕНТА + " AND gtin= '" + STDF( mGTIN ) + "'" );
+			СтрокаИД = ЗАПРОС( "SELECT identity_column FROM mark_stock_spec WHERE ic=" + ИДДОКУМЕНТА + " AND gtin= '" + ALLTRIM( mGTIN ) + "'" );
 			//если строк нет, то добавляем новую
 			IF ( ПУСТО( СтрокаИД ) )
-				ЗАПРОС( "INSERT INTO mark_stock_spec ( ic, ent, gtin ) VALUES ( " + ИДДОКУМЕНТА + ", " + ПРЕДПРИЯТИЕ + ", '" + STDF( mGTIN ) + "' )" );
+				СтрокаИД = ЗАПРОС( "INSERT INTO mark_stock_spec ( ic, ent, gtin ) VALUES ( " + ИДДОКУМЕНТА + ", '" + ПРЕДПРИЯТИЕ + "', '" + STDF( mGTIN ) + "' )" );
 				
 			//если нет строки с gtin и новую добавить не получилось, то вызываем исключение	
 			IF ( ПУСТО( СтрокаИД ) )

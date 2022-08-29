@@ -1,0 +1,1 @@
+RETURN UPPER( ALLTRIM( ВКЛАДКА ) ) == "INVENTORY";

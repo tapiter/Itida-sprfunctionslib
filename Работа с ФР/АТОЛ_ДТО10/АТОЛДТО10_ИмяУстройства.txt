@@ -1,6 +1,7 @@
 // Имя устройства ФР
 COMPARAMORDER( false );
 deviceName = "ККМ АТОЛ";
+serial = "";
 
 try
 {

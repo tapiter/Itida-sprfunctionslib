@@ -99,7 +99,13 @@ try
 			СтрокаИД = ЗАПРОС( "SELECT identity_column FROM mark_stock_spec WHERE ic=" + ИДДОКУМЕНТА + " AND gtin= '" + ALLTRIM( mGTIN ) + "'" );
 			//если строк нет, то добавляем новую
 			IF ( ПУСТО( СтрокаИД ) )
-				СтрокаИД = ЗАПРОС( "INSERT INTO mark_stock_spec ( ic, ent, gtin ) VALUES ( " + ИДДОКУМЕНТА + ", '" + ПРЕДПРИЯТИЕ + "', '" + STDF( mGTIN ) + "' )" );
+			{
+				Товар = ЗАПРОС("SELECT code FROM sprres WHERE gtin = '" + ALLTRIM( mGTIN ) + "'");
+				IF ( ПУСТО( Товар ) )
+					Товар = ЗАПРОС("SELECT TOP 1 nn FROM sprnnbc WHERE bc = '" + RIGHT( ALLTRIM( mGTIN ), 13 ) + "'");
+					
+				СтрокаИД = ЗАПРОС( "INSERT INTO mark_stock_spec ( ic, ent, gtin, nn ) VALUES ( " + ИДДОКУМЕНТА + ", '" + ПРЕДПРИЯТИЕ + "', '" + ALLTRIM( mGTIN ) + "', '" + Товар + "' )" );
+			}
 				
 			//если нет строки с gtin и новую добавить не получилось, то вызываем исключение	
 			IF ( ПУСТО( СтрокаИД ) )

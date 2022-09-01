@@ -4,7 +4,7 @@ _ERRORDESCRIPTION	= "";
 IF ( !ДОБАВИТЬКОНТЕКСТ( "SELECT doc.*, client.inn AS clientinn, client.name AS clientname, client.kpp AS clientkpp, 
 						  firm.inn AS firminn, firm.name AS firmname, firm.kpp AS firmkpp, firm.dir_empl, firm.dir_title, firm.ogrn AS firmogrn,
 						  firm.postcode AS firmpostcode, LEFT( CASE WHEN firm.kpp <> '' THEN firm.kpp ELSE firm.inn END, 2 ) AS firmregion, 
-						  firm.city AS firmcity, firm.street AS firmstreet, firm.building AS firmbuilding, firm.telefon AS firmtelefon,
+						  firm.city AS firmcity, firm.street AS firmstreet, firm.building AS firmbuilding, firm.telefon AS firmtelefon, firm.fwonds AS taxfree,
 						  firmempl.firstname AS firmfirstname, 
 						  (SELECT name FROM sprsimple WHERE code = firmempl.midname ) AS firmmidname, 
 						  (SELECT name FROM sprsimple WHERE code = firmempl.lastname ) AS firmlastname,

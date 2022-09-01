@@ -15,7 +15,9 @@ IF ( ПУСТО( ЧЕККПП ) )
 IF ( ПУСТО( ЧЕКАДРЕС ) )
 	ЧЕКАДРЕС		= ЗАПРОС( "SELECT adress FROM sprfirm WHERE code = '" + ЕГАИСФИРМА + "'" );
 
-ЧЕККАССА			= ЗАПРОС( "SELECT serialnumber FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'" );
+ЧЕККАССА			= ЗАПРОС( "SELECT value FROM param_ex WHERE param = 'FR_SERIAL" + КОДОБОРУДОВАНИЯ + "'" );
+IF ( ПУСТО( ЧЕККАССА ) )
+	ЧЕККАССА		= ЗАПРОС( "SELECT serialnumber FROM sprequipment WHERE code = '" + КОДОБОРУДОВАНИЯ + "'" );
 ЧЕКСМЕНА			= НОМЕРСМЕНЫ;
 ЧЕКНОМЕР			= НОМЕРЧЕКА;
 

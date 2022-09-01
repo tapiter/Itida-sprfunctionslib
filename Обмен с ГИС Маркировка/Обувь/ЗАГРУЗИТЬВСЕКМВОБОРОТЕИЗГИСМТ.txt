@@ -1,5 +1,4 @@
-
-// Авторизуемся
+/ Авторизуемся
 /*
 IF ( ПУСТО( ИДДОКУМЕНТА ) )
 	ИДДОКУМЕНТА 		= ЗАПРОС("SELECT TOP 1 ic FROM mark_stock_spec ORDER BY edit_dat DESC");

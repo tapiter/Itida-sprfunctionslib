@@ -1,1 +1,3 @@
-RETURN ЕСЛИ( UPPER( ALLTRIM( ВКЛАДКА ) ) == "INVENTORY", 1, 2 );
+
+//RETURN ЕСЛИ( UPPER( ALLTRIM( ВКЛАДКА ) ) == "INVENTORY", 1, 2 );
+RETURN -1;

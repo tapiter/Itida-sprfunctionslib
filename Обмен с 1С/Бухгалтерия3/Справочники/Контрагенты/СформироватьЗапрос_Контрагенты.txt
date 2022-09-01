@@ -1,10 +1,10 @@
 ТЕКСТЗАПРОСА = "SELECT s.code AS Ref, CONVERT( bit, 0 ) AS IsFolder, s.notavail AS DeletionMark,
 			" + ЕСЛИ( СинхронизироватьПоИНН, "CASE WHEN s.inn = '' THEN code ELSE '' END", "CASE WHEN ex_code = '' THEN code ELSE ex_code END" ) + " AS Code, 
-			CASE WHEN s.shortname = '' THEN name ELSE s.shortname END AS Description, 
-			s.note AS Комментарий,
+			CASE WHEN s.shortname = '' THEN REPLACE( REPLACE( name, CHAR(13) , '' ), CHAR(10), '' ) ELSE REPLACE( REPLACE( s.shortname, CHAR(13) , '' ), CHAR(10), '' ) END AS Description, 
+			REPLACE( REPLACE( s.note, CHAR(13) , '' ), CHAR(10), '' ) AS Комментарий,
 			CASE WHEN s.priz = 2 THEN 'ФизическоеЛицо' ELSE 'ЮридическоеЛицо' END AS ЮридическоеФизическоеЛицо, 
 			s.inn AS ИНН, s.okpo AS КодПоОКПО, s.kpp AS КПП,
-			s.name AS НаименованиеПолное, s.rs AS ОсновнойБанковскийСчет
+			REPLACE( REPLACE( s.name, CHAR(13) , '' ), CHAR(10), '' ) AS НаименованиеПолное, s.rs AS ОсновнойБанковскийСчет
  FROM sprclient s "+
 ЕСЛИ( ВыгрузитьВсеСправочники, "", " WHERE s.code IN 
 (SELECT DISTINCT client FROM spr000 spr000 WHERE " + ЕСЛИ( !ПУСТО( Фирма ), "spr000.firm IN (" + Фирма_Список + ") AND", "") + " (( DATEDIFF( day, spr000.edit_dat, '" + Период_min + "' ) <= 0 AND DATEDIFF( day, spr000.edit_dat, '" + Период_max + "' ) >= 0 ) OR 

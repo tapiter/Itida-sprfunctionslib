@@ -2,8 +2,8 @@ IF (ВыгружатьТоварыСвернутоПоНДС)
 	RETURN "";
 
 ТЕКСТЗАПРОСА = "SELECT code AS Ref, folder AS IsFolder, notavail AS DeletionMark,
-		maincode AS code, CASE WHEN shortname = '' THEN REPLACE( name, '&', '&amp;' ) ELSE REPLACE( shortname, '&', '&amp;' ) END AS Description,
-		REPLACE( RTRIM( LTRIM( name ) ) + ' ' + CASE WHEN weight <> 0 THEN RTRIM(CONVERT(char(8 ), weight)) + ' ' + ed_weight ELSE CASE WHEN d_litr <> 0 THEN RTRIM(CONVERT(char(8 ), d_litr)) + ' ' + edd_litr ELSE ' ' END END, '&', '&amp;' ) AS НаименованиеПолное, 
+		maincode AS code, CASE WHEN shortname = '' THEN REPLACE( REPLACE( REPLACE( name, '&', '&amp;' ), CHAR(13) , '' ), CHAR(10), '' ) ELSE REPLACE( REPLACE( REPLACE( shortname, '&', '&amp;' ), CHAR(13) , '' ), CHAR(10), '' ) END AS Description,
+		REPLACE( REPLACE( REPLACE( RTRIM( LTRIM( name ) ) + ' ' + CASE WHEN weight <> 0 THEN RTRIM(CONVERT(char(8 ), weight)) + ' ' + ed_weight ELSE CASE WHEN d_litr <> 0 THEN RTRIM(CONVERT(char(8 ), d_litr)) + ' ' + edd_litr ELSE ' ' END END, '&', '&amp;' ), CHAR(13) , '' ), CHAR(10), '' )  AS НаименованиеПолное, 
 		REPLACE( a_code, '&', '&amp;' ) AS Артикул, declar AS НомерГТД,
 		(SELECT ex_code FROM spredn WHERE code = s.ed) AS ЕдиницаИзмерения, 
 		(SELECT name FROM sprlistkodn WHERE code = s.kodn) AS ВидСтавкиНДС,

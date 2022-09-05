@@ -26,13 +26,11 @@ IF ( СУФФИКС == "СУЗ" )
 ELSE
 	ИДСОЕДИНЕНИЯ	= "";
 
-ГруппаМаркировки	= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + m_ПРЕДПРИЯТИЕ + "'" );
-		
+мГруппаМаркировки	= ЗАПРОС( "SELECT value FROM param_ex WHERE param= 'MARK_GROUP" + m_ПРЕДПРИЯТИЕ + "'" );
 // Авторизуемся
 МАРКИРОВКАТОКЕН		= "";
-
 // Для табака отдельный сервер маркировки
-IF ( ВСПИСКЕ( ГруппаМаркировки, "tobacco" ) )
+IF ( ВСПИСКЕ( мГруппаМаркировки, "tobacco" ) )
 	АдресСервера 		= ЕСЛИ( ТестовыйКонтур, "https://markirovka.sandbox.crptech.ru", "https://markirovka.crpt.ru" );
 ELSE
 	АдресСервера 		= ЕСЛИ( ТестовыйКонтур, "https://sandbox.crptech.ru", "https://ismp.crpt.ru" );

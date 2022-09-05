@@ -1,12 +1,47 @@
 СтрокаТовары = " { ";
 СтрокаТовары += """wares"": [";
+
+Начало = 0;
+Конец = 1000;
+
+IF ( !ПУСТО( ПАРАМЕТРЫЗАПРОСА ) )
+{
+	ПозицияНачальногоКоличества = ATC( ПАРАМЕТРЫЗАПРОСА, "from=", 1 );
+	ПозицияРазделителя = ATC( ПАРАМЕТРЫЗАПРОСА, "&", 1 );
+	IF ( ПозицияНачальногоКоличества > 0 )
+	{
+		Начало = ПОДСТРОКА( ПАРАМЕТРЫЗАПРОСА, ПозицияНачальногоКоличества + 5, ПозицияРазделителя - ПозицияНачальногоКоличества - 5 ) ;
+		ПАРАМЕТРЫЗАПРОСА = ПРАВСИМВ( ПАРАМЕТРЫЗАПРОСА, ДЛИНА( ПАРАМЕТРЫЗАПРОСА ) - ПозицияРазделителя );
+	}
+	
+	ПозицияКонечногоКоличества = ATC( ПАРАМЕТРЫЗАПРОСА, "to=", 1 );
+	ПозицияРазделителя = ATC( ПАРАМЕТРЫЗАПРОСА, "&", 1 );
+	IF ( ПозицияРазделителя == 0 )
+		ПозицияРазделителя = ДЛИНА( ПАРАМЕТРЫЗАПРОСА );
+		
+	IF ( ПозицияКонечногоКоличества > 0 )
+	{
+		Конец = ПОДСТРОКА( ПАРАМЕТРЫЗАПРОСА, ПозицияКонечногоКоличества + 3, ПозицияРазделителя - ПозицияНачальногоКоличества - 3 + 1 );
+		ПАРАМЕТРЫЗАПРОСА = ПРАВСИМВ( ПАРАМЕТРЫЗАПРОСА, ДЛИНА( ПАРАМЕТРЫЗАПРОСА ) - ПозицияРазделителя );
+	}
+	
+	/*
+	ФАЙЛЗАПИСАТЬ( ФайлЖурнала, "from = " + Начало + CHR( 13 ) + CHR( 10 ));
+	ФАЙЛЗАПИСАТЬ( ФайлЖурнала, "to = " + Конец + CHR( 13 ) + CHR( 10 ));
+	*/
+}
 	
 
-ДОБАВИТЬКОНТЕКСТ("SELECT TOP 1000 spr.code, spr.maincode, spr.ex_code, spr.gtin, dbo.fn_getpath( 'S02', '0000000001', spectree.parent, '#', 0) AS fullpath, spr.name, spr.shortname, dbo.fn_getpriceslist( spr.code ) AS pricelist, spr.a_proc,
-spr.min_cena, dbo.fn_getalcocodes(spr.code) as alcocodes, dbo.fn_getbarcodes_ex( spr.code ) AS barcodes, spr.nnvid, spr.store_period, spr.a_code, spr.ed, spr.d_litr, spr.edd_litr, spr.weight, spr.ed_weight, spr.maxdiscount, spr.inside, spr.kodn, spr.note, spr.ftara, spr.fractqty, spr.enterqty, spr.enterprice,
-spr.f_mark, spr.markgroup, spr.f_marknotrequire, spr.f_agentware, spr.image_path, spr.notavail
-FROM sprres spr
-INNER JOIN spectree spectree ON spectree.ic = spr.identity_column AND spectree.code= '0000000001' AND spectree.folder = 0", "Товары");
+ДОБАВИТЬКОНТЕКСТ("WITH ordered_wares AS (
+	SELECT ROW_NUMBER() OVER(ORDER BY spr.code ASC) AS row_num, spr.code, spr.maincode, spr.ex_code, spr.gtin, dbo.fn_getpath( 'S02', '0000000001', spectree.parent, '#', 0) AS fullpath, spr.name, spr.shortname, dbo.fn_getpriceslist( spr.code ) AS pricelist, spr.a_proc,
+	spr.min_cena, dbo.fn_getalcocodes(spr.code) as alcocodes, dbo.fn_getbarcodes_ex( spr.code ) AS barcodes, spr.nnvid, spr.store_period, spr.a_code, spr.ed, spr.d_litr, spr.edd_litr, spr.weight, spr.ed_weight, spr.maxdiscount, spr.inside, spr.kodn, spr.note, spr.ftara, spr.fractqty, spr.enterqty, spr.enterprice,
+	spr.f_mark, spr.markgroup, spr.f_marknotrequire, spr.f_agentware, spr.image_path, spr.notavail
+	FROM sprres spr
+	INNER JOIN spectree spectree ON spectree.ic = spr.identity_column AND spectree.code= '0000000001' AND spectree.folder = 0 
+)
+SELECT *
+  FROM ordered_wares
+  WHERE row_num BETWEEN " + VAL( Начало ) + " AND " + VAL( Конец ), "Товары");
 WHILE ( !КОНЕЦКОНТЕКСТА("Товары") )
 {
 	Код				= ДАННЫЕ_JSON("code", Товары.code);

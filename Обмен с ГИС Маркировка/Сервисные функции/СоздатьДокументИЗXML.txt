@@ -18,7 +18,8 @@ IF ( !ПУСТО( GUIDДокумента ) )
 		
 ДОБАВИТЬКОНТЕКСТ( "LOCAL: Номер text, Дата datetime, ПродавецНаименование text, ПродавецИНН text, ПродавецКПП text, ПродавецАдрес text, 
 						  ПродавецСчет text, ПродавецБанк text, ПродавецЭДОИД text, ПолучательНаименование text, ПолучательИНН text, 
-						  ПолучательКПП text, ПолучательЭДОИД text, Грузополучатель text, ГрузополучательКПП text, Сумма float, СуммаБезНДС float", "Документ" );
+						  ПолучательКПП text, ПолучательЭДОИД text, Грузополучатель text, ГрузополучательКПП text, Сумма float, 
+						  СуммаБезНДС float, НомерИсходного text, ДатаИсходного datetime", "Документ" );
 ДОБАВИТЬКОНТЕКСТ( "LOCAL: НомерСтроки int, НаименованиеТовара text, Единица text, ОКЕИ text, Налог float, Количество float, 
 						  Сумма float, СуммаБезНДС float, ШтрихКод text ", "СтрокиДокумента" );
 ДОБАВИТЬКОНТЕКСТ( "LOCAL: НомерСтроки int, Марка text", "Марки" );
@@ -43,6 +44,8 @@ IF ( !ПУСТО( GUIDДокумента ) )
 ПолучательЭДОИД			= "";
 Сумма 					= 0.00;
 СуммаБезНДС				= 0.00;
+НОМЕРИСХОДНОГО			= "";
+ДАТАИСХОДНОГО			= {};
 
 НомерСтроки 			= 0;
 НаименованиеТовара 		= "";
@@ -114,10 +117,12 @@ try
 		END
 		
 		-- ТАБЛИЦА ВХОДЯЩИХ ДОКУМЕНТОВ ИЗ СИСТЕМЫ МАРКИРОВКА
-		INSERT INTO mark_in ( guid, editionguid, editionnum, ent, ndok, date, vendorname, vendorinn, vendorkpp, vendoraddress, vendorbank, vendorrs, client, summa, firm )
+		INSERT INTO mark_in ( guid, editionguid, editionnum, ent, ndok, date, vendorname, vendorinn, vendorkpp, vendoraddress, 
+							  vendorbank, vendorrs, client, summa, firm, crc_document, crcscnum, crcscdate )
 		VALUES ( @guiddoc, '[[ STDF( GUIDРедакции ) ]]', @editionnum, '[[ STDF( Предприятие ) ]]', @ndok, '[[ DTOC( Дата ) ]]', '[[ STDF( ПродавецНаименование, 250) ]]', 
 				 '[[ STDF( ПродавецИНН, 50 ) ]]', '[[ STDF( ПродавецКПП, 50 ) ]]', '[[ STDF( ПродавецАдрес, 250 ) ]]', '[[ STDF( ПродавецБанк, 20 ) ]]', 
-				 '[[ STDF( ПродавецСчет, 50 ) ]]', '[[ STDF( КодКлиента ) ]]', [[ STR( Сумма, 16, 2 ) ]], '[[ STDF( Фирма ) ]]' );
+				 '[[ STDF( ПродавецСчет, 50 ) ]]', '[[ STDF( КодКлиента ) ]]', [[ STR( Сумма, 16, 2 ) ]], '[[ STDF( Фирма ) ]]',
+				 [[ ЕСЛИ( ПУСТО( НомерИсходного ), "0", "1" ) ]], '[[ STDF( НомерИсходного, 30 ) ]]', '[[ DTOC( ДатаИсходного ) ]]' );
 	}
 	SQLERROR throw( 1 );
 	

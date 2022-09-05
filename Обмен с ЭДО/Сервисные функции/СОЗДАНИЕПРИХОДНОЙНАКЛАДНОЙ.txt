@@ -10,9 +10,13 @@ IF ( ПУСТО( СКЛАДПРИХОДА ) )
 КУРСДОКУМЕНТА			= 1;
 ФИЛИАЛДОКУМЕНТА			= ЗАПРОС( "SELECT branch FROM sprskl WHERE code = '" + СКЛАДПРИХОДА + "'" );
 
-НОМЕРДОКУМЕНТА			= ЗАПРОС( "SELECT ndok, date, client FROM ediincome WHERE rid = '" + РИДДОКУМЕНТА + "'", "ndok" );
+НОМЕРДОКУМЕНТА			= ЗАПРОС( "SELECT ndok, date, client, crc_document, crcscnum, crcscdate 
+								   FROM ediincome WHERE rid = '" + РИДДОКУМЕНТА + "'", "ndok" );
 ДАТАДОКУМЕНТА			= ЗАПРОС( "", "date" );
 КОНТРАГЕНТ				= ЗАПРОС( "", "client" );
+ДАТАИСХОДНОГО			= ЗАПРОС( "", "crcscdate" );
+НОМЕРИСХОДНОГО			= ЗАПРОС( "", "crcscnum" );
+КОРРЕКТИРОВКА			= ЗАПРОС( "", "crc_document" );
 КОММЕНТАРИЙ				= "Создан на основании входящего УПД № " + НОМЕРДОКУМЕНТА + " от " + DTOC( ДАТАДОКУМЕНТА );
 _ТОЧКАЗРЕНИЯ			= ЗАПРОС( "SELECT dbo.fn_getdefaultviewpoint( )" );
 
@@ -45,6 +49,9 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "МоделиУчета" ) )
 			scdate				= '" + DTOC( ДАТАДОКУМЕНТА ) + "', 
 			nknum				= '" + STDF( НОМЕРДОКУМЕНТА ) + "', 
 			nkdate				= '" + DTOC( ДАТАДОКУМЕНТА ) + "', 
+			crcscnum			= '" + STDF( НОМЕРИСХОДНОГО ) + "', 
+			crcscdate			= '" + DTOC( ДАТАИСХОДНОГО ) + "', 
+			crc_document		=  " + ЕСЛИ( КОРРЕКТИРОВКА, "1", "0" ) + ", 
 			intype				= 'Закупка',
 			summa				= 0
 		WHERE identity_column = " + ИДНакладной );

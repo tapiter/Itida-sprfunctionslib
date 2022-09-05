@@ -105,7 +105,7 @@ try
 		// Иначе, выводим сообщение об ошибке и статус 2
 		ЗАГРУЗИТЬJSON( "Ошибка", ЗНАЧЕНИЕПОЛЯ( "Документ", "errors", "" ), "error_message" );
 		ТекстОшибки		= ПЕРЕКОДИРОВАТЬ( ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_message", "" ), "UTF-8", "ANSI" );
-		ЗАПРОС( "UPDATE mark_reciept SET guid = '" + STDF( Ответ ) + "', status = 2, reply= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + ИДДОКУМЕНТА );
+		ЗАПРОС( "UPDATE mark_reciept SET guid = '" + STDF( Ответ ) + "', status = 3, reply= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + ИДДОКУМЕНТА );
 		THROW( ТекстОшибки );
 	}
 

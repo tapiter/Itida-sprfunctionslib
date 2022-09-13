@@ -74,7 +74,7 @@ try
 	ЗАГРУЗИТЬJSON( "Документ", Документ );
 	// Если документ был принят без ошибок, то ставим статус 1.
 	IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( ЗНАЧЕНИЕПОЛЯ( "Документ", "status", "" ) ) ) == "CHECKED_OK" )
-		ЗАПРОС( "UPDATE mark_writeoff SET guid = '" + STDF( Ответ ) + "', status = 1, reply= 'нет ошибок' WHERE identity_column = " + ИДДОКУМЕНТА );
+		ЗАПРОС( "UPDATE mark_writeoff SET guid = '" + STDF( Ответ ) + "', status = 2, reply= 'нет ошибок' WHERE identity_column = " + ИДДОКУМЕНТА );
 	ELSE IF ( ПРОПИСНЫЕ( СЖАТЬПРОБЕЛЫ( ЗНАЧЕНИЕПОЛЯ( "Документ", "status", "" ) ) ) == "IN_PROGRESS" )
 		THROW( "Сервер ГИС МТ не успел обработать документ за отведенное для этого время." + CHR( 13 ) + "Проверьте статус отправки позже запросив обновления документов" );
 	ELSE
@@ -82,7 +82,7 @@ try
 		// Иначе, выводим сообщение об ошибке и статус 2
 		ЗАГРУЗИТЬJSON( "Ошибка", ЗНАЧЕНИЕПОЛЯ( "Документ", "errors", "" ), "error_message" );
 		ТекстОшибки		= ПЕРЕКОДИРОВАТЬ( ЗНАЧЕНИЕПОЛЯ( "Ошибка", "error_message", "" ), "UTF-8", "ANSI" );
-		ЗАПРОС( "UPDATE mark_writeoff SET guid = '" + STDF( Ответ ) + "', status = 2, reply= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + ИДДОКУМЕНТА );
+		ЗАПРОС( "UPDATE mark_writeoff SET guid = '" + STDF( Ответ ) + "', status = 3, reply= '" + ЛЕВСИМВ( STDF( ТекстОшибки ), 250 ) + "' WHERE identity_column = " + ИДДОКУМЕНТА );
 		THROW( ТекстОшибки );
 	}
 

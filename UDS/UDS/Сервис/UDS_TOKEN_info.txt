@@ -1,0 +1,1 @@
+{"description":"ЛОКАЛЬНАЯ UDS_TOKEN (НОМЕРКАРТЫ)","note":"Получение токена для работы с системой LOCARDS по API","isLocal":true}

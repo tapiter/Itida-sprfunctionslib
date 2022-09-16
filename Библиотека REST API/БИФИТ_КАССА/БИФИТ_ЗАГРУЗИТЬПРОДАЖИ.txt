@@ -163,7 +163,7 @@ ELSE IF ( ПЕРИОДЗАГРУЗКИ == 5 ) //последняя смена
 
 IF (КОЛИЧЕСТВОСТРОК("Чеки") == 0)
 {
-	СООБЩЕНИЕ("По заданным параметрам транзакции не обнаружены");
+	СООБЩЕНИЕ("Нет чеков по заданным параметрам");
 	RETURN true;
 }
 
@@ -191,11 +191,12 @@ WHILE (!КОНЕЦКОНТЕКСТА("Чеки"))
 }
 УДАЛИТЬКОНТЕКСТ("Чеки");
 
+ИмяФайлаЖурнала = RESTAPI.ИМЯФАЙЛАЖУРНАЛА(path_in, "bifit_http_goods_query");
 //запросим товары организации во временную таблицу, для однозначного определения кода товара по externalCode
 АдресРесурса = "/cashdesk-api/v1/protected/nomenclatures/list/read?category=0&organization_id=" + ОрганизацияИД;
 ТоварыJSON = RESTAPI.БИФИТ_POSTЗАПРОС(_АДРЕССЕРВЕРАБИФИТ, АдресРесурса, "", БифитТокен, "");
 ТаблицаТоваровБифит				= "##" + УНИКАЛЬНОЕИМЯ( );
-ЗАПРОС( "CREATE TABLE " + ТаблицаТоваровБифит + "( tovarid varchar( 20 ), externalCode varchar( 20 ) )" );
+ЗАПРОС( "CREATE TABLE " + ТаблицаТоваровБифит + "( tovarid bigint, externalCode varchar( 20 ) )" );
 ЗАГРУЗИТЬJSON( "ТоварыБифит", ТоварыJSON, "goods" );
 
 ВЫБРАТЬКОНТЕКСТ("ТоварыБифит");
@@ -205,7 +206,7 @@ WHILE (!КОНЕЦКОНТЕКСТА("ТоварыБифит"))
 	ЗАГРУЗИТЬJSON( "Товар", ТоварыБифит.goods );
 	// Переносим все товары во временную таблицу
 	//ВЫГРУЗИТЬ( ТаблицаТоваровБифит, "id, externalCode", "", "Товар" );
-	ЗАПРОС("INSERT INTO " + ТаблицаТоваровБифит + " (tovarid, externalCode) VALUES ('" + Товар.id + "', '" + Товар.externalCode + "')");
+	ЗАПРОС("INSERT INTO " + ТаблицаТоваровБифит + " (tovarid, externalCode) VALUES (" + Товар.id + ", '" + Товар.externalCode + "')");
 	УДАЛИТЬКОНТЕКСТ("Товар");
 	ПРОПУСТИТЬ( 1, "ТоварыБифит" );
 }
@@ -218,6 +219,7 @@ WHILE (!КОНЕЦКОНТЕКСТА("ТоварыБифит"))
 // 55 - закрытие чека
 //транзакции нумеруем сами, т.к. в Бифит номера большие и велика вероятность быстро достичь лимита по ИД записи во frontol__tranzt
 ИДТранзакции							= ЗАПРОС( "SELECT MAX( tranzcount ) FROM frontol__tranzt WHERE equipment= '" + КОДОБОРУДОВАНИЯ + "'" );
+
 ДОБАВИТЬКОНТЕКСТ( "SELECT receipt, receiptItemList, historyList, cashierInfo, mainPaymentId FROM " + ТаблицаПервичныхДанных, "Данные" );
 ИНДИКАТОР( "Загрузка чеков", КОЛИЧЕСТВОСТРОК( "Данные" ) );
 WHILE ( !КОНЕЦКОНТЕКСТА( "Данные" ) )
@@ -238,7 +240,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "Данные" ) )
 	}
 	date								= ЗАПРОС("SELECT DATEADD(s, " + VAL(LEFT(Чек.fiscalReceiptTime,10)) + ", '1970-01-01 00:00:00')");
 	tranzType							= "42";
-	posNumber							= ЗНАЧЕНИЕПОЛЯ( "Чек", "tradeObjectId", 0 );
+	posNumber							= 1; //ЗНАЧЕНИЕПОЛЯ( "Чек", "tradeObjectId", 0 );
 	doccode								= "";
 	seller								= STR( VAL( ЗАПРОС( "SELECT maincode FROM sprempl WHERE inn='" + ЗНАЧЕНИЕПОЛЯ( "Кассир", "inn", "" ) + "'" ) ) );
 	wareMark							= "";
@@ -279,7 +281,7 @@ WHILE ( !КОНЕЦКОНТЕКСТА( "Данные" ) )
 	{
 		ЗАГРУЗИТЬJSON( "СтрокаЧека", Позиции.Позиция );
 		nnname			= ЗНАЧЕНИЕПОЛЯ( "СтрокаЧека", "description", "Свободная продажа" );
-		nn				= ЗАПРОС( "SELECT externalCode FROM " + ТаблицаТоваровБифит + " WHERE tovarid = '" + STDF( СтрокаЧека.nomenclatureId ) + "'" );
+		nn				= ЗАПРОС( "SELECT externalCode FROM " + ТаблицаТоваровБифит + " WHERE tovarid = " + VAL( СтрокаЧека.nomenclatureId ) );
 		
 		itida_nn		= ЗАПРОС("SELECT nn FROM sprnn WHERE maincode = '" + ALLTRIM( nn ) + "'");
 		IF ( _БИФИТПРОПУСКАТЬНЕНАЙДЕННЫЕТОВАРЫПРИЗАГРУЗКЕ == true AND ПУСТО( itida_nn ) )
